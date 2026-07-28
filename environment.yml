@@ -1,0 +1,29 @@
+name: aucspec
+
+channels:
+  - conda-forge
+
+# vLLM ships CUDA/PyTorch-dependent wheels through pip.  Keep PyTorch out of
+# the conda section so pip can install the version expected by vLLM.
+dependencies:
+  - python=3.11
+  - pip>=24
+  - setuptools>=69
+  - wheel
+  - git
+  - ninja
+  - packaging
+  - cmake
+  - pip:
+      # Pin vLLM to the API generation used by this project.
+      - vllm==0.9.1
+      - transformers>=4.51,<4.57
+      - accelerate>=0.34,<2
+      - datasets>=3,<5
+      - PyYAML>=6,<7
+      - pandas>=2.2,<3
+      - numpy>=1.26,<3
+      - tqdm>=4.66,<5
+      - huggingface-hub>=0.30,<1
+      # Install this repository as an editable package.
+      - -e .

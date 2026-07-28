@@ -1,0 +1,50 @@
+models:
+  target: Qwen/Qwen2.5-7B-Instruct
+  draft: Qwen/Qwen2.5-1.5B-Instruct
+  draft_devices: [cuda:1, cuda:2, cuda:3]
+  target_gpu_memory_utilization: 0.88
+  target_max_model_len: 8192
+  target_dtype: auto
+  target_enforce_eager: false
+  # vLLM caches reusable target-prefix KV blocks across verification rounds.
+  target_enable_prefix_caching: true
+
+dataset:
+  # gsm8k | math | cnn_dailymail
+  name: gsm8k
+  split: test
+  num_questions: 12
+  shuffle: true
+  seed: 42
+  shuffle_buffer: 1000
+
+  # Output budget per question.
+  max_new_tokens: 256
+
+  # Used only when name=math:
+  # all | algebra | counting_and_probability | geometry |
+  # intermediate_algebra | number_theory | prealgebra | precalculus
+  math_subject: all
+
+  # Used only when name=cnn_dailymail. Long articles are truncated by chars
+  # before tokenization so small test runs do not exceed model context length.
+  max_article_chars: 12000
+
+simulation:
+  seed: 42
+  num_clients: 6
+  gamma_max: 4
+  controller_v: 10.0
+  min_interactivity_tps: 8.0
+  server_price_scale: 0.02
+  temperature: 0.0
+  output_csv: results/rounds.csv
+
+verification_batching:
+  max_batch_size: 16
+  batch_wait_ms: 5.0
+
+clients:
+  rtt_ms_range: [15.0, 100.0]
+  uplink_mbps_range: [5.0, 50.0]
+  draft_speed_multiplier_range: [0.7, 1.5]

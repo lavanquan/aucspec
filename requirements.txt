@@ -1,0 +1,7 @@
+vllm>=0.9
+transformers>=4.45,<4.57
+accelerate>=0.34
+PyYAML>=6.0
+pandas>=2.2
+torch>=2.4
+datasets>=3.0
