@@ -3,7 +3,8 @@
 Architecture:
 
 - GPU 0: `Qwen/Qwen2.5-7B-Instruct` loaded by vLLM as the target verifier.
-- GPU 1–3: persistent `Qwen/Qwen2.5-1.5B-Instruct` draft workers.
+- Remaining GPUs listed in `models.draft_devices`: persistent
+  `Qwen/Qwen2.5-1.5B-Instruct` draft workers.
 - CPU: dataset streaming, virtual clients, online controller, RTT/uplink delay,
   censored acceptance learning, batch formation, and CSV metrics.
 
@@ -63,6 +64,9 @@ huggingface-cli login
 Do **not** start a separate vLLM HTTP server. The target is loaded directly by
 the simulator on GPU 0.
 
+The simulator is parameterized by the length of `models.draft_devices`, so the
+same code works for 1, 3, 4, 8, or more configured draft GPUs.
+
 ```bash
 python scripts/run_simulation.py --config configs/default.yaml
 ```
@@ -78,6 +82,20 @@ python scripts/run_simulation.py \
 
 Add `--detailed-log` if you want full per-round token traces in `results/rounds.csv`.
 Add `--num-clients 4` if you want to split the questions across a different number of clients.
+
+If you want `models.draft_devices` to match the current node automatically, generate
+a runtime config first:
+
+```bash
+python scripts/prepare_device_config.py \
+  --config configs/default.yaml \
+  --output-config configs/runtime_devices.yaml
+python scripts/run_simulation.py --config configs/runtime_devices.yaml
+```
+
+The helper uses `CUDA_VISIBLE_DEVICES` when available; otherwise it falls back to
+`torch.cuda.device_count()`. By default it reserves visible `cuda:0` for the target
+verifier and assigns the remaining visible GPUs to draft workers.
 
 MATH example:
 

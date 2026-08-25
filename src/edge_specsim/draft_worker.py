@@ -16,7 +16,6 @@ class DraftRequest:
     client_id: int
     context_token_ids: list[int]
     gamma: int
-    speed_multiplier: float
     temperature: float = 0.0
 
 
@@ -41,9 +40,16 @@ class DraftWorker:
     independent KV cache stored on that worker's GPU. Model weights are loaded once.
     """
 
-    def __init__(self, worker_id: int, model_name: str, device: str) -> None:
+    def __init__(
+        self,
+        worker_id: int,
+        model_name: str,
+        device: str,
+        enable_kv_cache: bool = True,
+    ) -> None:
         self.worker_id = worker_id
         self.device = device
+        self.enable_kv_cache = bool(enable_kv_cache)
         token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN")
         try:
             self.tokenizer = AutoTokenizer.from_pretrained(model_name, token=token)
@@ -87,6 +93,13 @@ class DraftWorker:
         async with self.lock:
             await asyncio.to_thread(self._commit_sync, client_id, committed_token_ids)
 
+    async def confirmed_length(self, client_id: int) -> int | None:
+        async with self.lock:
+            state = self.client_states.get(client_id)
+            if state is None:
+                return None
+            return state.confirmed_length
+
     def _initialize_state(self, request: DraftRequest) -> DraftKVState:
         if not request.context_token_ids:
             raise ValueError("Draft context cannot be empty")
@@ -110,6 +123,8 @@ class DraftWorker:
         return state
 
     def _ensure_state(self, request: DraftRequest) -> DraftKVState:
+        if not self.enable_kv_cache:
+            return self._initialize_state(request)
         state = self.client_states.get(request.client_id)
         # A mismatch indicates a new sample/reset or an external state change.
         if state is None or state.confirmed_length != len(request.context_token_ids):
@@ -132,12 +147,7 @@ class DraftWorker:
             for _ in range(request.gamma):
                 if request.temperature <= 0.0:
                     token_id = int(torch.argmax(logits, dim=-1).item())
-                    logprobs = torch.full(
-                        (logits.shape[-1],),
-                        float("-inf"),
-                        dtype=torch.float32,
-                    )
-                    logprobs[token_id] = 0.0
+                    logprobs = None
                 else:
                     scaled_logits = logits / request.temperature
                     logprobs = torch.log_softmax(scaled_logits, dim=-1).squeeze(0).detach().cpu()
@@ -167,11 +177,17 @@ class DraftWorker:
             token_ids=proposed,
             draft_logprobs=draft_logprobs,
             text=self.tokenizer.decode(proposed, skip_special_tokens=True),
-            latency_ms=elapsed_ms * request.speed_multiplier,
+            latency_ms=elapsed_ms,
             worker_id=self.worker_id,
+            distribution_payload=(
+                "delta_proposal" if request.temperature <= 0.0 else "full_vocab_logprobs"
+            ),
         )
 
     def _commit_sync(self, client_id: int, committed_token_ids: list[int]) -> None:
+        if not self.enable_kv_cache:
+            self.client_states.pop(client_id, None)
+            return
         state = self.client_states.get(client_id)
         if state is None:
             # The next generate call will initialize from the complete context.

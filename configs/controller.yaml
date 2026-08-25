@@ -1,0 +1,36 @@
+decoding:
+  mode: greedy
+  temperature: 0.0
+
+controller:
+  policy: adaptive_ucb
+  gamma_choices: [0, 1, 2, 4, 6, 8]
+  fixed_gamma: 4
+  min_exploration_rounds: 4
+  exploration_gamma: 1
+  exploration_epsilon: 0.05
+  V: 100.0
+  min_interactivity_tps: 8.0
+  server_price_scale: 0.02
+  verifier_price_lambda: 1.0
+  draft_latency_weight: 0.002
+  uplink_latency_weight: 0.002
+  use_virtual_queues: true
+  learning:
+    mode: bernstein_censored_discounted
+    profile_mode: position
+    alpha_prior_success: 1.0
+    alpha_prior_failure: 1.0
+    discount: 0.98
+    ucb_coefficient: 1.5
+    window_size: 64
+
+control:
+  slot_ms: 100.0
+
+verification_batching:
+  scheduler: fcfs
+  max_batch_size: 16
+  batch_wait_ms: 5.0
+  verify_token_budget: 80
+  utility_lambda: 0.25

@@ -1,0 +1,602 @@
+% ============================================================================
+% Problem Formulation: AUC-Optimal Distributed Speculative Decoding at the Edge
+% Working title: "Maximizing the Throughput--Interactivity Frontier:
+%                 AUC-Optimal Distributed Speculative Decoding for Edge LLM
+%                 Inference"
+% Target venues: ACM SIGMETRICS / IEEE INFOCOM
+%
+% Drop-in note: for IEEEtran or acmart, delete this preamble and keep the body
+% from \section{...} onwards; the theorem environments below match both styles.
+% Reference keys used as placeholders are listed at the end of this file with
+% their arXiv IDs for wiring into the .bib.
+% ============================================================================
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{booktabs,array}
+\usepackage{enumitem}
+\usepackage[colorlinks=true,allcolors=blue]{hyperref}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{assumption}{Assumption}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\cN}{\mathcal{N}}
+\newcommand{\cB}{\mathcal{B}}
+\newcommand{\cC}{\mathcal{C}}
+\newcommand{\cD}{\mathcal{D}}
+\newcommand{\auc}{\mathrm{AUC}}
+\newcommand{\nauc}{\widehat{\mathrm{AUC}}}
+\newcommand{\bx}{\mathbf{x}}
+\newcommand{\bw}{\mathbf{w}}
+\newcommand{\bgamma}{\bm{\gamma}}
+\newcommand{\ind}[1]{\mathbf{1}\{#1\}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\begin{document}
+
+\section{System Model and Problem Formulation}\label{sec:formulation}
+
+Batched LLM inference places two service objectives in direct tension:
+\emph{system throughput}, the aggregate token rate delivered by the serving
+infrastructure (tokens/s), and \emph{user interactivity}, the token rate
+experienced by each individual stream (tokens/s/user). Enlarging the
+verification batch improves throughput but dilutes per-user rates, while
+speculative decoding (SD) accelerates individual streams at the cost of
+verification compute that could otherwise serve additional users. In edge
+deployments this tension is sharpened by wireless round trips, heterogeneous
+draft--target agreement across users, and a hard roofline on the shared
+verification server. Existing SD serving systems---in the datacenter and at
+the edge---select a \emph{single operating point} on this trade-off, e.g.,
+maximum throughput, a fixed latency SLO, or a fairness utility. We instead
+treat the entire throughput--interactivity Pareto frontier as the design
+object and \emph{maximize its area} (AUC). We formulate AUC maximization as a
+bilevel stochastic optimization coupling configuration (draft placement and
+sizing) with runtime control (speculation lengths, batching, and wireless
+resource allocation), show that the objective admits an operational
+robustness interpretation and a tractable dual structure, and lay out the
+structural, asymptotic, and online-learning results that the formulation
+supports.
+
+\subsection{Network and Speculative Decoding Model}\label{ssec:model}
+
+We consider a set $\cN=\{1,\dots,N\}$ of edge devices, each sustaining a
+persistent decode stream, and a shared edge server hosting the target model.
+Device $i$ runs a draft model of size $s_i$ selected from a library $\cD$,
+with per-token drafting latency $\tau_i^{\mathrm{d}}(s_i)$ and memory
+footprint $m(s_i)$. Time is slotted for control purposes; stream dynamics
+evolve in rounds. In round $k$, stream $i$ drafts
+$\gamma_i(k)\in\{0,1,\dots,\gamma_{\max}\}$ tokens, transmits
+$\kappa\,\gamma_i(k)$ bits uplink (token identifiers plus quantized draft
+probabilities, which suffice for lossless rejection-sampling verification) at
+rate
+\begin{equation}\label{eq:rate-wireless}
+r_i(t)\;=\;w_i(t)\,\log_2\!\bigl(1+\mathrm{SNR}_i(t)\bigr),
+\qquad \textstyle\sum_{i\in\cN} w_i(t)\;\le\; W,
+\end{equation}
+waits $W_i^{\mathrm{q}}(k)$ in the server queue, is verified within a batch,
+and receives the accepted prefix plus one bonus token; $\delta_i$ collects the
+fixed per-round latency (downlink, propagation, protocol overhead). The
+server verifies a batch $\cB$ carrying
+$\Gamma(\cB)=\sum_{i\in\cB}\bigl(\gamma_i+1\bigr)$ tokens in one forward pass.
+Table~\ref{tab:notation} summarizes the notation.
+
+\begin{table}[t]
+\centering
+\caption{Notation.}
+\label{tab:notation}
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Symbol & Meaning \\
+\midrule
+$\cN$, $N$ & set / number of edge streams \\
+$\cD$, $s_i$, $m(s_i)$ & draft library, draft choice of stream $i$, its memory footprint \\
+$\gamma_i(t)$, $\gamma_{\max}$ & speculation length, its cap \\
+$\alpha_i$ & token-level acceptance rate of stream $i$ (unknown) \\
+$\phi(\gamma,\alpha)$ & expected tokens delivered per round, \eqref{eq:phi} \\
+$A_i(k)$ & tokens delivered to stream $i$ in round $k$ (accepted $+$ bonus) \\
+$\tau_i^{\mathrm{d}}$ & per-token drafting latency \\
+$\kappa$ & uplink payload per drafted token (bits) \\
+$w_i(t)$, $W$, $r_i(t)$ & bandwidth allocation, budget, uplink rate \eqref{eq:rate-wireless} \\
+$\delta_i$ & fixed per-round latency (downlink $+$ overhead) \\
+$\cB(t)$, $\Gamma(\cB)$ & verification batch, its total token count \\
+$\theta_0$, $\theta_f$, $\theta_m(\cdot)$ & per-pass overhead, per-token compute time, memory floor \\
+$b_W$, $b_{\mathrm{KV}}$, $\beta_{\mathrm{mem}}$, $L_i$ & model bytes, KV bytes/token, memory bandwidth, context length \\
+$\Gamma^{\dagger}$ & roofline knee, \eqref{eq:Tv} \\
+$W_i^{\mathrm{q}}(k)$ & queueing delay of stream $i$ in round $k$ \\
+$x_i$, $Y$ & interactivity of stream $i$, system goodput \\
+$\cC(\xi)$, $Y^{\star}(x;\xi)$, $\bar{x}(\xi)$ & achievable region, frontier, max-min interactivity \\
+$\auc(\xi)$, $\nauc(\xi)$ & area under the frontier, its normalization \\
+$\xi\in\Xi$; $\pi\in\Pi$ & configuration; runtime policy \\
+$Z_i(t)$, $Q(t)$, $Q_i(t)$ & interactivity, server-compute, device-time virtual queues \\
+$V$, $\lambda(t)$, $\mu_i(t)$ & Lyapunov weight, verification-token price, device-time price \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+We impose the following assumptions before the analysis.
+
+\begin{assumption}[Acceptance process]\label{as:acceptance}
+For each stream $i$, token-level acceptance events are i.i.d.\
+$\mathrm{Bernoulli}(\alpha_i)$ with $\alpha_i\in[\alpha_{\min},
+\alpha_{\max}]\subset(0,1)$, independent across streams; $\alpha_i$ is
+\emph{unknown} to the controller. Consequently, a round with speculation
+length $\gamma$ delivers $A$ tokens (accepted prefix plus bonus) with
+\begin{equation}\label{eq:phi}
+\E[A]\;=\;\phi(\gamma,\alpha)\;\coloneqq\;\frac{1-\alpha^{\gamma+1}}{1-\alpha},
+\end{equation}
+and $A-1$ is a geometric random variable truncated at $\gamma$.
+\end{assumption}
+
+\begin{assumption}[Roofline verification]\label{as:roofline}
+Verifying batch $\cB$ takes
+\begin{equation}\label{eq:Tv}
+T^{\mathrm{v}}(\cB)\;=\;\theta_0+\max\Bigl\{\,
+\underbrace{\tfrac{b_W+b_{\mathrm{KV}}\sum_{i\in\cB}L_i}{\beta_{\mathrm{mem}}}}_{\text{memory-bound }\theta_m(\cB)},\;
+\underbrace{\theta_f\,\Gamma(\cB)}_{\text{compute-bound}}\Bigr\},
+\end{equation}
+with roofline knee $\Gamma^{\dagger}(\cB)\coloneqq\theta_m(\cB)/\theta_f$ at
+which the two regimes cross.
+\end{assumption}
+
+\begin{assumption}[Wireless channels]\label{as:channel}
+$\{\mathrm{SNR}_i(t)\}$ are i.i.d.\ across slots (block fading), independent
+across streams, and induce bounded rates $0<r_{\min}\le r_i(t)\le r_{\max}$
+for any feasible allocation.
+\end{assumption}
+
+\begin{assumption}[Closed-loop traffic]\label{as:traffic}
+Each stream is persistent and closed-loop: round $k+1$ is issued immediately
+upon receipt of round $k$'s response, so per-stream round epochs form renewal
+cycles under any stationary policy.
+\end{assumption}
+
+\begin{assumption}[Drafting cost]\label{as:draft}
+Drafting $\gamma$ tokens on device $i$ takes $\gamma\,\tau_i^{\mathrm{d}}$
+seconds and is not overlapped with that stream's verification.
+\end{assumption}
+
+\subsection{Interactivity, Goodput, and the Achievable Region}\label{ssec:metrics}
+
+Let $\xi\in\Xi$ denote the \emph{configuration}: the draft assignment
+$\{s_i\}_{i\in\cN}$, the drafting placement (on-device vs.\ server-side), and
+the target replication/parallelism plan. Let $\pi\in\Pi$ denote the
+\emph{runtime policy}: the speculation lengths
+$\bgamma(t)=(\gamma_1(t),\dots,\gamma_N(t))$, the batch composition
+$\cB(t)$, the bandwidth allocation $\bw(t)$, and admission. Denote by
+$D_i(t)$ the cumulative tokens delivered to stream $i$ by time $t$; only
+accepted and bonus tokens count, so rejected drafts are wasted work that the
+control must manage.
+
+\begin{definition}[Interactivity and goodput]\label{def:metrics}
+Under a stationary policy $\pi$, by the renewal--reward theorem
+(Assumption~\ref{as:traffic}) the \emph{interactivity} of stream $i$ and the
+\emph{system goodput} exist almost surely and satisfy
+\begin{equation}\label{eq:xi}
+x_i(\pi,\xi)\;=\;\lim_{t\to\infty}\frac{D_i(t)}{t}
+\;=\;\frac{\phi(\gamma_i,\alpha_i)}
+{\E\bigl[\gamma_i\tau_i^{\mathrm{d}}+\tfrac{\kappa\gamma_i}{r_i}
++W_i^{\mathrm{q}}+T^{\mathrm{v}}+\delta_i\bigr]},
+\qquad
+Y(\pi,\xi)\;=\;\sum_{i\in\cN}x_i(\pi,\xi).
+\end{equation}
+\end{definition}
+
+\begin{definition}[Achievable region and frontier]\label{def:frontier}
+The achievable region, its frontier, and the max-min interactivity are
+\begin{equation}\label{eq:region}
+\cC(\xi)\coloneqq\overline{\mathrm{conv}}\,
+\bigl\{\bx(\pi,\xi):\pi\in\Pi\ \text{stationary}\bigr\},
+\quad
+Y^{\star}(x;\xi)\coloneqq\max\Bigl\{\textstyle\sum_{i}x_i:
+\bx\in\cC(\xi),\ \min_{i}x_i\ge x\Bigr\},
+\end{equation}
+for $x\in[0,\bar{x}(\xi)]$ with
+$\bar{x}(\xi)\coloneqq\max\{x:\exists\,\bx\in\cC(\xi),\ \min_i x_i\ge x\}$.
+Time-sharing between stationary policies attains the convex hull, so every
+point of $\cC(\xi)$ is operational.
+\end{definition}
+
+\subsection{The AUC Objective and Problem Statement}\label{ssec:problem}
+
+\begin{definition}[Area under the frontier]\label{def:auc}
+The AUC of configuration $\xi$ and its normalization are
+\begin{equation}\label{eq:auc}
+\auc(\xi)\;\coloneqq\;\int_{0}^{\bar{x}(\xi)}Y^{\star}(x;\xi)\,dx,
+\qquad
+\nauc(\xi)\;\coloneqq\;\frac{\auc(\xi)}{\bar{x}(\xi)\,Y^{\star}(0;\xi)}\in(0,1],
+\end{equation}
+where $Y^{\star}(0;\xi)$ is the unconstrained maximum goodput. $\nauc$ is
+unit-free and enables cross-system comparison.
+\end{definition}
+
+We propose the following bilevel \emph{frontier-area maximization} problem:
+\begin{align}
+\textbf{(P)}\qquad
+\max_{\xi\in\Xi}\;\; & \auc(\xi)=\int_{0}^{\bar{x}(\xi)}Y^{\star}(x;\xi)\,dx
+\label{eq:P}\\
+\text{s.t.}\;\;
+& m(s_i)\le M_i^{\mathrm{dev}},\quad \forall i\in\cN, \nonumber\\
+& b_W \;+\; b_{\mathrm{KV}}\,K^{\max}(\xi)
+\;+\;\textstyle\sum_{s\in\text{server drafts}(\xi)}m(s)\;\le\; M^{\mathrm{srv}},
+\nonumber
+\end{align}
+where $K^{\max}(\xi)$ is the KV-cache budget implied by the admissible
+concurrency, and the inner value $Y^{\star}(x;\xi)$ is the stochastic network
+optimization
+\begin{align}
+\textbf{(P$_x$)}\qquad
+Y^{\star}(x;\xi)=\sup_{\pi\in\Pi}\;\;
+& \liminf_{t\to\infty}\frac{1}{t}\sum_{i\in\cN}\E\bigl[D_i(t)\bigr]
+\label{eq:Px}\\
+\text{s.t.}\;\;
+& \liminf_{t\to\infty}\frac{D_i(t)}{t}\;\ge\;x,\quad\forall i\in\cN,
+\nonumber\\
+& \text{all queues stable};\;\;
+\textstyle\sum_i w_i(t)\le W;\;\;
+\Gamma(\cB(t))\le\Gamma_{\max},\;\;\forall t. \nonumber
+\end{align}
+
+\paragraph{Decision variables and timescales.}
+Problem (P) separates naturally into two timescales. The configuration $\xi$
+(draft sizing and placement, replication) is set at design time and
+\emph{shapes} the frontier; the runtime policy $\pi$ (speculation lengths,
+batching, bandwidth, admission) \emph{operates} on it, and the admitted
+concurrency is the runtime knob that sweeps the operating point along the
+curve. All results below hold for fixed $\xi$; the outer problem is a
+combinatorial selection over a profiled or learned surrogate of
+$\auc(\cdot)$.
+
+\subsection{AUC Is the Right Objective}\label{ssec:whyauc}
+
+Two results justify the objective in \eqref{eq:P} operationally and
+computationally: the first shows that AUC maximization is exactly robust
+design against unknown interactivity requirements; the second shows the
+frontier---and hence the integral---is computable by a one-dimensional dual
+sweep.
+
+\begin{proposition}[Operational meaning of AUC]\label{prop:meaning}
+Fix $\xi$ and let $w$ be any probability density on $[0,\bar{x}(\xi)]$. Then
+$Y^{\star}(\cdot;\xi)$ is nonincreasing and bounded, hence measurable, and
+\begin{equation}\label{eq:bayes}
+\int_{0}^{\bar{x}(\xi)}w(x)\,Y^{\star}(x;\xi)\,dx
+\;=\;\E_{X\sim w}\bigl[Y^{\star}(X;\xi)\bigr],
+\qquad
+\auc(\xi)\;=\;\bar{x}(\xi)\cdot
+\E_{X\sim\mathrm{Unif}[0,\bar{x}(\xi)]}\bigl[Y^{\star}(X;\xi)\bigr].
+\end{equation}
+Hence the AUC-optimal configuration is the Bayes-optimal design when the
+per-user interactivity requirement is random or unknown with law $w$;
+single-point goodput or SLO designs are recovered as the degenerate case
+$w=\delta_{x_0}$.
+\end{proposition}
+
+\begin{proof}
+Monotonicity of $Y^{\star}(\cdot;\xi)$ follows since the feasible set of
+\eqref{eq:region} shrinks in $x$; boundedness follows from bounded per-round
+rewards and durations (Assumptions~\ref{as:channel}--\ref{as:draft},
+$\gamma_i\le\gamma_{\max}$). A bounded monotone function is Borel measurable
+and Riemann integrable, and \eqref{eq:bayes} is then the definition of
+expectation; the second identity is the uniform special case.
+\end{proof}
+
+\begin{proposition}[Concavity and dual sweep]\label{prop:dual}
+For every $\xi$: (i) $\cC(\xi)$ is convex and compact; (ii)
+$Y^{\star}(\cdot;\xi)$ is concave, nonincreasing, and continuous on
+$[0,\bar{x}(\xi))$; (iii) for each $x\in[0,\bar{x}(\xi))$ strong duality
+holds for \emph{(P$_x$)}, and every frontier point is attained by a
+stationary randomized policy solving a \emph{weighted} problem
+$\max_{\bx\in\cC(\xi)}\sum_{i}(1+\eta_i)\,x_i$ for some multiplier vector
+$\bm{\eta}\in\R_+^N$; (iv) consequently the entire frontier, and the integral
+$\auc(\xi)$, are traced by a one-parameter dual path, i.e., a single
+max-weight algorithm evaluated along a sweep.
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+(i) Randomized time-sharing between stationary policies convexifies the rate
+set; compactness follows from the bounds in
+Proposition~\ref{prop:meaning}'s proof. (ii) For $x=\theta x'+(1-\theta)x''$,
+the convex combination of optimizers for $x'$ and $x''$ lies in $\cC(\xi)$
+and satisfies the min-rate constraint at $x$, giving
+$Y^{\star}(x)\ge\theta Y^{\star}(x')+(1-\theta)Y^{\star}(x'')$; monotonicity
+is immediate and concavity implies continuity on the interior. (iii) The
+constraint $\min_i x_i\ge x$ is the intersection of $N$ linear constraints;
+Slater's condition holds for $x<\bar{x}(\xi)$, so KKT multipliers
+$\bm{\eta}(x)$ exist and support the frontier point. (iv) Parametrize by the
+support-plane slope; concavity makes the sweep monotone and the integral a
+line integral along the dual path.
+\end{proof}
+
+\begin{remark}[Relation to GoodSpeed]\label{rem:goodspeed}
+The proportional-fair goodput allocation of our prior work
+GoodSpeed~\cite{tran2026goodspeed} solves $\max_{\bx\in\cC(\xi)}\sum_i\log
+x_i$ and therefore selects a \emph{single} supported point of
+$\partial\cC(\xi)$. Problem (P) strictly generalizes it: the log-utility
+point is one tangency of the dual sweep in
+Proposition~\ref{prop:dual}(iv), while (P) optimizes the curve on which that
+point lives.
+\end{remark}
+
+\subsection{Structural Characterization of the Frontier}\label{ssec:structure}
+
+We first characterize the frontier in the symmetric saturated instance,
+which isolates the mechanism generating the Pareto curvature: $\alpha_i=
+\alpha$, $\tau_i^{\mathrm{d}}=\tau^{\mathrm{d}}$, $r_i=r$, $\delta_i=\delta$,
+$b_{\mathrm{KV}}=0$ (so $\theta_m$ is constant), and gated batch service in
+which the server synchronously verifies the $B$ admitted streams at a common
+speculation length $\gamma$ (so $W_i^{\mathrm{q}}=0$). The per-round cycle
+time and the resulting operating point are
+\begin{equation}\label{eq:Tsym}
+T(B,\gamma)=\gamma\Bigl(\tau^{\mathrm{d}}+\tfrac{\kappa}{r}\Bigr)
++\delta+\theta_0+\max\bigl\{\theta_m,\ \theta_f B(\gamma+1)\bigr\},
+\qquad
+x(B,\gamma)=\frac{\phi(\gamma,\alpha)}{T(B,\gamma)},
+\quad
+Y=B\,x(B,\gamma).
+\end{equation}
+
+\begin{theorem}[Two-regime frontier]\label{thm:frontier}
+Under Assumptions~\ref{as:acceptance}--\ref{as:draft} in the symmetric
+saturated instance, with $\Delta T(B,\gamma)\coloneqq
+T(B,\gamma+1)-T(B,\gamma)$:
+\begin{enumerate}[label=(\alph*),leftmargin=2em,itemsep=1pt,topsep=2pt]
+\item $\gamma\mapsto\phi(\gamma,\alpha)$ is strictly increasing and
+discretely concave with increments
+$\phi(\gamma+1,\alpha)-\phi(\gamma,\alpha)=\alpha^{\gamma+1}$;
+\item for each $B$, $\gamma\mapsto x(B,\gamma)$ is unimodal, and
+\begin{equation}\label{eq:gammastar}
+\gamma^{\star}(B)\;=\;\max\Bigl\{\gamma\ :\
+\alpha^{\gamma+1}\,T(B,\gamma)\;\ge\;\phi(\gamma,\alpha)\,\Delta T(B,\gamma)
+\Bigr\},
+\end{equation}
+i.e., speculate while the relative acceptance gain exceeds the relative
+cycle-time cost;
+\item $\gamma^{\star}(B)$ is nonincreasing in $B$, and along the frontier
+$\gamma^{\star}(x)$ is nondecreasing in $x$: speculation deepens as the
+operating point moves toward the interactivity end;
+\item \emph{(SD-off threshold)} there exists a finite $B_c$ (equivalently
+$x_c>0$) with $\gamma^{\star}(B)=0$ for all $B\ge B_c$: in the
+server-bottlenecked compute-bound regime the aggregate goodput equals
+$\phi(\gamma,\alpha)\big/\bigl((\gamma+1)\theta_f\bigr)$, and
+$\phi(\gamma,\alpha)/(\gamma+1)<1=\phi(0,\alpha)$ for all $\gamma\ge1$ and
+$\alpha<1$, so speculation is strictly suboptimal;
+\item \emph{(RTT amortization)} $\gamma^{\star}(B)$ is nondecreasing in the
+fixed per-round latency $\delta+\theta_0$ and nonincreasing in the per-token
+cost $\tau^{\mathrm{d}}+\kappa/r$; high-RTT edge links optimally speculate
+deeper at any fixed load.
+\end{enumerate}
+Consequently $Y^{\star}(\cdot)$ is concave and piecewise smooth with at most
+two regimes---memory-bound (high $x$, verification nearly free, speculation
+amortizes the wireless round trip) and compute-bound (low $x$, every drafted
+token cannibalizes batch capacity)---joined at the roofline knee
+$\Gamma^{\dagger}$ of \eqref{eq:Tv}.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+(a) is direct from \eqref{eq:phi}. (b): $x(B,\gamma+1)\ge x(B,\gamma)$ iff
+$\alpha^{\gamma+1}T(B,\gamma)\ge\phi(\gamma,\alpha)\Delta T(B,\gamma)$; the
+left ratio $\alpha^{\gamma+1}/\phi(\gamma,\alpha)$ is strictly decreasing in
+$\gamma$ while $\Delta T/T$ is nonincreasing-then-constant, yielding
+unimodality and the stopping rule \eqref{eq:gammastar}, a discrete
+Dinkelbach condition. (c) and (e) follow from monotone comparative statics
+(Topkis) applied to the log-transformed ratio: $B$ and
+$\tau^{\mathrm{d}}+\kappa/r$ raise the marginal cost side of
+\eqref{eq:gammastar} while $\delta+\theta_0$ raises only the amortizable
+fixed cost; composing with the monotone map $x\mapsto B^{\star}(x)$ gives the
+frontier statement. (d): in the saturated compute-bound regime the server is
+the bottleneck and delivers $\phi(\gamma,\alpha)$ useful tokens per
+$(\gamma+1)\theta_f$ seconds of verification; the token-efficiency bound
+$\phi(\gamma,\alpha)\le\gamma+1$ with equality only at $\gamma=0$ (for
+$\alpha<1$) forces $\gamma^{\star}=0$. Concavity of the frontier is inherited
+from Proposition~\ref{prop:dual}(ii).
+\end{proof}
+
+\begin{remark}[Edge-specific tension]\label{rem:tension}
+Parts (d) and (e) formalize the two opposing forces that make the
+\emph{distributed} problem qualitatively different from datacenter SD:
+wireless round-trip amortization pushes $\gamma$ up while verification
+contention pushes it down, so the optimal policy is spatially heterogeneous
+even for identical acceptance rates, and the sign of the net effect flips
+across the frontier.
+\end{remark}
+
+\begin{theorem}[Fluid limit and finite-$N$ gap]\label{thm:fluid}
+Consider the sequence of systems indexed by $N$ with server token rate
+scaled as $c_N=cN$ and i.i.d.\ stream parameters. Then the empirical measure
+of stream states converges, uniformly on compacts and in probability, to the
+unique fixed point of a fluid model; $Y_N^{\star}(x)/N\to y^{\star}(x)$ for a
+closed-form limiting frontier $y^{\star}$; and
+$\sup_{x}\bigl|Y_N^{\star}(x)/N-y^{\star}(x)\bigr|=O(1/\sqrt{N})$.
+\end{theorem}
+
+\begin{proof}[Proof strategy]
+The closed system of $N$ circulating rounds with think times (drafting plus
+uplink) and a roofline batch server is a density-dependent Markov chain;
+Kurtz's theorem and exchangeability (propagation of chaos) give the fluid
+limit, and a functional CLT gives the $O(1/\sqrt{N})$ rate. This extends the
+fluid sample-path analysis of GoodSpeed~\cite{tran2026goodspeed} from a
+single log-utility operating point to the parametric family
+$\{(\mathrm{P}_x)\}_{x\in[0,\bar{x}]}$.
+\end{proof}
+
+\subsection{Online Distributed Control with Censored Learning}\label{ssec:control}
+
+We now solve (P$_x$) online, without knowledge of $\{\alpha_i\}$, by a
+drift-plus-penalty controller whose per-slot subproblems decouple across
+devices, server, and radio. Let $\Delta_{\mathrm{s}}$ be the slot length and
+$a_i(t)$ the tokens delivered to stream $i$ in slot $t$. Define the
+interactivity, server-compute, and device-time virtual queues
+\begin{equation}\label{eq:vq}
+Z_i(t{+}1)=\bigl[Z_i(t)+x\Delta_{\mathrm{s}}-a_i(t)\bigr]^{+},\quad
+Q(t{+}1)=\bigl[Q(t)+\theta_f\Gamma(\cB(t))-\Delta_{\mathrm{s}}\bigr]^{+},\quad
+Q_i(t{+}1)=\Bigl[Q_i(t)+\gamma_i(t)\bigl(\tau_i^{\mathrm{d}}
++\tfrac{\kappa}{r_i(t)}\bigr)-\Delta_{\mathrm{s}}\Bigr]^{+},
+\end{equation}
+and the prices $\lambda(t)\coloneqq Q(t)$ and $\mu_i(t)\coloneqq Q_i(t)$.
+Minimizing the one-slot drift-plus-penalty bound decouples into three
+subproblems.
+
+\paragraph{(i) Device-side speculation index.}
+The marginal benefit of the $(\gamma{+}1)$-th draft token is
+$(V+Z_i(t))\,\alpha_i^{\gamma+1}$ expected deliverable tokens, while its
+marginal cost is $\lambda(t)\theta_f+\mu_i(t)\bigl(\tau_i^{\mathrm{d}}+
+\kappa/r_i(t)\bigr)$; optimal stopping yields the closed form
+\begin{equation}\label{eq:index}
+\gamma_i(t)\;=\;\Bigl[\,\Bigl\lceil
+\tfrac{\ln c_i(t)}{\ln\hat{\alpha}_i(t)}\Bigr\rceil-1\Bigr]_{0}^{\gamma_{\max}},
+\qquad
+c_i(t)\;=\;\frac{\lambda(t)\,\theta_f
++\mu_i(t)\bigl(\tau_i^{\mathrm{d}}+\kappa/r_i(t)\bigr)}{V+Z_i(t)},
+\end{equation}
+where $[\,\cdot\,]_{0}^{\gamma_{\max}}$ clamps to $\{0,\dots,\gamma_{\max}\}$
+and $\hat{\alpha}_i(t)$ is the current (optimistic) acceptance estimate.
+The server broadcasts the single scalar $\lambda(t)$---a posted
+\emph{verification-token price}---and devices respond selfishly, so the
+architecture is one-scalar-feedback network utility maximization.
+
+\paragraph{(ii) Server-side batching.}
+Batch selection is the token-budget knapsack
+$\max_{\mathcal{S}}\sum_{i\in\mathcal{S}}\omega_i(t)$ s.t.\
+$\Gamma(\mathcal{S})\le\Gamma_{\mathrm{bud}}(t)$ with weights
+$\omega_i(t)=(V+Z_i(t))\,\phi(\gamma_i,\hat{\alpha}_i)$ over pending
+verifications; the greedy rule ranked by $\omega_i/(\gamma_i+1)$ is optimal
+for the LP relaxation and within one job of integer-optimal, with
+$\Gamma_{\mathrm{bud}}(t)$ set to the knee $\Gamma^{\dagger}$ (memory-bound
+preserving) or driven by $Q(t)$.
+
+\paragraph{(iii) Radio allocation.}
+Given per-stream time prices, minimizing
+$\sum_i\mu_i(t)\kappa\gamma_i(t)/\bigl(w_i g_i(t)\bigr)$ with
+$g_i(t)=\log_2(1+\mathrm{SNR}_i(t))$ subject to $\sum_i w_i\le W$ admits the
+square-root waterfilling solution
+$w_i^{\star}(t)=W\sqrt{\mu_i\kappa\gamma_i/g_i}\big/
+\sum_{j}\sqrt{\mu_j\kappa\gamma_j/g_j}$ by Cauchy--Schwarz.
+
+\begin{theorem}[Controller optimality]\label{thm:dpp}
+Under Assumptions~\ref{as:acceptance}--\ref{as:draft} with known
+$\{\alpha_i\}$, for any $V>0$ the controller
+\eqref{eq:vq}--\eqref{eq:index} achieves
+\begin{equation}\label{eq:dppbound}
+\liminf_{t\to\infty}\frac{1}{t}\sum_{\tau\le t}\E\Bigl[\sum_i a_i(\tau)\Bigr]
+\;\ge\;Y^{\star}(x;\xi)-\frac{C}{V},
+\qquad
+\E\bigl[Z_i(t)+Q(t)+Q_i(t)\bigr]=O(V)\ \ \forall i,
+\end{equation}
+so every stream's time-average interactivity satisfies its constraint within
+$O(V/t)$, for a constant $C$ determined by the bounded second moments of
+per-slot rewards and durations.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Quadratic Lyapunov function on $(\mathbf{Z},Q,\mathbf{Q})$; the per-slot
+minimizer of the drift-plus-penalty bound is exactly
+(i)--(iii); boundedness of $\gamma_{\max}$, $r_{\max}$, and \eqref{eq:Tv}
+gives the constant $C$; the $[O(1/V),O(V)]$ trade-off follows from the
+standard telescoping argument, and Proposition~\ref{prop:dual}(iii)
+guarantees a stationary randomized policy achieving $Y^{\star}(x;\xi)$ to
+compare against.
+\end{proof}
+
+\begin{theorem}[Censored learning of acceptance rates]\label{thm:learning}
+Let $\{\alpha_i\}$ be unknown in $[\alpha_{\min},\alpha_{\max}]$. Each round
+with $\gamma_i\ge1$ reveals a truncated-geometric observation: the accepted
+prefix contributes Bernoulli successes and, unless all $\gamma_i$ drafts are
+accepted (right-censoring), one failure. Running \eqref{eq:index} with
+upper-confidence estimates $\hat{\alpha}_i^{\mathrm{ucb}}(t)$ built from
+Bernstein confidence intervals on these samples yields
+\begin{equation}\label{eq:regret}
+\mathrm{Reg}(T)\;\coloneqq\;T\,Y^{\star}(x;\xi)
+-\sum_{t\le T}\E\Bigl[\sum_i a_i(t)\Bigr]
+\;=\;\widetilde{O}\bigl(\sqrt{NT}\bigr)+O\bigl(T/V\bigr),
+\end{equation}
+while preserving the $O(V)$ backlog guarantees of Theorem~\ref{thm:dpp}.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Each informative round contributes at least one Bernoulli sample, so
+$|\hat{\alpha}_i-\alpha_i|=\widetilde{O}(1/\sqrt{n_i})$ by Bernstein; the
+index \eqref{eq:index} and $\phi(\cdot,\alpha)$ are Lipschitz in $\alpha$ on
+the compact $[\alpha_{\min},\alpha_{\max}]$; optimism bounds per-round regret
+by the confidence width, and summing $\sqrt{1/n_i}$ over streams and rounds
+gives $\widetilde{O}(\sqrt{NT})$; the $O(T/V)$ term is the controller gap of
+Theorem~\ref{thm:dpp}.
+\end{proof}
+
+\begin{remark}[Self-exploring constraint pressure]\label{rem:explore}
+Rounds with $\gamma_i=0$ are uninformative, an earning-while-learning
+obstruction absent from unconstrained bandit formulations. The controller
+resolves it endogenously: whenever stream $i$'s interactivity constraint
+binds, $Z_i(t)$ grows, $c_i(t)\downarrow0$ in \eqref{eq:index}, and
+$\gamma_i(t)\ge1$ is forced---constraint pressure guarantees exploration, and
+explicit forced exploration is needed only for streams with slack
+constraints.
+\end{remark}
+
+\subsection{Extensions}\label{ssec:extensions}
+
+\begin{remark}[Multi-server routing via posted prices]
+With $M$ verification servers each posting a price $\lambda_m(t)$, devices
+jointly select $(m,\gamma)$ by the natural extension of \eqref{eq:index}. By
+Proposition~\ref{prop:dual}(i) the aggregate problem remains convex, so the
+posted-price equilibrium coincides with the dual optimum and routing incurs
+no efficiency loss; the transient is a congestion-game dynamic amenable to
+standard analysis.
+\end{remark}
+
+\begin{remark}[Hierarchical draft cascades]
+A device tiny-draft $\to$ mid-tier verify-and-redraft $\to$ target cascade is
+a tandem of speculative batch-service queues; characterizing the composed
+frontier is open and maps directly onto a Pi~5 $\to$ Orin $\to$ DGX-class
+testbed hierarchy.
+\end{remark}
+
+\begin{remark}[Long-context regime]
+With $b_{\mathrm{KV}}>0$ in \eqref{eq:Tv}, the memory floor grows with
+$\sum_{i\in\cB}L_i$ and the knee $\Gamma^{\dagger}$ shifts right, so
+speculation remains optimal at larger batch sizes for long contexts;
+Assumption~\ref{as:roofline} captures this without modification.
+\end{remark}
+
+\begin{remark}[Position within prior art]
+Datacenter systems select speculation lengths to maximize a goodput or SLO
+objective at the \emph{current} operating
+point~\cite{liu2024smartspec,li2025adaserve,adaspec2025,banditspec2025}, and
+edge systems architect distributed drafting and verification around
+throughput or SLO
+targets~\cite{sled2025,dsd2025,dssd2025,wisp2026,configspec2026}. In the
+language of Proposition~\ref{prop:meaning}, all are the degenerate case
+$w=\delta_{x_0}$ of \eqref{eq:bayes}; none characterizes or optimizes the
+frontier, couples wireless resource allocation with speculation control, or
+handles censored acceptance learning with guarantees.
+\end{remark}
+
+% ============================================================================
+% Placeholder reference keys -> sources for the .bib:
+%   tran2026goodspeed : GoodSpeed (INFOCOM 2026), arXiv:2512.09963
+%   liu2024smartspec  : SmartSpec, "Optimizing Speculative Decoding for
+%                       Serving LLMs Using Goodput", arXiv:2406.14066
+%   li2025adaserve    : AdaServe, arXiv:2501.12162
+%   adaspec2025       : AdaSpec/SpecServe, arXiv:2503.05096
+%   banditspec2025    : BanditSpec, arXiv:2505.15141
+%   sled2025          : SLED (ACM/IEEE SEC 2025), arXiv:2506.09397,
+%                       doi:10.1145/3769102.3770608
+%   dsd2025           : DSD, arXiv:2511.21669
+%   dssd2025          : DSSD (Ning et al., split verification)
+%   wisp2026          : WISP, arXiv:2601.11652
+%   configspec2026    : ConfigSpec (TDIS 2026), arXiv:2604.09722
+%   Also relevant: Leviathan et al. 2023 (SD), MagicDec (long-context SD),
+%   Nightjar arXiv:2512.22420, heterogeneous-edge SD arXiv:2510.11331
+% ============================================================================
+
+\end{document}

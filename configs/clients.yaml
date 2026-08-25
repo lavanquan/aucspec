@@ -1,0 +1,16 @@
+num_clients: 6
+draft_tokens_per_second_range: [20.0, 60.0]
+draft_fixed_latency_ms_range: [5.0, 20.0]
+client_classes:
+  fast:
+    probability: 0.25
+    draft_slowdown: 0.7
+    wireless_weight: 1.2
+  medium:
+    probability: 0.50
+    draft_slowdown: 1.0
+    wireless_weight: 1.0
+  slow:
+    probability: 0.25
+    draft_slowdown: 1.8
+    wireless_weight: 0.8

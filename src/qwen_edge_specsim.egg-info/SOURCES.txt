@@ -11,4 +11,5 @@ src/edge_specsim/verification_batcher.py
 src/qwen_edge_specsim.egg-info/PKG-INFO
 src/qwen_edge_specsim.egg-info/SOURCES.txt
 src/qwen_edge_specsim.egg-info/dependency_links.txt
+src/qwen_edge_specsim.egg-info/requires.txt
 src/qwen_edge_specsim.egg-info/top_level.txt

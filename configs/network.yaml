@@ -1,0 +1,16 @@
+channel_model: iid_block_fading
+rtt_ms_range: [15.0, 100.0]
+uplink_mbps_range: [5.0, 50.0]
+downlink_mbps_range: [10.0, 100.0]
+uplink_base_snr_db_range: [8.0, 18.0]
+downlink_base_snr_db_range: [10.0, 20.0]
+uplink_snr_jitter_db_range: [1.0, 4.0]
+downlink_snr_jitter_db_range: [1.0, 4.0]
+snr_block_duration_ms_range: [100.0, 100.0]
+snr_period_ms_range: [500.0, 3000.0]
+packet_loss_range: [0.0, 0.0]
+shared_wireless:
+  total_uplink_bandwidth_mhz: 40.0
+  total_downlink_bandwidth_mhz: 80.0
+  uplink_allocator: square-root
+  downlink_allocator: queue-weighted

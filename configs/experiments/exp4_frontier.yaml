@@ -1,0 +1,78 @@
+dataset:
+  name: gsm8k
+  split: test
+  num_questions: 200
+  shuffle: true
+  seed: 42
+  max_new_tokens: 256
+
+simulation:
+  seed: 42
+  num_clients: 16
+  draft_execution_mode: simulation
+  gamma_max: 16
+  min_interactivity_tps: 0.0
+  output_csv: results/exp4_frontier/rounds.csv
+
+experiment:
+  warmup_seconds: 30
+  measurement_seconds: 300
+  seeds: [1]
+
+controller:
+  policy: adaptive_ucb
+  gamma_choices: [0, 1, 2, 4, 6, 8, 12, 16]
+  fixed_gamma: 4
+  V: 50.0
+  min_interactivity_tps: 0.0
+  min_exploration_rounds: 4
+  exploration_gamma: 1
+  exploration_epsilon: 0.05
+
+control:
+  slot_ms: 100.0
+
+verification_batching:
+  scheduler: fcfs
+  max_batch_size: 16
+  budget_mode: fixed
+  verify_token_budget: 272
+  batch_wait_ms: 5.0
+
+clients:
+  channel_model: iid_block_fading
+  rtt_ms_range: [50.0, 50.0]
+  uplink_mbps_range: [20.0, 20.0]
+  downlink_mbps_range: [20.0, 20.0]
+  uplink_base_snr_db_range: [15.0, 15.0]
+  downlink_base_snr_db_range: [15.0, 15.0]
+  uplink_snr_jitter_db_range: [0.0, 0.0]
+  downlink_snr_jitter_db_range: [0.0, 0.0]
+  snr_block_duration_ms_range: [100.0, 100.0]
+  snr_period_ms_range: [1000.0, 1000.0]
+  packet_loss_range: [0.0, 0.0]
+  draft_tokens_per_second_range: [40.0, 40.0]
+  draft_fixed_latency_ms_range: [10.0, 10.0]
+  draft_speed_multiplier_range: [1.0, 1.0]
+  shared_wireless:
+    # With fixed SNR around 15 dB (about 5 bit/s/Hz), 64 MHz total corresponds
+    # to roughly 320 Mbps aggregate shared wireless capacity.
+    total_uplink_bandwidth_mhz: 64.0
+    total_downlink_bandwidth_mhz: 64.0
+    uplink_allocator: equal
+    downlink_allocator: equal
+  client_classes:
+    homogeneous:
+      probability: 1.0
+      draft_slowdown: 1.0
+      wireless_weight: 1.0
+      channel_model: iid_block_fading
+      rtt_ms: [50.0, 50.0]
+      uplink_mbps: [20.0, 20.0]
+      downlink_mbps: [20.0, 20.0]
+      uplink_base_snr_db: [15.0, 15.0]
+      downlink_base_snr_db: [15.0, 15.0]
+      uplink_snr_jitter_db: [0.0, 0.0]
+      downlink_snr_jitter_db: [0.0, 0.0]
+      snr_block_duration_ms: [100.0, 100.0]
+      snr_period_ms: [1000.0, 1000.0]

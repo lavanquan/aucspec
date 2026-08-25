@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 from itertools import cycle
+import time
 from typing import Any, Iterable, Iterator
 
 from .models import PromptSample
@@ -19,18 +20,80 @@ MATH_SUBJECTS = [
 
 def _require_datasets():
     try:
-        from datasets import load_dataset
+        from datasets import DownloadConfig, load_dataset
     except ImportError as exc:
         raise RuntimeError("Install datasets first: pip install datasets") from exc
-    return load_dataset
+    return load_dataset, DownloadConfig
+
+
+def _dataset_cache_dir(cfg: dict[str, Any]) -> str | None:
+    cache_dir = cfg.get("cache_dir")
+    if cache_dir is None:
+        return None
+    return str(cache_dir)
+
+
+def _load_hf_dataset(
+    cfg: dict[str, Any],
+    path: str,
+    name: str | None = None,
+    *,
+    split: str,
+    streaming: bool,
+):
+    load_dataset, DownloadConfig = _require_datasets()
+    cache_dir = _dataset_cache_dir(cfg)
+    retries = max(0, int(cfg.get("hf_retries", 3)))
+    retry_delay_seconds = max(0.0, float(cfg.get("hf_retry_delay_seconds", 2.0)))
+    prefer_local_cache = bool(cfg.get("prefer_local_cache", True))
+
+    attempts: list[dict[str, Any]] = []
+    if prefer_local_cache:
+        attempts.append({"local_files_only": True})
+    attempts.extend({"local_files_only": False} for _ in range(retries + 1))
+
+    last_exc: Exception | None = None
+    for attempt_index, attempt_kwargs in enumerate(attempts):
+        try:
+            download_config = DownloadConfig(
+                cache_dir=cache_dir,
+                local_files_only=bool(attempt_kwargs["local_files_only"]),
+                max_retries=max(1, retries),
+            )
+            return load_dataset(
+                path,
+                name,
+                split=split,
+                streaming=streaming,
+                cache_dir=cache_dir,
+                download_config=download_config,
+            )
+        except Exception as exc:
+            last_exc = exc
+            is_last_attempt = attempt_index == len(attempts) - 1
+            if is_last_attempt:
+                break
+            sleep_seconds = retry_delay_seconds * (2**attempt_index)
+            if sleep_seconds > 0.0:
+                time.sleep(sleep_seconds)
+    assert last_exc is not None
+    raise RuntimeError(
+        f"Failed to load dataset path={path!r} name={name!r} split={split!r} "
+        f"after {len(attempts)} attempts. "
+        "If this is a transient Hugging Face network error, rerun after the cache warms."
+    ) from last_exc
 
 
 def _maybe_shuffle(stream: Any, cfg: dict[str, Any], seed_offset: int = 0):
     if cfg.get("shuffle", True):
-        return stream.shuffle(
-            seed=int(cfg.get("seed", 42)) + seed_offset,
-            buffer_size=int(cfg.get("shuffle_buffer", 1000)),
-        )
+        shuffle_seed = int(cfg.get("seed", 42)) + seed_offset
+        try:
+            return stream.shuffle(
+                seed=shuffle_seed,
+                buffer_size=int(cfg.get("shuffle_buffer", 1000)),
+            )
+        except TypeError:
+            return stream.shuffle(seed=shuffle_seed)
     return stream
 
 
@@ -46,9 +109,15 @@ def _take(iterator: Iterable[PromptSample], count: int) -> list[PromptSample]:
 
 
 def _gsm8k_samples(cfg: dict[str, Any]) -> Iterator[PromptSample]:
-    load_dataset = _require_datasets()
     split = cfg.get("split", "test")
-    ds = load_dataset("openai/gsm8k", "main", split=split, streaming=True)
+    streaming = bool(cfg.get("streaming", False))
+    ds = _load_hf_dataset(
+        cfg,
+        "openai/gsm8k",
+        "main",
+        split=split,
+        streaming=streaming,
+    )
     ds = _maybe_shuffle(ds, cfg)
     max_new = int(cfg.get("max_new_tokens", 256))
     for index, row in enumerate(ds):
@@ -67,13 +136,13 @@ def _gsm8k_samples(cfg: dict[str, Any]) -> Iterator[PromptSample]:
 
 
 def _math_subject_stream(cfg: dict[str, Any], subject: str, seed_offset: int):
-    load_dataset = _require_datasets()
     split = cfg.get("split", "test")
-    ds = load_dataset(
+    ds = _load_hf_dataset(
+        cfg,
         "EleutherAI/hendrycks_math",
         subject,
         split=split,
-        streaming=True,
+        streaming=bool(cfg.get("streaming", True)),
     )
     return _maybe_shuffle(ds, cfg, seed_offset)
 
@@ -114,13 +183,13 @@ def _math_samples(cfg: dict[str, Any]) -> Iterator[PromptSample]:
 
 
 def _cnn_dailymail_samples(cfg: dict[str, Any]) -> Iterator[PromptSample]:
-    load_dataset = _require_datasets()
     split = cfg.get("split", "test")
-    ds = load_dataset(
+    ds = _load_hf_dataset(
+        cfg,
         "abisee/cnn_dailymail",
         "3.0.0",
         split=split,
-        streaming=True,
+        streaming=bool(cfg.get("streaming", True)),
     )
     ds = _maybe_shuffle(ds, cfg)
     max_new = int(cfg.get("max_new_tokens", 160))

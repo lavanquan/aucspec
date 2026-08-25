@@ -1,0 +1,9 @@
+target: Qwen/Qwen2.5-7B-Instruct
+draft: Qwen/Qwen2.5-1.5B-Instruct
+draft_devices: [cuda:1, cuda:2, cuda:3]
+target_gpu_memory_utilization: 0.88
+target_max_model_len: 8192
+target_dtype: auto
+target_enforce_eager: false
+target_enable_prefix_caching: true
+draft_enable_kv_cache: true

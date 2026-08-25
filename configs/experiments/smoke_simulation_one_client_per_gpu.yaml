@@ -1,0 +1,117 @@
+decoding:
+  mode: greedy
+  temperature: 0.0
+
+models:
+  target: Qwen/Qwen2.5-7B-Instruct
+  draft: Qwen/Qwen2.5-1.5B-Instruct
+  draft_devices: [cuda:1, cuda:2, cuda:3]
+  target_gpu_memory_utilization: 0.88
+  target_max_model_len: 8192
+  target_dtype: auto
+  target_enforce_eager: false
+  target_enable_prefix_caching: true
+
+dataset:
+  name: gsm8k
+  split: test
+  num_questions: 3
+  shuffle: false
+  seed: 42
+  max_new_tokens: 96
+
+simulation:
+  seed: 42
+  # Keep one virtual client per draft GPU for the first smoke run.
+  num_clients: 3
+  draft_execution_mode: simulation
+  gamma_max: 8
+  controller_v: 10.0
+  min_interactivity_tps: 1.0
+  server_price_scale: 0.02
+  output_csv: results/smoke_simulation_rounds.csv
+
+experiment:
+  warmup_seconds: 0
+  measurement_seconds: 0
+  seeds: [42]
+
+controller:
+  policy: fixed_gamma
+  gamma_choices: [0, 1, 2, 4, 8]
+  fixed_gamma: 8
+  min_exploration_rounds: 0
+  exploration_gamma: 1
+  exploration_epsilon: 0.0
+  V: 10.0
+  min_interactivity_tps: 1.0
+  server_price_scale: 0.02
+  verifier_price_lambda: 1.0
+  draft_latency_weight: 0.0
+  uplink_latency_weight: 0.0
+  learning:
+    mode: bernstein_censored
+    alpha_prior_success: 1.0
+    alpha_prior_failure: 1.0
+    confidence_delta: 0.05
+    alpha_min: 1.0e-6
+    alpha_max: 0.999999
+    discount: 0.98
+    ucb_coefficient: 1.5
+    window_size: 32
+
+control:
+  slot_ms: 100.0
+
+verification_batching:
+  scheduler: fcfs
+  max_batch_size: 8
+  batch_wait_ms: 2.0
+  budget_mode: fixed
+  verify_token_budget: 16
+  target_replication_factor: 1
+  roofline_summary_path: results/target_profile_summary.json
+  utility_lambda: 0.25
+
+outer_optimization:
+  objective:
+    metric: auc_trapezoidal
+  target_model_choices:
+    - Qwen/Qwen2.5-7B-Instruct
+  draft_model_choices:
+    - Qwen/Qwen2.5-1.5B-Instruct
+  draft_placements:
+    - edge_device
+  draft_pool_size_choices: [3]
+  target_replication_choices: [1]
+  model_catalog:
+    Qwen/Qwen2.5-7B-Instruct:
+      memory_gb: 16.0
+    Qwen/Qwen2.5-1.5B-Instruct:
+      memory_gb: 4.0
+  budgets:
+    device_memory_budget_gb: 8.0
+    server_gpu_memory_budget_gb: 24.0
+    available_target_gpus: 1
+    available_draft_gpus: 3
+
+clients:
+  channel_model: iid_block_fading
+  rtt_ms_range: [15.0, 30.0]
+  uplink_mbps_range: [20.0, 50.0]
+  downlink_mbps_range: [40.0, 100.0]
+  uplink_base_snr_db_range: [12.0, 18.0]
+  downlink_base_snr_db_range: [14.0, 20.0]
+  uplink_snr_jitter_db_range: [1.0, 2.0]
+  downlink_snr_jitter_db_range: [1.0, 2.0]
+  snr_block_duration_ms_range: [100.0, 100.0]
+  snr_period_ms_range: [1000.0, 1000.0]
+  packet_loss_range: [0.0, 0.0]
+  draft_tokens_per_second_range: [30.0, 50.0]
+  draft_fixed_latency_ms_range: [5.0, 10.0]
+  draft_speed_multiplier_range: [1.0, 1.0]
+  shared_wireless:
+    total_uplink_bandwidth_mhz: 60.0
+    total_downlink_bandwidth_mhz: 120.0
+    uplink_allocator: square-root
+    downlink_allocator: proportional

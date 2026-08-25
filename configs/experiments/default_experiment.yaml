@@ -1,0 +1,25 @@
+dataset:
+  name: gsm8k
+  split: test
+  num_questions: 12
+  shuffle: true
+  seed: 42
+  shuffle_buffer: 1000
+  max_new_tokens: 256
+  math_subject: all
+  max_article_chars: 12000
+
+simulation:
+  seed: 42
+  num_clients: 6
+  draft_execution_mode: simulation
+  gamma_max: 4
+  controller_v: 10.0
+  min_interactivity_tps: 8.0
+  server_price_scale: 0.02
+  output_csv: results/rounds.csv
+
+experiment:
+  warmup_seconds: 30
+  measurement_seconds: 300
+  seeds: [1, 2, 3, 4, 5]
