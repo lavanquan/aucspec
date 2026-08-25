@@ -1,0 +1,70 @@
+# configs/base.yaml — tham số mặc định cho toàn bộ /sim (TASKS.md T0.3)
+#
+# Mọi experiment config (configs/experiments/*.yaml) override từ file này,
+# không hardcode tham số trong code (CLAUDE.md muc 4). Ky hieu va equation
+# number tra cuu tai docs/notation.md.
+#
+# Cac gia tri "PROFILE" la placeholder can do that tren phan cung/model that
+# o T0.4 (docs/model_choices.md) va T4.1 truoc khi dung cho ket qua chinh thuc
+# cua paper; chi dung de smoke-test simulator o Phase 1.
+
+seed: 0
+num_seeds: 5              # EXPERIMENTS.md checklist: toi thieu 5 seed/experiment
+
+system:
+  N: 12                    # so edge stream, eq. (4)-(6) — Exp 1 dung N=12
+  gamma_max: 8              # cap toc do speculation, xem eq. (2), (11), (13)
+
+acceptance:                 # Assumption 1, eq. (2)
+  mode: stationary          # stationary | trace_driven (xem sim/core/acceptance.py, sim/workloads/trace_loader.py)
+  alpha_min: 0.50
+  alpha_max: 0.95
+  alpha_symmetric: 0.80     # dung cho symmetric saturated instance (Theorem 1, Exp 2a)
+  trace_window_rounds: 50   # cua so truot do alpha(t), EXPERIMENTS.md Exp misspecification
+
+draft:                      # Assumption 5, eq. (10)
+  tau_d_seconds: 0.012      # PROFILE — per-token draft latency, tau_i^d
+  kappa_bits_per_token: 2048  # PROFILE — uplink payload/token drafted
+
+channel:                    # Assumption 3, eq. (1)
+  W_hz: 20.0e6               # tong bang thong ngan sach, Sum w_i(t) <= W
+  snr_db_mean: 15.0          # PROFILE — trung binh SNR (block fading, i.i.d. theo slot)
+  snr_db_std: 4.0
+  r_min_bps: 1.0e6            # can duoi/tren rate kha thi, Assumption 3
+  r_max_bps: 100.0e6
+
+server:                      # Assumption 2 (roofline), eq. (3)
+  theta_0_seconds: 0.003     # PROFILE — per-pass overhead
+  theta_f_seconds_per_token: 0.00008   # PROFILE — per-token compute time
+  beta_mem_bytes_per_second: 2.0e12    # PROFILE — memory bandwidth (beta_mem)
+  b_W_bytes: 16.0e9           # PROFILE — model weight bytes (target model)
+  b_kv_bytes_per_token: 131072  # PROFILE — KV cache bytes/token (0 => long-context tat, xem Remark "Long-context regime")
+  context_length_default: 2048  # L_i mac dinh khi khong co trace that
+  gamma_bud_mode: knee        # knee (Gamma_dagger, memory-bound preserving) | queue_driven (theo Q(t))
+
+delta:
+  delta_seconds: 0.020        # PROFILE — fixed per-round latency (downlink+overhead), delta_i
+
+controller:
+  policy: auc_controller      # auc_controller | auc_controller_oracle | max_throughput | fixed_slo | goodspeed | turbospec | gelato
+  V: 50.0                     # Lyapunov weight, eq. (12)-(14) — KHONG hardcode trong code, chi o day
+  slot_ms: 100.0               # Delta_s, do dai slot dieu khien
+  min_interactivity_x: 0.0     # rang buoc min_i x_i >= x, dung khi sweep frontier (eq. 5)
+  ucb:
+    enabled: true               # tat de dung auc_controller_oracle (T2.3)
+    confidence_type: bernstein  # Theorem 4
+    min_exploration_rounds: 0   # constraint pressure tu dong ep explore (Remark "Self-exploring constraint pressure")
+
+oracle:
+  # Chi dung khi controller.policy = auc_controller_oracle (TASKS.md T2.3).
+  # alpha_hat tinh, profile tu nua dau trace, test tren nua sau — tranh leakage.
+  profile_split_fraction: 0.5
+
+simulation:
+  duration_rounds: 20000       # tong so round mo phong moi seed
+  warmup_rounds: 2000           # bo qua khi tinh metric on dinh (steady-state)
+
+logging:
+  results_dir: results/
+  log_virtual_queues: true      # Z_i(t), Q(t), Q_i(t) cho Theorem 3 (Exp 3)
+  log_rounds_csv: true
