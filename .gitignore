@@ -9,3 +9,4 @@ venv/
 .venv-rocm/
 vllm_rocm_build/
 vllm_build.log
+.pythonuserbase-rocm-vllm/

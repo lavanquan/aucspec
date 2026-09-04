@@ -42,22 +42,52 @@ acceptance Bernoulli theo token, ngầm định cùng vocab).
   compute-bound, Theorem 1) rõ ràng ở batch size thực tế (B~8–16, khớp N trong
   `configs/base.yaml`), và đủ nhỏ để profile nhanh trên 1 GPU.
 
-### 3. Testbed thật: chưa chạy trên Setonix, ưu tiên simulation trước
+### 3. Testbed thật: đã có vLLM+ROCm chạy được trên Setonix (cập nhật 2026-09-04)
 
 CLAUDE.md mục 3 đã chốt: *"Ưu tiên discrete-event simulator trước..., sau đó nếu có
-phần cứng thật thì thêm testbed layer."* Quyết định T0.4 này áp dụng đúng nhánh đó:
+phần cứng thật thì thêm testbed layer."* Simulator (`sim/`) vẫn ưu tiên trước và
+không cần GPU — nhưng phần dưới đây (**đã lỗi thời so với ghi chú gốc ở lần viết
+đầu**) cần cập nhật: việc build testbed thật trên Setonix **đã khả thi và đã làm
+xong**, không còn phải chờ máy NVIDIA khác.
 
-- Setonix GPU node (`sinfo -p gpu`) là **AMD MI250X** (`gpu:8` mỗi node, ROCm stack),
-  trong khi `environment.yml` hiện pin `vllm==0.9.1` cài qua `pip` — bản wheel PyPI
-  mặc định build cho **CUDA**, không chạy thẳng trên ROCm. Pipeline vLLM cũ trong
-  `legacy/` cũng khai `draft_devices: [cuda:1, cuda:2, cuda:3]` — tức là đã chạy
-  trên máy NVIDIA khác trước đây, không phải trên Setonix.
-- Vì vậy: **profile draft/target model thật (T4.1) nên chạy trên máy NVIDIA sẵn có**
-  (nơi pipeline `legacy/` đã chạy được), chỉ export số đo (τᵈ, θ0, θf, βmem, phân
-  phối α) làm input cho `configs/base.yaml`/`configs/models.yaml` mới — simulator
-  trong `sim/` tự nó không cần GPU, chạy được trên Setonix CPU node bình thường.
-- Nếu sau này build testbed thật trên Setonix, cần build vLLM từ source với ROCm
-  backend (`VLLM_TARGET_DEVICE=rocm`) — ghi chú lại đây để không lặp lại nhầm lẫn.
+- Setonix GPU node (`sinfo -p gpu`) là **AMD MI250X** (gfx90a, `gpu:8` mỗi node,
+  ROCm stack). `environment.yml` hiện vẫn pin `vllm==0.9.1` cài qua `pip` — bản
+  wheel PyPI mặc định build cho **CUDA**, không chạy thẳng trên ROCm.
+- **Đã build `vllm==0.9.1` từ source cho ROCm/gfx90a thành công trên Setonix**
+  (2026-09-04, `scripts/build_vllm_rocm.sh`, GPU job `48009443` trên partition
+  `gpu-dev`, account `pawsey1257-gpu`), verify bằng `import vllm` trên GPU node
+  thật → `Automatically detected platform rocm`, `vllm: 0.9.1`,
+  `torch.cuda.get_device_name(0) == "AMD Instinct MI250X"`.
+- **Base image dùng**: module `pytorch/2.7.1-rocm6.3.3` (container Pawsey, đã có
+  sẵn PyTorch+Triton build cho gfx90a) — không cần tự build PyTorch/Triton.
+- **Package đích cài đặt**: `PYTHONUSERBASE=/software/projects/pawsey1257/quanla/aucspec/.pythonuserbase-rocm-vllm`
+  (không dùng venv thường — venv `--system-site-packages` không kế thừa được
+  torch của container; không dùng `$HOME/.local` — quota quá nhỏ, build sẽ chết
+  giữa chừng).
+- **4 lỗi hạ tầng đã gặp và sửa khi build**, ghi lại để không lặp lại:
+  1. `pip` (không kèm `python3 -m`) có thể trỏ nhầm vào pip Python 3.6 hệ thống
+     thay vì pip Python 3.12 của container — luôn dùng `python3 -m pip`.
+  2. Python của container là PEP-668 "externally-managed-environment" — cần
+     `pip install --break-system-packages`.
+  3. `--break-system-packages` (không có `--user`) vẫn âm thầm fallback về
+     `--user` nếu site-packages hệ thống không ghi được, và mặc định ghi vào
+     `$HOME/.local` — quota nhỏ, hết dung lượng giữa chừng khi cài xong nửa
+     danh sách dependency. Sửa bằng biến `PYTHONUSERBASE` trỏ sang project
+     space (dư dung lượng).
+  4. `transformers` mới nhất (5.16.1 tại thời điểm build) tự đăng ký model type
+     `"aimv2"`, đụng độ với code đăng ký Ovis config riêng của
+     `vllm==0.9.1` → `ValueError: 'aimv2' is already used`. `vllm==0.9.1`'s
+     `requirements/common.txt` chỉ ghi `transformers >= 4.51.1` (không giới hạn
+     trên), nên `pip` tự chọn bản mới nhất và vỡ. Đã pin lại
+     `transformers==4.51.3` (gần thời điểm vllm 0.9.1 phát hành).
+- Việc build KHÔNG cần chạy trên GPU node — chỉ bước `import vllm`/chạy inference
+  mới cần `salloc --gres=gpu:1 --partition=gpu-dev --account=pawsey1257-gpu`.
+- **T4.1/T4.2 giờ có thể chạy trực tiếp trên Setonix**, không còn cần máy NVIDIA
+  khác nữa. Bước tiếp theo: tải trọng số Qwen2.5-7B/1.5B/0.5B-Instruct, viết
+  script batched candidate-verification (tham khảo `legacy/src/qwen_edge_specsim/`
+  — pipeline cũ cùng cặp model, chạy trên NVIDIA, cần điều chỉnh cho ROCm), rồi
+  chạy trace chat+code mix qua đó để log accept/reject thật theo schema
+  `sim/workloads/trace_loader.py`.
 
 ### 4. N edge device / draft placement (Remark 5, EXPERIMENTS.md)
 
