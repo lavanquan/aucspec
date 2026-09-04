@@ -10,3 +10,5 @@ venv/
 vllm_rocm_build/
 vllm_build.log
 .pythonuserbase-rocm-vllm/
+models/
+model_download.log
