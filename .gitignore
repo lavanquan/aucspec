@@ -12,3 +12,11 @@ vllm_build.log
 .pythonuserbase-rocm-vllm/
 models/
 model_download.log
+.triton-cache/
+.torchinductor-cache/
+.hf-home/
+.cache/
+.config/
+.pip-cache/
+.wandb/
+collect_trace.log

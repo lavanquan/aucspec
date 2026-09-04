@@ -166,7 +166,13 @@ def main() -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"Loading target verifier: {args.target_model}", flush=True)
-    verifier = VLLMCandidateVerifier(model_name=args.target_model)
+    # enable_prefix_caching=True (VLLMCandidateVerifier's default) triggers a
+    # known vLLM bug when combined with prompt_logprobs: "AssertionError:
+    # assert len(next_token_ids) == len(query_indices)" in
+    # vllm/model_executor/layers/sampler.py's get_logprobs (vllm-project/vllm
+    # issues #8268, #7003, #13105). Disable prefix caching to avoid it --
+    # documented upstream workaround, not a guess.
+    verifier = VLLMCandidateVerifier(model_name=args.target_model, enable_prefix_caching=False)
     print(f"Loading draft model: {args.draft_model} on {args.draft_device}", flush=True)
     draft_tokenizer, draft_model = load_draft_model(args.draft_model, args.draft_device)
 
