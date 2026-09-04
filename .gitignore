@@ -20,3 +20,6 @@ model_download.log
 .pip-cache/
 .wandb/
 collect_trace.log
+.hf-datasets-cache/
+poc_exp1.log
+poc_exp1_gpu_usage.log
