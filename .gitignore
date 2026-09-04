@@ -6,3 +6,6 @@ __pycache__/
 .venv/
 venv/
 .venv-sim/
+.venv-rocm/
+vllm_rocm_build/
+vllm_build.log
