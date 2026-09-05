@@ -25,3 +25,4 @@ poc_exp1.log
 poc_exp1_gpu_usage.log
 exp1_frontier*.log
 results/exp1_frontier/raw/
+results/exp1_frontier/raw_*/

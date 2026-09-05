@@ -202,3 +202,49 @@ match real observed round-trip time (e.g. 100ms, informed by `round_latency_ms`'
 CSVs), and check whether `mean_batch_size`/`mean_fill_ratio` become x-dependent and whether `Y(x)`
 turns nonincreasing. This has not yet been run — it is the concrete next diagnostic step, per Section
 6's "do not implement the change until the diagnosis is reviewed."
+
+---
+
+## 10. Follow-up confirmatory experiments (2026-09-05/06)
+
+Three corrected re-runs of the same 8-point x_requirement sweep (N=21, gsm8k, 3 seeds each),
+each addressing one hypothesis from Section 9 above.
+
+### 10.1 Fix scheduler + batch_wait_ms (weighted_utility, batch_wait_ms=150, budget=100)
+
+mean_batch_size 1.03->3.1 (3x), verifier_tok/s 36->82 (2.3x), Y_mean 35-37->59-61 (+65%),
+achieved x_bar(xi) 1.5->2.5+. Both root causes from Section 9 confirmed and fixed. **But Y(x)
+remained flat** (59.1-60.9 across the whole feasible range) -- root cause: fill_ratio only
+~10.7%, i.e. still no real contention for the scheduler to arbitrate.
+
+### 10.2 Force real scarcity (same config, verify_token_budget: 100 -> 6)
+
+fill_ratio jumped 10.7% -> **78-80%** (genuine near-saturation, confirmed via
+useful_tokens_per_verification_token staying flat ~0.862-0.866 while fill_ratio is high).
+x_bar(xi) dropped to ~1.98-2.0 (tighter capacity). **Y(x) still flat**: 45.5-46.1 across
+x=0.1-1.6, then infeasible at x>=2.0 -- textbook Section 1 rectangular frontier
+(Y*(x) ~= C for x in [0, x_bar], infeasible beyond).
+
+### 10.3 Add strong client heterogeneity (Section 3.1/3.2 mechanism test)
+
+Added clients.client_classes: 50% "fast" (rtt 10-20ms, draft_slowdown 0.4x) / 50% slow
+(rtt 300-600ms, draft_slowdown 5x, uplink 1-3 Mbps) on top of the 10.2 scarce-budget config.
+x_bar(xi) dropped further to ~1.6-1.7 (harder to guarantee a floor for the slow half).
+**Y(x) still flat**: 43.08-43.68 across the entire feasible range (~1.4% variation, same
+order as measurement noise in 10.2) -- no decreasing trend emerged despite 5-30x cost
+heterogeneity between the two client classes.
+
+### Updated conclusion
+
+All two candidate implementation bugs from Section 9 are now fixed (scheduler weighting,
+batch timing), the verifier is now genuinely contended (fill_ratio ~80%), and strong
+per-client cost heterogeneity is present -- yet the frontier remains flat (Case A: rectangular
+Y*(x) ~= C for x in [0, x_bar(xi)]) at this experimental scale (N=21, gamma_max=4,
+Qwen2.5-7B/1.5B). This is now a much better-supported structural finding than the original
+(buggy) flat frontier, though it is specific to this configuration -- not yet proven to hold
+at different N, gamma_max, or roofline regimes. Recommended next steps if a non-trivial
+frontier is still needed for the paper's central thesis: (a) widen gamma_choices beyond
+{0,1,2,3,4} for finer-grained trade-offs, (b) test at a regime closer to the roofline knee
+Gamma_dagger where compute-bound effects should bite harder, or (c) reframe the paper's
+contribution per Section 8's Case A implication (evaluation-summary AUC over a
+near-rectangular region, rather than a rich whole-frontier optimization story).
