@@ -1,0 +1,35 @@
+{
+  "auc_over_measured_range": 0.3943093203076036,
+  "integration_bounds_x": [
+    1.5016374594810238,
+    1.5128264485209388
+  ],
+  "note": "This integrates only over the x range actually swept and found feasible above -- it is eq.(6)'s AUC(xi) = integral_0^x_bar only if x_lo is ~0 and x_hi is ~x_bar(xi). Check integration_bounds_x against the feasibility table before quoting this as AUC(xi).",
+  "frontier_points": [
+    {
+      "min_x": 1.5016374594810238,
+      "Y": 35.06947792741327,
+      "label": "x_0.3"
+    },
+    {
+      "min_x": 1.5031356996485599,
+      "Y": 35.16375341879351,
+      "label": "x_1.0"
+    },
+    {
+      "min_x": 1.5035226119642955,
+      "Y": 35.15073270012241,
+      "label": "x_0.6"
+    },
+    {
+      "min_x": 1.511741157972753,
+      "Y": 35.35255779296853,
+      "label": "x_0.1"
+    },
+    {
+      "min_x": 1.5128264485209388,
+      "Y": 35.367965043631564,
+      "label": "x_1.3"
+    }
+  ]
+}
