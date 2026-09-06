@@ -32,3 +32,5 @@ results/exp4_frontier/
 results/**/raw/
 results/**/*_artifacts/
 *.jsonl
+.tools/
+exp5_shard*.log

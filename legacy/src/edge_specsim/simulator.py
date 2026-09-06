@@ -402,11 +402,43 @@ class EdgeSpecSimulator:
         num_clients = int(num_clients) if num_clients is not None else configured_num_clients
         if num_clients <= 0:
             raise ValueError("simulation.num_clients must be greater than zero")
-        shards = shard_round_robin(samples, num_clients)
+
+        # eq. (formulation) heterogeneous acceptance diagnostic: client_classes may each
+        # declare their own dataset override (client_classes.<name>.dataset), so different
+        # groups of clients get genuinely different real measured acceptance rates instead
+        # of all sharing one global sample pool.
+        assigned_names: list[str] = []
+        assigned_cfgs: list[dict] = []
+        for i in range(num_clients):
+            name, cfg = self._sample_client_class(c)
+            assigned_names.append(name)
+            assigned_cfgs.append(cfg)
+
+        shards: list = [None] * num_clients
+        default_indices = [i for i in range(num_clients) if not assigned_cfgs[i].get("dataset")]
+        if default_indices:
+            default_shards = shard_round_robin(samples, len(default_indices))
+            for slot, i in enumerate(default_indices):
+                shards[i] = default_shards[slot]
+
+        override_groups: dict[str, list[int]] = {}
+        for i, cfg in enumerate(assigned_cfgs):
+            override = cfg.get("dataset")
+            if override:
+                override_groups.setdefault(assigned_names[i], []).append(i)
+        for class_name, indices in override_groups.items():
+            class_dataset_cfg = dict(self.cfg["dataset"])
+            class_dataset_cfg.update(assigned_cfgs[indices[0]]["dataset"])
+            class_samples = load_samples(class_dataset_cfg)
+            self.samples.extend(class_samples)
+            class_shards = shard_round_robin(class_samples, len(indices))
+            for slot, i in enumerate(indices):
+                shards[i] = class_shards[slot]
+
         clients: list[ClientProfile] = []
         for i in range(num_clients):
             draft_device = self.workers[i % len(self.workers)].device
-            client_class_name, class_cfg = self._sample_client_class(c)
+            client_class_name, class_cfg = assigned_names[i], assigned_cfgs[i]
             draft_slowdown = float(class_cfg.get("draft_slowdown", 1.0))
             base_draft_tps = self._sample_range(
                 c, "draft_tokens_per_second_range", [20.0, 60.0]

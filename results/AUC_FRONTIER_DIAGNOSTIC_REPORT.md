@@ -248,3 +248,87 @@ frontier is still needed for the paper's central thesis: (a) widen gamma_choices
 Gamma_dagger where compute-bound effects should bite harder, or (c) reframe the paper's
 contribution per Section 8's Case A implication (evaluation-summary AUC over a
 near-rectangular region, rather than a rich whole-frontier optimization story).
+
+---
+
+## 11. Final confirmatory diagnostic: real acceptance heterogeneity (2026-09-06)
+
+Per user request, one last diagnostic instead of running further baseline experiments: keep
+the scarce, contended config from Section 10.2 (`verify_token_budget=6`, `scheduler:
+weighted_utility`, `batch_wait_ms=150`) fixed, and add **real** acceptance heterogeneity
+across three equal-size client groups (7 clients each, N=21 total), by having each group
+draw from a genuinely different dataset rather than injecting a synthetic Bernoulli alpha:
+
+  - `easy_gsm8k` -- gsm8k grade-school math word problems
+  - `medium_cnn_summarize` -- cnn_dailymail news summarization
+  - `hard_math` -- competition-level MATH (Hendrycks), all 7 subjects
+
+All three groups share identical latency/bandwidth ranges (no `draft_slowdown`/rtt/bandwidth
+override), so the *only* systematic difference between groups is their real, measured
+draft-target acceptance rate. Implementation: `legacy/src/edge_specsim/simulator.py`'s
+`_make_clients` was extended to let `clients.client_classes.<name>.dataset` override the
+global dataset per class (two-pass: assign class membership first, then load/shard each
+class's own real dataset) -- see `exp5_alpha_hetero_base.yaml` and
+`scripts/run_exp5_alpha_hetero.py`. Same 8-point x_requirement sweep, 3 seeds, real GPU
+inference (Qwen2.5-7B target / 1.5B draft, ROCm vLLM).
+
+Raw per-round logs already show the heterogeneity is real and large: `easy_gsm8k` clients
+almost always show `accepted=gamma` (full acceptance), while `hard_math` and
+`medium_cnn_summarize` clients frequently show `accepted=0` (the entire speculated chunk
+rejected). This is genuine, measured acceptance heterogeneity, not an assumption.
+
+### Results (n=3 seeds per x, full sweep)
+
+| x_req | Y(x) | eta(x) | share easy_gsm8k | share medium_cnn | share hard_math | min_x achieved |
+|---|---|---|---|---|---|---|
+| 0.10 | 25.934 | 0.783 | 0.351 | 0.345 | 0.304 | 0.891 (OK) |
+| 0.30 | 25.841 | 0.779 | 0.351 | 0.345 | 0.305 | 0.890 (OK) |
+| 0.60 | 25.752 | 0.782 | 0.351 | 0.345 | 0.304 | 0.883 (OK) |
+| 1.00 | 26.036 | 0.781 | 0.348 | 0.347 | 0.305 | 0.909 (VIOLATED) |
+| 1.30 | 25.989 | 0.778 | 0.348 | 0.348 | 0.304 | 0.914 (VIOLATED) |
+| 1.60 | 25.901 | 0.778 | 0.349 | 0.347 | 0.304 | 0.913 (VIOLATED) |
+| 2.00 | 25.859 | 0.778 | 0.351 | 0.346 | 0.303 | 0.891 (VIOLATED) |
+| 2.50 | 25.632 | 0.778 | 0.353 | 0.344 | 0.303 | 0.886 (VIOLATED) |
+
+Full per-seed data: `results/exp5_alpha_hetero/points_raw.csv`,
+`results/exp5_alpha_hetero/summary_x.csv`, `results/exp5_alpha_hetero/mechanism_summary.json`.
+
+### Interpretation
+
+The three quantities the user asked to check (Y(x), eta(x), per-group service share) are
+**all essentially constant across the entire swept range x=0.1 to 2.5**:
+
+  - `Y(x)` varies only 25.63-26.04 (1.6% spread) -- indistinguishable from seed noise.
+  - `eta(x)` varies only 0.778-0.783 -- flat.
+  - `hard_math`'s share stays pinned at 0.303-0.305 the whole time; it never rises as x
+    tightens. `easy_gsm8k`/`medium_cnn` stay pinned at ~0.348-0.353/0.344-0.348.
+  - `min_x` achieved plateaus at ~0.88-0.91 for every x_req >= 1.0 and never climbs further
+    however high x_req is set (0.909 at x_req=1.0 vs 0.886 at x_req=2.5) -- the system is
+    hitting a hard ceiling around x~0.9, well short of the requested constraint, and simply
+    fails the constraint rather than reallocating away from the low-acceptance group to try
+    to satisfy it.
+
+**Mechanism verdict: NO** (`mechanism_summary.json`'s `mechanism_verdict: false`). The
+specific pattern the user proposed as evidence of a real AUC mechanism -- low-alpha group's
+share rising, eta falling, and Y falling as x increases -- does not appear. Instead, even
+with genuine (not synthetic) three-way acceptance heterogeneity layered on top of the
+already-confirmed real scarcity (Section 10.2's fill_ratio ~78-80%), the system produces the
+same near-fixed allocation regardless of x, and simply reports infeasibility once x exceeds
+its ceiling instead of trading off which group gets served.
+
+This is a third independent confirmation of the Section 10 conclusion (Case A: genuine
+near-fixed-capacity redistribution, not an implementation bug) at N=21/gamma_max=4 -- now
+also ruling out "the controller has no acceptance-based lever to exploit" as an explanation,
+since `alpha_hat`/`alpha_ucb` learning (Theorem 4, eq. 13) is active and clients' measured
+acceptance genuinely differs 2-3x in practice (frequent `accepted=0` for hard_math/cnn vs.
+near-always `accepted=gamma` for gsm8k) -- the controller has real signal to act on here and
+still does not visibly reallocate service share as x tightens.
+
+**Recommendation:** the Section 10 recommendations stand -- (a) widen `gamma_choices` beyond
+{0,1,2,3,4}, (b) test at a regime closer to the roofline knee Gamma_dagger, or (c) reframe
+the paper's contribution around the Case A finding itself (a near-rectangular achievable
+region under this speculative-decoding + batching design, evaluated via AUC as a
+robustness-over-uncertain-requirements summary per Prop 1, rather than a rich
+whole-frontier trade-off story). Further repeats of the same x-sweep design at N=21 are
+unlikely to change this conclusion; the next informative experiment is a structural change
+(gamma_choices range, N, or operating regime), not another heterogeneity axis.

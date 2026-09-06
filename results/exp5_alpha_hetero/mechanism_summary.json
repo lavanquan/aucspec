@@ -1,0 +1,28 @@
+{
+  "auc_over_measured_range": 0.20078404680829,
+  "integration_bounds_x": [
+    0.8827347154393554,
+    0.8905153385221741
+  ],
+  "mechanism_verdict": false,
+  "hard_math_share_rises_with_x": false,
+  "eta_falls_with_x": true,
+  "Y_falls_with_x": true,
+  "frontier_points": [
+    {
+      "min_x": 0.8827347154393554,
+      "Y": 25.7520880451706,
+      "label": "x_0.6"
+    },
+    {
+      "min_x": 0.8897158112578686,
+      "Y": 25.840557069789142,
+      "label": "x_0.3"
+    },
+    {
+      "min_x": 0.8905153385221741,
+      "Y": 25.933655501257036,
+      "label": "x_0.1"
+    }
+  ]
+}
