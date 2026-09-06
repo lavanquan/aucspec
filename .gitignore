@@ -26,3 +26,9 @@ poc_exp1_gpu_usage.log
 exp1_frontier*.log
 results/exp1_frontier/raw/
 results/exp1_frontier/raw_*/
+
+# large raw trace dumps - keep only aggregate results in git
+results/exp4_frontier/
+results/**/raw/
+results/**/*_artifacts/
+*.jsonl
