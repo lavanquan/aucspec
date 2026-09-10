@@ -290,7 +290,12 @@ def monotone_scale_search(
             hi = probe
             break
 
-    # binary search in (lo, hi]
+    # binary search in (lo, hi]. An "uncertain" verdict (the caller has
+    # already escalated seeds and still can't confirm) is treated as "not
+    # confirmed feasible" -> move the ceiling down and keep narrowing,
+    # rather than stopping and collapsing N* to the last clean feasible.
+    # The trace records how many uncertain points were hit.
+    trace["uncertain_scales"] = []
     while hi - lo > 1:
         mid = (lo + hi) // 2
         st = _ev(mid)
@@ -299,9 +304,9 @@ def monotone_scale_search(
         elif st == "infeasible":
             trace["boundary_first_infeasible"] = mid
             hi = mid
-        else:  # uncertain -> treat as the boundary, stop narrowing
-            trace["note"] = f"uncertain at scale {mid}; reporting {lo} as N*"
-            break
+        else:  # uncertain
+            trace["uncertain_scales"].append(mid)
+            hi = mid
     return lo, trace
 
 

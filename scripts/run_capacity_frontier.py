@@ -70,6 +70,7 @@ def build_run_config(base_cfg: dict, n: int, x: float, seed: int, meas_s: float,
     cfg["controller"]["policy"] = "capacity_dpp"
     cfg["controller"]["min_interactivity_tps"] = float(x)
     cfg["controller"]["V"] = float(base_cfg["controller"]["V"])
+    cfg["experiment"]["warmup_seconds"] = float(base_cfg["capacity_search"].get("warmup_seconds", 0.0))
     cfg["experiment"]["measurement_seconds"] = float(meas_s)
     return cfg
 
@@ -191,7 +192,7 @@ def search(mode: str, force: bool = False) -> None:
     if mode == "pilot":
         x_grid = list(cs["x_grid_pilot"])
         meas_s = float(cs["measurement_seconds_pilot"])
-        n_cap = min(int(cs["n_ref"]), 20)
+        n_cap = min(int(cs["n_ref"]), 12)
     else:
         x_grid = list(cs["x_grid_final"])
         meas_s = float(cs["measurement_seconds_final"])

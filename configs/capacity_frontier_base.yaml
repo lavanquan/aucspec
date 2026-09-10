@@ -39,7 +39,7 @@ simulation:
   output_csv: results/capacity_frontier/raw/PLACEHOLDER.csv
 
 experiment:
-  warmup_seconds: 0
+  warmup_seconds: 20
   measurement_seconds: null      # overridden per pilot/final
   seeds: [1]
 
@@ -110,8 +110,8 @@ capacity_search:
   max_seeds: 3
   rate_tolerance_fraction: 0.05
   queue_slope_tolerance: 0.02
-  warmup_seconds: 0
-  measurement_seconds_pilot: 45
+  warmup_seconds: 20
+  measurement_seconds_pilot: 90
   measurement_seconds_final: 240
   x_L: 0.5
   x_U: 4.0

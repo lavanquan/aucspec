@@ -85,6 +85,26 @@ def test_monotone_scale_search_lo_infeasible_returns_zero():
     assert "note" in trace
 
 
+def test_monotone_scale_search_narrows_through_uncertain():
+    # feasible <=4, uncertain at 5-9, infeasible >=10: N* must be 4, not 1
+    def feas(m: int) -> str:
+        if m <= 4:
+            return "feasible"
+        if m <= 9:
+            return "uncertain"
+        return "infeasible"
+
+    m_star, trace = monotone_scale_search(feas, lo_feasible=1, hi_cap=100, hi_hint=12)
+    assert m_star == 4
+    assert 5 in trace["uncertain_scales"] or any(s >= 5 for s in trace["uncertain_scales"])
+
+
+def test_monotone_scale_search_verifies_hi_hint_equal_to_cap():
+    # regression: hi_hint == hi_cap must still be tested, not skipped
+    m_star, _ = monotone_scale_search(lambda m: "feasible", lo_feasible=1, hi_cap=8, hi_hint=8)
+    assert m_star == 8
+
+
 # ------------------------------------------------------------------ 4
 def test_candidate_cache_roundtrip(tmp_path):
     path = tmp_path / "cache.jsonl"
