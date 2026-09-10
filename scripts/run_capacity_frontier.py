@@ -191,7 +191,7 @@ def search(mode: str, force: bool = False) -> None:
     if mode == "pilot":
         x_grid = list(cs["x_grid_pilot"])
         meas_s = float(cs["measurement_seconds_pilot"])
-        n_cap = min(int(cs["n_ref"]), 12)
+        n_cap = min(int(cs["n_ref"]), 20)
     else:
         x_grid = list(cs["x_grid_final"])
         meas_s = float(cs["measurement_seconds_final"])

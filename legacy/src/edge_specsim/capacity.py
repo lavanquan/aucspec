@@ -268,24 +268,27 @@ def monotone_scale_search(
         trace["note"] = "lo_feasible was not feasible"
         return 0, trace
 
-    hi = hi_hint if hi_hint is not None else lo
-    step = max(1, lo)
-    while hi < hi_cap:
-        nxt = min(hi_cap, max(hi + 1, hi * 2 if hi > 0 else step))
-        st = _ev(nxt)
+    # First probe: the monotonicity hint from the previous (smaller) x if
+    # it is strictly above lo, else lo+1. The hint is ALWAYS verified --
+    # never assumed feasible -- so hi_hint == hi_cap still gets tested.
+    hi: int | None = None
+    if hi_hint is not None and hi_hint > lo:
+        probe = min(hi_cap, int(hi_hint))
+    else:
+        probe = min(hi_cap, lo + 1)
+
+    while True:
+        st = _ev(probe)
         if st == "feasible":
-            lo = nxt
-            hi = nxt
-            if nxt >= hi_cap:
+            lo = probe
+            if probe >= hi_cap:
                 return hi_cap, trace
+            probe = min(hi_cap, max(probe + 1, probe * 2))
         else:
             if st == "infeasible":
-                trace["boundary_first_infeasible"] = nxt
-            hi = nxt
+                trace["boundary_first_infeasible"] = probe
+            hi = probe
             break
-    else:
-        # never found an infeasible point up to the cap
-        return min(lo, hi_cap), trace
 
     # binary search in (lo, hi]
     while hi - lo > 1:
