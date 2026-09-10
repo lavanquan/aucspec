@@ -37,3 +37,6 @@ exp5_shard*.log
 auc_ar_*.log
 results/auc_achievable_region/raw/
 *.csv.bak
+cap_pilot*.log
+cap_ar_*.log
+results/capacity_frontier/raw/
