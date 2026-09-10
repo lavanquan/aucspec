@@ -140,10 +140,21 @@ def test_feasibility_classifier_infeasible_by_rate():
 
 
 def test_feasibility_classifier_infeasible_by_queue_growth():
+    # rate is only marginally over the floor AND Z_i clearly diverging
     r = classify_feasibility(
-        [_meas(1, 1.30, z_slope=0.05), _meas(2, 1.31, z_slope=0.06)], x=1.0
+        [_meas(1, 0.98, z_slope=0.15), _meas(2, 0.99, z_slope=0.16)], x=1.0
     )
     assert r.status == "infeasible"
+
+
+def test_feasibility_classifier_ignores_transient_z_slope_when_rate_is_high():
+    # min-rate 6.2 vs x=4.5: a small positive Z_i tail slope is a transient,
+    # not instability -- must be "feasible" (this was the pilot bug)
+    r = classify_feasibility(
+        [_meas(1, 6.15, z_slope=0.05), _meas(2, 6.38, z_slope=0.06), _meas(3, 6.11, z_slope=0.04)],
+        x=4.5,
+    )
+    assert r.status == "feasible"
 
 
 def test_feasibility_classifier_uncertain_on_boundary():

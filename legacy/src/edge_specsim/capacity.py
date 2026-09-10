@@ -166,8 +166,20 @@ def classify_feasibility(
         for m in measurements
     ]
 
-    if lower >= floor and not deficit_queue_growing:
-        status, reason = "feasible", "lower rate estimate clears the floor; Z_i rate-stable"
+    # If the lower estimate of the minimum sustained rate is comfortably
+    # ABOVE the requirement (more than one tolerance band over x), the run
+    # is feasible regardless of a small transient Z_i tail slope: Z_i
+    # cannot diverge while per-user service exceeds per-user demand. The
+    # queue-slope veto only applies in the marginal band, where a growing
+    # Z_i is the tie-breaker toward "infeasible".
+    comfortably_over = lower >= x * (1.0 + rate_tolerance_fraction)
+
+    if comfortably_over:
+        status = "feasible"
+        reason = "min-rate lower bound exceeds x by more than the tolerance band"
+    elif lower >= floor and not deficit_queue_growing:
+        status = "feasible"
+        reason = "lower rate estimate clears the floor; Z_i rate-stable"
     elif upper < floor or z_slope > 5 * queue_slope_tolerance:
         status = "infeasible"
         reason = (
