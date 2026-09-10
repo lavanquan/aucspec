@@ -49,6 +49,10 @@ OUT_DIR = REPO_ROOT / "results" / "capacity_frontier"
 RAW_DIR = OUT_DIR / "raw"
 CACHE_PATH = OUT_DIR / "candidate_cache.jsonl"
 
+# Set by search(); which controller policy this sweep evaluates. Every
+# baseline is run through the SAME outer capacity search (Section 18).
+_ACTIVE_POLICY = "capacity_dpp"
+
 
 def _config_hash(cfg: dict) -> str:
     """Hash of the deployment-relevant config (excludes seed / num_clients /
@@ -67,7 +71,7 @@ def build_run_config(base_cfg: dict, n: int, x: float, seed: int, meas_s: float,
     cfg["simulation"]["seed"] = int(seed)
     cfg["simulation"]["min_interactivity_tps"] = float(x)
     cfg["simulation"]["output_csv"] = out_csv
-    cfg["controller"]["policy"] = "capacity_dpp"
+    cfg["controller"]["policy"] = _ACTIVE_POLICY
     cfg["controller"]["min_interactivity_tps"] = float(x)
     cfg["controller"]["V"] = float(base_cfg["controller"]["V"])
     cfg["experiment"]["warmup_seconds"] = float(base_cfg["capacity_search"].get("warmup_seconds", 0.0))
@@ -139,11 +143,11 @@ def measure_candidate(rounds_csv: Path, n: int, x: float, seed: int) -> Candidat
 
 def run_one(base_cfg: dict, n: int, x: float, seed: int, meas_s: float, cfg_hash: str,
             cache: CandidateCache, force: bool) -> CandidateMeasurement:
-    cached = None if force else cache.get(x, n, "capacity_dpp", seed, cfg_hash)
+    cached = None if force else cache.get(x, n, _ACTIVE_POLICY, seed, cfg_hash)
     if cached is not None:
         return cached
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-    label = f"n{n}_x{x}_s{seed}"
+    label = f"{_ACTIVE_POLICY}_n{n}_x{x}_s{seed}"
     out_csv = f"results/capacity_frontier/raw/{label}.csv"
     cfg = build_run_config(base_cfg, n, x, seed, meas_s, out_csv)
     cfg_path = RAW_DIR / f"{label}.yaml"
@@ -157,7 +161,7 @@ def run_one(base_cfg: dict, n: int, x: float, seed: int, meas_s: float, cfg_hash
     if r.returncode != 0:
         raise RuntimeError(f"run_simulation.py failed for {label} (exit {r.returncode})")
     m = measure_candidate(REPO_ROOT / out_csv, n, x, seed)
-    cache.put(x, n, "capacity_dpp", seed, cfg_hash, m)
+    cache.put(x, n, _ACTIVE_POLICY, seed, cfg_hash, m)
     return m
 
 
@@ -182,7 +186,9 @@ def feasibility_at(base_cfg: dict, n: int, x: float, meas_s: float, cfg_hash: st
     return res.status, meas
 
 
-def search(mode: str, force: bool = False) -> None:
+def search(mode: str, policy: str = "capacity_dpp", force: bool = False) -> None:
+    global _ACTIVE_POLICY
+    _ACTIVE_POLICY = policy
     with open(BASE_CONFIG_PATH, "r", encoding="utf-8") as f:
         base_cfg = yaml.safe_load(f)
     cs = base_cfg["capacity_search"]
@@ -218,7 +224,7 @@ def search(mode: str, force: bool = False) -> None:
         _, boundary_ms = feasibility_at(base_cfg, max(1, n_star), x, meas_s, cfg_hash, cache, cs, force=False)
         mean = lambda k: sum(getattr(m, k) for m in boundary_ms) / len(boundary_ms)
         rows.append({
-            "policy": "capacity_dpp",
+            "policy": policy,
             "x_requirement": x,
             "N_hat_star": n_star,
             "boundary_last_feasible_N": n_star,
@@ -231,9 +237,12 @@ def search(mode: str, force: bool = False) -> None:
             "mean_batch_size": mean("mean_batch_size"),
             "mean_fill_ratio": mean("mean_fill_ratio"),
         })
-        print(f"  -> N*({x}) = {n_star}", flush=True)
-        pd.DataFrame(rows).to_csv(OUT_DIR / "nstar_frontier.csv", index=False)
-        pd.DataFrame(decisions).to_csv(OUT_DIR / "feasibility_decisions.csv", index=False)
+        print(f"  -> [{policy}] N*({x}) = {n_star}", flush=True)
+        pd.DataFrame(rows).to_csv(OUT_DIR / f"nstar_frontier_{policy}.csv", index=False)
+        pd.DataFrame(decisions).to_csv(OUT_DIR / f"feasibility_decisions_{policy}.csv", index=False)
+        if policy == "capacity_dpp":  # keep the un-suffixed names as the primary
+            pd.DataFrame(rows).to_csv(OUT_DIR / "nstar_frontier.csv", index=False)
+            pd.DataFrame(decisions).to_csv(OUT_DIR / "feasibility_decisions.csv", index=False)
 
     analyze(base_cfg)
 
@@ -243,56 +252,91 @@ def analyze(base_cfg: dict | None = None) -> None:
         with open(BASE_CONFIG_PATH, "r", encoding="utf-8") as f:
             base_cfg = yaml.safe_load(f)
     cs = base_cfg["capacity_search"]
-    fr = pd.read_csv(OUT_DIR / "nstar_frontier.csv").sort_values("x_requirement")
-    xs = fr["x_requirement"].astype(float).tolist()
-    ns = fr["N_hat_star"].astype(float).tolist()
-    bounds = step_area_bounds(xs, ns)
-    x_L = float(cs["x_L"])
-    x_U = float(cs["x_U"])
-    n_ref = float(cs["n_ref"])
-    ica_val = ica(xs, ns, x_L=x_L, x_U=x_U, n_ref=n_ref)
-    out = {
-        "x_L": x_L, "x_U": x_U, "N_ref": n_ref,
-        "area_lower": bounds["area_lower"],
-        "area_upper": bounds["area_upper"],
-        "area_step_estimate": bounds["area_step_estimate"],
-        "ICA": ica_val,
-        "x_grid": xs, "nstar": ns,
-    }
-    with open(OUT_DIR / "ica_summary.json", "w", encoding="utf-8") as f:
-        json.dump(out, f, indent=2)
-    print("\n=== N*(x) frontier ===")
-    print(fr[["x_requirement", "N_hat_star", "min_rate_at_last_feasible", "Y_at_last_feasible"]].to_string(index=False))
-    print(f"\narea_lower={bounds['area_lower']:.3f} area_upper={bounds['area_upper']:.3f} "
-          f"area_step={bounds['area_step_estimate']:.3f}  ICA={ica_val:.4f}")
+    x_L, x_U, n_ref = float(cs["x_L"]), float(cs["x_U"]), float(cs["n_ref"])
+
+    frontier_files = sorted(glob.glob(str(OUT_DIR / "nstar_frontier_*.csv")))
+    if not frontier_files and (OUT_DIR / "nstar_frontier.csv").exists():
+        frontier_files = [str(OUT_DIR / "nstar_frontier.csv")]
+
+    comparison_rows = []
+    per_policy_ica = {}
+    for path in frontier_files:
+        fr = pd.read_csv(path).sort_values("x_requirement")
+        policy = str(fr["policy"].iloc[0]) if "policy" in fr.columns else Path(path).stem.replace("nstar_frontier_", "")
+        xs = fr["x_requirement"].astype(float).tolist()
+        ns = fr["N_hat_star"].astype(float).tolist()
+        bounds = step_area_bounds(xs, ns)
+        ica_val = ica(xs, ns, x_L=x_L, x_U=x_U, n_ref=n_ref)
+        per_policy_ica[policy] = {"xs": xs, "ns": ns, "ICA": ica_val, **bounds}
+        out = {"policy": policy, "x_L": x_L, "x_U": x_U, "N_ref": n_ref,
+               "area_lower": bounds["area_lower"], "area_upper": bounds["area_upper"],
+               "area_step_estimate": bounds["area_step_estimate"], "ICA": ica_val,
+               "x_grid": xs, "nstar": ns}
+        with open(OUT_DIR / f"ica_summary_{policy}.json", "w", encoding="utf-8") as f:
+            json.dump(out, f, indent=2)
+        if policy == "capacity_dpp":
+            with open(OUT_DIR / "ica_summary.json", "w", encoding="utf-8") as f:
+                json.dump(out, f, indent=2)
+        comparison_rows.append({"policy": policy, "ICA": ica_val,
+                                "area_lower": bounds["area_lower"], "area_upper": bounds["area_upper"],
+                                "area_step_estimate": bounds["area_step_estimate"],
+                                "x_min": min(xs), "x_max": max(xs),
+                                "nstar_at_x_min": ns[0], "nstar_at_x_max": ns[-1]})
+        print(f"[{policy}] ICA={ica_val:.4f}  area[{bounds['area_lower']:.1f},{bounds['area_upper']:.1f}]  "
+              f"N*: {ns}")
+
+    if comparison_rows:
+        cmp_df = pd.DataFrame(comparison_rows).sort_values("ICA", ascending=False)
+        cmp_df.to_csv(OUT_DIR / "policy_comparison.csv", index=False)
+        print("\n=== policy comparison (by ICA) ===")
+        print(cmp_df.to_string(index=False))
 
     try:
-        _figures(fr)
+        _figures(per_policy_ica)
     except Exception as exc:  # matplotlib optional
         print(f"(figures skipped: {exc})")
 
 
-def _figures(fr: pd.DataFrame) -> None:
+def _figures(per_policy_ica: dict) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    # Fig 1: N*(x) frontier(s)
     fig, ax = plt.subplots(figsize=(7, 5))
-    ax.step(fr["x_requirement"], fr["N_hat_star"], where="post", marker="o")
+    for policy, d in sorted(per_policy_ica.items()):
+        ax.step(d["xs"], d["ns"], where="post", marker="o", label=f"{policy} (ICA={d['ICA']:.2f})")
     ax.set_xlabel("required interactivity x (tok/s/client)")
     ax.set_ylabel("max sustainable concurrency N*(x)")
-    ax.set_title("Fig 1: N*(x) capacity frontier (capacity_dpp, pilot)")
+    ax.set_title("Fig 1: N*(x) capacity frontier")
+    ax.legend(fontsize=8)
     fig.tight_layout(); fig.savefig(OUT_DIR / "fig1_nstar_frontier.png", dpi=130); plt.close(fig)
 
-    fig, ax1 = plt.subplots(figsize=(7, 5))
-    ax1.plot(fr["x_requirement"], fr["mean_gamma"], "o-", color="tab:red", label="mean gamma at boundary")
-    ax1.set_xlabel("x"); ax1.set_ylabel("mean gamma", color="tab:red")
-    ax2 = ax1.twinx()
-    ax2.plot(fr["x_requirement"], fr["N_hat_star"], "s-", color="tab:blue", label="N*(x)")
-    ax2.set_ylabel("N*(x)", color="tab:blue")
-    ax1.set_title("Fig 3: gamma mechanism along the frontier")
-    fig.tight_layout(); fig.savefig(OUT_DIR / "fig3_gamma_vs_capacity.png", dpi=130); plt.close(fig)
-    print(f"wrote fig1, fig3 under {OUT_DIR}")
+    # Fig 2: ICA comparison bar
+    if len(per_policy_ica) > 1:
+        fig, ax = plt.subplots(figsize=(7, 4))
+        items = sorted(per_policy_ica.items(), key=lambda kv: kv[1]["ICA"], reverse=True)
+        ax.bar([k for k, _ in items], [v["ICA"] for _, v in items], color="tab:blue")
+        ax.set_ylabel("ICA (fraction of the common rectangle)")
+        ax.set_title("Fig 2: ICA by policy")
+        ax.set_ylim(0, 1)
+        fig.tight_layout(); fig.savefig(OUT_DIR / "fig2_ica_comparison.png", dpi=130); plt.close(fig)
+
+    # Fig 3: gamma mechanism for capacity_dpp
+    cap = None
+    for path in sorted(glob.glob(str(OUT_DIR / "nstar_frontier_capacity_dpp.csv"))) or \
+            ([str(OUT_DIR / "nstar_frontier.csv")] if (OUT_DIR / "nstar_frontier.csv").exists() else []):
+        cap = pd.read_csv(path).sort_values("x_requirement")
+    if cap is not None:
+        fig, ax1 = plt.subplots(figsize=(7, 5))
+        ax1.plot(cap["x_requirement"], cap["mean_gamma"], "o-", color="tab:red", label="mean gamma at boundary")
+        ax1.set_xlabel("x"); ax1.set_ylabel("mean gamma", color="tab:red")
+        ax2 = ax1.twinx()
+        ax2.plot(cap["x_requirement"], cap["N_hat_star"], "s-", color="tab:blue", label="N*(x)")
+        ax2.set_ylabel("N*(x)", color="tab:blue")
+        ax1.set_title("Fig 3: gamma mechanism along the capacity_dpp frontier")
+        fig.tight_layout(); fig.savefig(OUT_DIR / "fig3_gamma_vs_capacity.png", dpi=130); plt.close(fig)
+    print(f"wrote figures under {OUT_DIR}")
 
 
 def main() -> None:
@@ -302,13 +346,23 @@ def main() -> None:
     p.add_argument("--resume", action="store_true")
     p.add_argument("--analyze-only", action="store_true")
     p.add_argument("--force", action="store_true")
+    p.add_argument("--policy", default="capacity_dpp",
+                   help="single controller policy to sweep")
+    p.add_argument("--policies", default=None,
+                   help="comma-separated list of policies; each is run through the "
+                        "SAME outer capacity search, then policy_comparison.csv is written")
     a = p.parse_args()
+
+    policies = [s.strip() for s in a.policies.split(",")] if a.policies else [a.policy]
+
     if a.analyze_only:
         analyze()
     elif a.pilot:
-        search("pilot", force=a.force)
+        for pol in policies:
+            search("pilot", policy=pol, force=a.force)
     elif a.search or a.resume:
-        search("final", force=a.force and not a.resume)
+        for pol in policies:
+            search("final", policy=pol, force=a.force and not a.resume)
     else:
         raise SystemExit("pass one of --pilot / --search / --resume / --analyze-only")
 

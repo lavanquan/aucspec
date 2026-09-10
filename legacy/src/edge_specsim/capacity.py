@@ -121,6 +121,15 @@ class FeasibilityResult:
     per_seed: list[dict] = field(default_factory=list)
 
 
+def _median(values: Sequence[float]) -> float:
+    v = sorted(values)
+    n = len(v)
+    if n == 0:
+        return 0.0
+    mid = n // 2
+    return v[mid] if n % 2 else 0.5 * (v[mid - 1] + v[mid])
+
+
 def classify_feasibility(
     measurements: Sequence[CandidateMeasurement],
     x: float,
@@ -128,23 +137,20 @@ def classify_feasibility(
     rate_tolerance_fraction: float = 0.03,
     queue_slope_tolerance: float = 1e-3,
 ) -> FeasibilityResult:
-    """Section 12.2. Conservative: uses the across-seed mean minus one
-    standard error as the lower estimate and mean plus one standard error
-    as the upper estimate of min_rate. A point strictly inside the
-    tolerance band -> "uncertain" (caller adds seeds).
+    """Section 12.2. Robust across seeds: the lower estimate of the
+    minimum sustained rate is the WORST seed (conservative, distribution
+    free) and the upper estimate is the median. This replaced a mean +/- 1
+    standard error band that was too twitchy at 2-3 seeds and produced
+    spurious "uncertain" verdicts near a thin margin. A point strictly
+    inside the tolerance band -> "uncertain" (caller adds seeds).
     """
     if not measurements:
         raise ValueError("need at least one measurement")
     rates = [float(m.min_rate_tps) for m in measurements]
     k = len(rates)
     mean_r = sum(rates) / k
-    if k >= 2:
-        var = sum((r - mean_r) ** 2 for r in rates) / (k - 1)
-        se = math.sqrt(var / k)
-    else:
-        se = 0.0
-    lower = mean_r - se
-    upper = mean_r + se
+    lower = min(rates)            # worst seed
+    upper = _median(rates)        # typical seed
     floor = x * (1.0 - rate_tolerance_fraction)
 
     # Section 12: the DECISIVE stability signal is the interactivity-deficit
