@@ -34,3 +34,6 @@ results/**/*_artifacts/
 *.jsonl
 .tools/
 exp5_shard*.log
+auc_ar_*.log
+results/auc_achievable_region/raw/
+*.csv.bak

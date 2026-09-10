@@ -41,6 +41,13 @@ class ClientProfile:
     z_queue: float = 0.0
     device_queue: float = 0.0
     generated_tokens: int = 0
+    # AUC_ACHIEVABLE_REGION_DIAGNOSTIC.md Section 4: diagnostic-only class
+    # priority multiplier m_{c(i)} applied to the server-side verification
+    # weight w_i = m_{c(i)} * (V + Z_i). Must not affect acceptance, draft
+    # latency, network latency, dataset sampling, reward accounting,
+    # x_requirement, or virtual queue update equations -- only which
+    # requests the batcher prioritizes.
+    diagnostic_priority_multiplier: float = 1.0
     alpha_prior_success: float = 1.0
     alpha_prior_failure: float = 1.0
     alpha_ucb_scale: float = 1.0

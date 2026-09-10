@@ -502,6 +502,11 @@ class EdgeSpecSimulator:
                     snr_phase_rad=random.uniform(0.0, 2.0 * math.pi),
                     channel_seed=int(self.cfg["simulation"]["seed"]),
                     wireless_weight=float(class_cfg.get("wireless_weight", 1.0)),
+                    diagnostic_priority_multiplier=float(
+                        c.get("diagnostic_priority_multiplier", {}).get(
+                            client_class_name, 1.0
+                        )
+                    ),
                     alpha_prior_success=float(self.learning_cfg.get("alpha_prior_success", 1.0)),
                     alpha_prior_failure=float(self.learning_cfg.get("alpha_prior_failure", 1.0)),
                     alpha_ucb_scale=float(
@@ -657,7 +662,12 @@ class EdgeSpecSimulator:
             draft=draft,
             remaining_tokens=remaining,
             server_arrival_ms=server_arrival_ms,
-            weight=self.controller.V + (client.z_queue if self.controller.use_virtual_queues else 0.0),
+            # AUC_ACHIEVABLE_REGION_DIAGNOSTIC.md eq. in Section 4:
+            # w_i = m_{c(i)} * (V + Z_i). diagnostic_priority_multiplier
+            # defaults to 1.0 (no-op) unless clients.diagnostic_priority_multiplier
+            # is set in config, so this does not change any prior experiment.
+            weight=client.diagnostic_priority_multiplier
+            * (self.controller.V + (client.z_queue if self.controller.use_virtual_queues else 0.0)),
             deadline=None,
             expected_acceptance_rate=client.alpha_hat,
             expected_acceptance_profile=client.positional_acceptance_profile(

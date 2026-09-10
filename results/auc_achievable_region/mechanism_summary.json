@@ -1,0 +1,36 @@
+{
+  "sweeps": {
+    "A_boost_hard_math_budget10": {
+      "target_class": "hard_math (NOT the empirical bottleneck)",
+      "m_lo": 1,
+      "m_hi": 64,
+      "min_x_lo": 1.3565371099862913,
+      "min_x_hi": 1.3530885029806132,
+      "Y_lo": 38.88961263631125,
+      "Y_hi": 39.0171613020786,
+      "verifier_share_hard_lo": 0.30035504497726423,
+      "verifier_share_hard_hi": 0.29188456394878387,
+      "verdict": "no effect - wrong group; hard_math already sits well above the floor (its x_min ~2.2-2.4 vs system min_x ~1.35)"
+    },
+    "AM_boost_medium_cnn_budget10": {
+      "target_class": "medium_cnn_summarize (empirical bottleneck: lowest alpha_hat ~0.77, lowest per-class x_min)",
+      "m_lo": 1,
+      "m_hi": 64,
+      "min_x_lo": 1.3716816496366322,
+      "min_x_at_m2": 1.498293888391449,
+      "min_x_hi": 1.5566305425912486,
+      "min_x_gain_pct_at_m2": 9.230439059118222,
+      "min_x_gain_pct_at_m64": 13.483368608423874,
+      "Y_lo": 39.13970283739284,
+      "Y_hi": 43.7642889154161,
+      "eta_lo": 0.7610365924910963,
+      "eta_hi": 0.7497124581453821,
+      "share_cnn_lo": 0.3483488698058707,
+      "share_cnn_hi": 0.36073065777695246,
+      "verifier_share_cnn_lo": 0.3954977247772231,
+      "verifier_share_cnn_hi": 0.39097258455953043,
+      "verdict": "Outcome C: min_x rises ~9% at m=2 and ~13% at m=64, Y RISES (not falls), eta ~flat. A reachable higher-min_x point exists that the adaptive_index controller does not use. Improvement is modest and saturates after m=2 -> achievable region has limited but non-zero curvature."
+    }
+  },
+  "final_answer": "The near-rectangular AUC frontier is PARTLY a controller-allocation artifact and PARTLY a genuine structural property. Boosting the true bottleneck class (medium_cnn_summarize) reaches an operating point ~10-13% higher in system min_x with NO goodput loss - a point the current virtual-queue/index controller does not find. But the reachable gain is small and saturates immediately (one discrete step at m=2), so the achievable region is close to rectangular, not a rich smooth trade-off. Recommendation: fix the controller allocation (the weighted_utility ranking weight x expected_useful_tokens structurally underweights low-acceptance clients, i.e. exactly the group that sets the interactivity floor; Z_i is not compensating enough), but do not expect a large AUC gain at this N/gamma_max scale."
+}
