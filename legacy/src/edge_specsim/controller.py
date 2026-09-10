@@ -123,13 +123,21 @@ class OnlineController:
             "turbospec",
             "fixed_slo",
             "gelato",
+            # CAPACITY_AUC_NSTAR_IMPLEMENTATION.md Section 7: the N*-capacity
+            # controller. Same three-subproblem structure as adaptive_index
+            # but the device-side gamma choice is an EXACT enumeration of
+            # S_i(gamma) = (V+Z_i) phi_i(gamma) - Q_s theta_f (gamma+1)
+            #              - Q_i gamma (tau_d + kappa/r_i)
+            # over gamma_choices, rather than the paper_index_gamma closed
+            # form. adaptive_index is left untouched for reproducibility.
+            "capacity_dpp",
         }
         if self.policy not in valid_policies:
             raise ValueError(
                 "controller.policy must be one of: "
                 "target_only, fixed_gamma, load_only, random_gamma, oracle_gamma, "
                 "adaptive_queue, adaptive_ucb, adaptive_index, "
-                "goodspeed, turbospec, fixed_slo, gelato"
+                "goodspeed, turbospec, fixed_slo, gelato, capacity_dpp"
             )
         if self.fixed_gamma not in self.gamma_choices:
             raise ValueError("controller.fixed_gamma must be included in controller.gamma_choices")
@@ -354,6 +362,83 @@ class OnlineController:
             return feasible[-1]
         return 0
 
+    # ------------------------------------------------------------- capacity_dpp
+    def _capacity_dpp_device_cost_per_token_ms(self, client: ClientProfile) -> float:
+        """tau_d + kappa/r_i in ms (per speculative token), matching
+        _paper_index_cost_ratio's device-latency term."""
+        tau_d_ms = self._draft_time_ms_per_token(client)
+        kappa_bits_per_token = self._uplink_kappa_bits_per_token()
+        kappa_over_r_ms = self._network_time_ms_for_kappa_bits(
+            client=client,
+            kappa_bits_per_token=kappa_bits_per_token,
+            rate_mbps=max(1e-6, client.uplink_mbps),
+        )
+        return float(tau_d_ms + kappa_over_r_ms)
+
+    def capacity_dpp_score(
+        self,
+        client: ClientProfile,
+        gamma: int,
+        acceptance_profile: list[float],
+    ) -> float:
+        """S_i(gamma) exactly as CAPACITY_AUC_NSTAR_IMPLEMENTATION.md 7.1:
+
+            S_i(gamma) = (V + Z_i) * phi_hat_i(gamma)
+                         - Q_s * theta_f * (gamma + 1)
+                         - Q_i * gamma * (tau_d + kappa/r_i)
+
+        Q_s = server_queue, Q_i = device_queue, theta_f =
+        current_verifier_theta_f_ms_per_token. Queue prices are zero when
+        use_virtual_queues is False, degenerating to argmax phi (i.e.
+        largest gamma), which the tests check.
+        """
+        z_i = client.z_queue if self.use_virtual_queues else 0.0
+        q_s = self.server_queue if self.use_virtual_queues else 0.0
+        q_i = client.device_queue if self.use_virtual_queues else 0.0
+        phi_hat = expected_useful_tokens_from_profile(acceptance_profile) if gamma > 0 else 1.0
+        benefit = (self.V + z_i) * phi_hat
+        verifier_cost = q_s * self.current_verifier_theta_f_ms_per_token * (gamma + 1)
+        device_cost = q_i * gamma * self._capacity_dpp_device_cost_per_token_ms(client)
+        return float(benefit - verifier_cost - device_cost)
+
+    def _capacity_dpp_gamma(self, client: ClientProfile, use_ucb: bool) -> int:
+        """Exact argmax of capacity_dpp_score over gamma_choices; ties go to
+        the smaller gamma (avoids gratuitous verifier work at equal utility,
+        7.1)."""
+        best_gamma = 0
+        best_score = self.capacity_dpp_score(client, 0, [])
+        for candidate in self.gamma_choices:
+            if candidate == 0:
+                continue
+            profile = client.positional_acceptance_profile(candidate, use_ucb)
+            score = self.capacity_dpp_score(client, candidate, profile)
+            if score > best_score + 1e-12:
+                best_score = score
+                best_gamma = candidate
+        return best_gamma
+
+    def capacity_dpp_scalar_should_grow(
+        self,
+        client: ClientProfile,
+        gamma: int,
+        alpha: float,
+    ) -> bool:
+        """7.2 closed-form special case: under i.i.d. scalar acceptance, add
+        one more speculative token while
+            (V + Z_i) * alpha^(gamma+1)  >=  Q_s*theta_f + Q_i*(tau_d + kappa/r).
+        Tested to agree with the discrete argmax under the scalar model.
+        """
+        z_i = client.z_queue if self.use_virtual_queues else 0.0
+        q_s = self.server_queue if self.use_virtual_queues else 0.0
+        q_i = client.device_queue if self.use_virtual_queues else 0.0
+        a = min(1.0 - 1e-12, max(1e-12, float(alpha)))
+        marginal_benefit = (self.V + z_i) * (a ** (gamma + 1))
+        marginal_cost = (
+            q_s * self.current_verifier_theta_f_ms_per_token
+            + q_i * self._capacity_dpp_device_cost_per_token_ms(client)
+        )
+        return marginal_benefit >= marginal_cost
+
     def _goodspeed_cost_ratio(self, client: ClientProfile) -> float:
         """Same eq.(13) stopping-rule shape as _paper_index_cost_ratio, but
         the benefit weight is 1/x_hat_i(t) (proportional-fair marginal
@@ -523,6 +608,8 @@ class OnlineController:
             gamma = self._fixed_slo_gamma(client)
         elif self.policy == "gelato":
             gamma = self._gelato_gamma(client)
+        elif self.policy == "capacity_dpp":
+            gamma = self._capacity_dpp_gamma(client, use_ucb=True)
         else:
             raise RuntimeError(f"Unsupported controller policy: {self.policy}")
         gamma = self._apply_exploration(client, gamma)

@@ -273,6 +273,66 @@ def compute_client_interactivity(df: pd.DataFrame) -> pd.DataFrame:
     return per_client
 
 
+def compute_sustained_service_rates(
+    df: pd.DataFrame,
+    t_measurement_s: float,
+    admitted_client_ids: list[int] | None = None,
+) -> pd.DataFrame:
+    """CAPACITY_AUC_NSTAR_IMPLEMENTATION.md Section 11.
+
+    x_hat_i = (useful committed tokens delivered to client i during the
+    measurement window) / T_measurement, with the SAME T_measurement
+    denominator for every admitted client. This is the primary capacity
+    metric and is deliberately NOT the per-sample `active_e2e_ms`-based
+    `compute_client_interactivity()` rate.
+
+    An admitted client that received no committed tokens has rate 0 and is
+    kept in the frame (so `min` over the frame is a true floor). Pass
+    `admitted_client_ids` (e.g. the nested-population catalog prefix) to
+    include zero-service clients that never appear in `df`.
+    """
+    if t_measurement_s <= 0.0:
+        raise ValueError("t_measurement_s must be positive")
+    meas = measurement_rounds(df) if "in_measurement_window" in df.columns else df
+    useful_by_client = (
+        meas.groupby("client_id")["useful_tokens"].sum().astype(float).to_dict()
+    )
+    if admitted_client_ids is None:
+        admitted_client_ids = sorted(useful_by_client.keys())
+    rows = []
+    for cid in admitted_client_ids:
+        useful = float(useful_by_client.get(cid, 0.0))
+        rows.append(
+            {
+                "client_id": int(cid),
+                "useful_tokens_measured": useful,
+                "sustained_service_rate_tps": useful / t_measurement_s,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def summarize_sustained_service_rates(rates_df: pd.DataFrame) -> dict[str, float]:
+    vals = sorted(float(v) for v in rates_df["sustained_service_rate_tps"].tolist())
+    if not vals:
+        return {
+            "min_sustained_service_rate_tps": 0.0,
+            "p10_sustained_service_rate_tps": 0.0,
+            "median_sustained_service_rate_tps": 0.0,
+            "mean_sustained_service_rate_tps": 0.0,
+            "max_sustained_service_rate_tps": 0.0,
+            "n_admitted": 0,
+        }
+    return {
+        "min_sustained_service_rate_tps": vals[0],
+        "p10_sustained_service_rate_tps": percentile(vals, 0.10),
+        "median_sustained_service_rate_tps": percentile(vals, 0.50),
+        "mean_sustained_service_rate_tps": sum(vals) / len(vals),
+        "max_sustained_service_rate_tps": vals[-1],
+        "n_admitted": len(vals),
+    }
+
+
 def compute_system_metrics(df: pd.DataFrame) -> dict[str, float | int]:
     _require_columns(
         df,
