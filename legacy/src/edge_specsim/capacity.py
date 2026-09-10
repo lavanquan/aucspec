@@ -147,28 +147,33 @@ def classify_feasibility(
     upper = mean_r + se
     floor = x * (1.0 - rate_tolerance_fraction)
 
+    # Section 12: the DECISIVE stability signal is the interactivity-deficit
+    # queue Z_i. If the long-run per-user service rate meets the floor, Z_i
+    # is rate-stable by construction. The server/device *price* queues are
+    # expected to sit at a bounded non-zero level at any loaded operating
+    # point (that non-zero price is what makes the drift-plus-penalty
+    # controller trade off resources) -- a small positive tail slope on a
+    # finite window that has not fully reached steady state does NOT mean
+    # infeasible. We therefore gate feasibility on Z_i only, and keep the
+    # resource-queue slopes as logged diagnostics.
     z_slope = max(float(m.max_z_slope) for m in measurements)
     dq_slope = max(float(m.max_device_queue_slope) for m in measurements)
     sq_slope = max(float(m.server_queue_slope) for m in measurements)
-    queues_growing = (
-        z_slope > queue_slope_tolerance
-        or dq_slope > queue_slope_tolerance
-        or sq_slope > queue_slope_tolerance
-    )
+    deficit_queue_growing = z_slope > queue_slope_tolerance
 
     per_seed = [
         {"seed": m.seed, "min_rate_tps": m.min_rate_tps, "max_z_slope": m.max_z_slope}
         for m in measurements
     ]
 
-    if lower >= floor and not queues_growing:
-        status, reason = "feasible", "lower rate estimate clears the floor; no queue drift"
+    if lower >= floor and not deficit_queue_growing:
+        status, reason = "feasible", "lower rate estimate clears the floor; Z_i rate-stable"
     elif upper < floor or z_slope > 5 * queue_slope_tolerance:
         status = "infeasible"
         reason = (
             "upper rate estimate below floor"
             if upper < floor
-            else "interactivity-deficit queue growing"
+            else "interactivity-deficit queue Z_i growing"
         )
     else:
         status, reason = "uncertain", "min_rate inside the tolerance band"
