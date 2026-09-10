@@ -205,6 +205,21 @@ class EdgeSpecSimulator:
             if self.measurement_seconds is None
             else self.measurement_start_ms + self.measurement_seconds * 1000.0
         )
+        # CAPACITY_AUC_NSTAR_IMPLEMENTATION.md Section 4: nested-population
+        # mode for the N* capacity search. When enabled, every candidate
+        # concurrency N is a prefix of the SAME frozen catalog: client i
+        # always gets prompt block [i*Q : (i+1)*Q] (not a round-robin shard
+        # that shifts with N), and per-client params are already
+        # index-deterministic because the RNG is seeded once and consumed
+        # in client-index order. We therefore load population_n_max * Q
+        # prompts regardless of the requested num_clients.
+        self._nested_population = bool(sim.get("nested_population", False))
+        self._nested_qpc = int(sim.get("questions_per_client", 5))
+        self._nested_n_max = int(sim.get("population_n_max", sim["num_clients"]))
+        self.population_fingerprint = ""
+        if self._nested_population:
+            self.cfg["dataset"] = dict(self.cfg["dataset"])
+            self.cfg["dataset"]["num_questions"] = self._nested_n_max * self._nested_qpc
         samples = load_samples(self.cfg["dataset"])
         self.samples = list(samples)
         self.clients = self._make_clients(self.samples, num_clients=num_clients)
@@ -415,25 +430,63 @@ class EdgeSpecSimulator:
             assigned_cfgs.append(cfg)
 
         shards: list = [None] * num_clients
-        default_indices = [i for i in range(num_clients) if not assigned_cfgs[i].get("dataset")]
-        if default_indices:
-            default_shards = shard_round_robin(samples, len(default_indices))
-            for slot, i in enumerate(default_indices):
-                shards[i] = default_shards[slot]
 
-        override_groups: dict[str, list[int]] = {}
-        for i, cfg in enumerate(assigned_cfgs):
-            override = cfg.get("dataset")
-            if override:
-                override_groups.setdefault(assigned_names[i], []).append(i)
-        for class_name, indices in override_groups.items():
-            class_dataset_cfg = dict(self.cfg["dataset"])
-            class_dataset_cfg.update(assigned_cfgs[indices[0]]["dataset"])
-            class_samples = load_samples(class_dataset_cfg)
-            self.samples.extend(class_samples)
-            class_shards = shard_round_robin(class_samples, len(indices))
-            for slot, i in enumerate(indices):
-                shards[i] = class_shards[slot]
+        if self._nested_population:
+            # Section 4: fixed per-client prompt block, so the client set
+            # for N is a strict prefix of the client set for any N' > N.
+            # Homogeneous single-dataset only (pilot / Exp1 "start
+            # homogeneous"). Per-client params are already index-deterministic
+            # (RNG seeded once, consumed in client-index order below), so
+            # only the prompt assignment needs to change here.
+            from collections import deque as _deque
+            import hashlib as _hashlib
+            import json as _json
+
+            qpc = self._nested_qpc
+            for i in range(num_clients):
+                shards[i] = _deque(samples[i * qpc : (i + 1) * qpc])
+            fp_payload = _json.dumps(
+                {
+                    "seed": int(self.cfg["simulation"]["seed"]),
+                    "n_max": self._nested_n_max,
+                    "qpc": qpc,
+                    "clients": [
+                        {
+                            "i": i,
+                            "class": assigned_names[i],
+                            "prompt_ids": [str(s.sample_id) for s in list(shards[i])],
+                        }
+                        for i in range(num_clients)
+                    ],
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            self.population_fingerprint = _hashlib.sha256(
+                fp_payload.encode("utf-8")
+            ).hexdigest()[:16]
+        else:
+            default_indices = [
+                i for i in range(num_clients) if not assigned_cfgs[i].get("dataset")
+            ]
+            if default_indices:
+                default_shards = shard_round_robin(samples, len(default_indices))
+                for slot, i in enumerate(default_indices):
+                    shards[i] = default_shards[slot]
+
+            override_groups: dict[str, list[int]] = {}
+            for i, cfg in enumerate(assigned_cfgs):
+                override = cfg.get("dataset")
+                if override:
+                    override_groups.setdefault(assigned_names[i], []).append(i)
+            for class_name, indices in override_groups.items():
+                class_dataset_cfg = dict(self.cfg["dataset"])
+                class_dataset_cfg.update(assigned_cfgs[indices[0]]["dataset"])
+                class_samples = load_samples(class_dataset_cfg)
+                self.samples.extend(class_samples)
+                class_shards = shard_round_robin(class_samples, len(indices))
+                for slot, i in enumerate(indices):
+                    shards[i] = class_shards[slot]
 
         clients: list[ClientProfile] = []
         for i in range(num_clients):
@@ -780,6 +833,9 @@ class EdgeSpecSimulator:
             "verification_batch_measured_service_ms": batch_metadata.measured_batch_service_ms,
             "controller_policy": self.controller.policy,
             "controller_V": self.controller.V,
+            "population_fingerprint": self.population_fingerprint,
+            "n_active": len(self.clients),
+            "x_requirement": self.controller.min_tps,
             "control_slot_ms": self.controller.slot_ms,
             "control_slot_index": slot_observation.slot_index,
             "slot_useful_tokens": slot_observation.slot_useful_tokens,
