@@ -34,7 +34,7 @@ simulation:
   min_interactivity_tps: 2.0     # overridden per x
   server_price_scale: 0.02
   nested_population: true
-  questions_per_client: 5
+  questions_per_client: 40
   population_n_max: 30           # N_ref; catalog holds n_max * qpc prompts
   output_csv: results/capacity_frontier/PLACEHOLDER/raw/PLACEHOLDER.csv
 

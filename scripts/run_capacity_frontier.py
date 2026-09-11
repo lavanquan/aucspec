@@ -230,6 +230,25 @@ def measure_candidate(rounds_csv: Path, n: int, x: float, seed: int, meas_s: flo
     summ = summarize_sustained_service_rates(rates_df)
     per_client = dict(zip(rates_df["client_id"].astype(int), rates_df["sustained_service_rate_tps"].astype(float)))
 
+    # Workload-exhaustion guard: if a client's own activity span inside the
+    # window is much shorter than meas_s, it ran out of assigned prompts
+    # (questions_per_client too small for this rate * meas_s) before the
+    # measurement interval ended. The fixed-denominator rate is then an
+    # UNDERESTIMATE of true sustained capacity, not a real throttling
+    # signal -- surfaced loudly here instead of silently producing a
+    # spuriously low (and possibly falsely "infeasible") rate.
+    exhausted_clients = []
+    if "client_receive_ms" in win.columns:
+        for cid, g in win.groupby("client_id"):
+            span_s = (g["client_receive_ms"].max() - g["client_receive_ms"].min()) / 1000.0
+            if span_s < 0.85 * meas_s:
+                exhausted_clients.append({"client_id": int(cid), "active_span_s": round(span_s, 1)})
+    if exhausted_clients:
+        print(f"  !! WORKLOAD EXHAUSTION at n={n} x={x} seed={seed}: "
+              f"{len(exhausted_clients)}/{n} client(s) ran out of prompts before the "
+              f"{meas_s}s window ended (increase questions_per_client): {exhausted_clients}",
+              flush=True)
+
     def _slope(col: str) -> float:
         if col not in win.columns:
             return 0.0
@@ -267,6 +286,7 @@ def measure_candidate(rounds_csv: Path, n: int, x: float, seed: int, meas_s: flo
             ),
             "mean_uplink_rate_mbps": float(win["realized_uplink_rate_mbps"].mean()) if "realized_uplink_rate_mbps" in win.columns else None,
             "mean_gamma_rate_signal_mbps": float(win["gamma_rate_signal_mbps"].mean()) if "gamma_rate_signal_mbps" in win.columns else None,
+            "exhausted_clients": exhausted_clients,
         },
     )
 
@@ -478,8 +498,8 @@ def analyze_final(run_tag: str) -> None:
         n_cap = int(df["hit_search_cap"].sum())
         report_lines.append(
             f"\n## {policy}\n\nICA (lower, upper): {area['ica_lower']}, {area['ica_upper']}  \n"
-            f"points: {len(df)} (exact: {n_exact}, cap-limited: {n_cap})\n\n" + df.to_markdown(index=False)
-            if hasattr(df, "to_markdown") else ""
+            f"points: {len(df)} (exact: {n_exact}, cap-limited: {n_cap})\n\n```\n"
+            + df.to_string(index=False) + "\n```"
         )
         print(f"[{policy}] ICA in [{area['ica_lower']}, {area['ica_upper']}] "
               f"cap_limited={area['any_cap_limited']} interval_valued={area['any_interval_valued']}")
