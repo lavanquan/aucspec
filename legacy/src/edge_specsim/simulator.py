@@ -631,6 +631,11 @@ class EdgeSpecSimulator:
         self.controller.set_verifier_theta_f_signal(estimated_theta_f_ms_per_token)
         self.controller.set_active_client_signal(len(self._active_clients()))
         remaining = client.remaining_tokens
+        # Section 4.2: capture the causal rate signal actually consumed by
+        # THIS gamma decision, before this round's own allocation updates
+        # it for the next round.
+        gamma_rate_signal_mbps = self.controller.estimated_uplink_rate_mbps(client)
+        gamma_rate_signal_age_rounds = self.controller.uplink_rate_signal_age_rounds(client)
         selected_gamma = self.controller.choose_gamma(client, self.total_rounds)
         gamma = min(selected_gamma, max(0, remaining - 1))
         client.gamma = gamma
@@ -702,6 +707,11 @@ class EdgeSpecSimulator:
                 client.virtual_time_ms + draft_edge_latency_ms,
                 upload_bytes,
             )
+            # CAPACITY_AWARE_FRAMEWORK_CODEX_IMPLEMENTATION.md Section 4.2:
+            # feed the REALIZED allocation back to the controller so the
+            # NEXT gamma decision for this client uses it as r_tilde_i
+            # (causal -- this round's own decision already happened).
+            self.controller.observe_uplink_allocation(client.client_id, uplink_rate_mbps)
             upload_ms = self._transfer_time_ms(
                 upload_bytes, uplink_rate_mbps, client.packet_loss
             )
@@ -875,6 +885,9 @@ class EdgeSpecSimulator:
             "uplink_allocator": uplink_allocator,
             "downlink_allocator": downlink_allocator,
             "uplink_rate_mbps": uplink_rate_mbps,
+            "realized_uplink_rate_mbps": uplink_rate_mbps,
+            "gamma_rate_signal_mbps": gamma_rate_signal_mbps,
+            "gamma_rate_signal_age_rounds": gamma_rate_signal_age_rounds,
             "downlink_rate_mbps": downlink_rate_mbps,
             "upload_bytes": upload_bytes,
             "upload_ms": upload_ms,

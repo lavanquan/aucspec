@@ -274,6 +274,36 @@ def test_capacity_dpp_no_queues_picks_largest_gamma():
     assert ctrl._capacity_dpp_gamma(cl, use_ucb=False) == 4
 
 
+def test_estimated_uplink_rate_falls_back_to_nominal_before_first_observation():
+    ctrl = _ctrl()
+    cl = _client(alpha=0.8)
+    assert ctrl.estimated_uplink_rate_mbps(cl) == pytest.approx(cl.uplink_mbps)
+    assert ctrl.uplink_rate_signal_age_rounds(cl) == -1
+
+
+def test_estimated_uplink_rate_uses_last_observation_not_nominal():
+    ctrl = _ctrl()
+    cl = _client(alpha=0.8)
+    ctrl.observe_uplink_allocation(cl.client_id, rate_mbps=3.0)
+    assert ctrl.estimated_uplink_rate_mbps(cl) == pytest.approx(3.0)
+    assert ctrl.estimated_uplink_rate_mbps(cl) != pytest.approx(cl.uplink_mbps)
+
+
+def test_decreasing_causal_uplink_rate_cannot_increase_gamma():
+    ctrl = _ctrl()
+    ctrl.server_queue = 1.0
+    ctrl.current_verifier_theta_f_ms_per_token = 0.3
+    cl = _client(z_queue=2.0, device_queue=3.0, alpha=0.85)
+
+    ctrl.observe_uplink_allocation(cl.client_id, rate_mbps=50.0)
+    gamma_fast_link = ctrl._capacity_dpp_gamma(cl, use_ucb=True)
+
+    ctrl.observe_uplink_allocation(cl.client_id, rate_mbps=1.0)
+    gamma_slow_link = ctrl._capacity_dpp_gamma(cl, use_ucb=True)
+
+    assert gamma_slow_link <= gamma_fast_link
+
+
 def test_capacity_dpp_scalar_closed_form_matches_discrete_under_scalar_model():
     ctrl = _ctrl()
     ctrl.server_queue = 2.0

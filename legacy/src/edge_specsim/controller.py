@@ -110,6 +110,16 @@ class OnlineController:
         self._gelato_energy_queue: dict[int, float] = {}
         self._gelato_last_energy_mj: dict[int, float] = {}
         self._goodspeed_epsilon_x = 1e-6  # tokens/s floor so 1/x_hat never blows up before any tokens land
+        # CAPACITY_AWARE_FRAMEWORK_CODEX_IMPLEMENTATION.md Section 4.2:
+        # causal uplink-rate signal r_tilde_i for capacity_dpp's gamma
+        # score. Units: Mbps. _tick is a monotonically increasing
+        # decision-call counter (one per choose_gamma call), used only to
+        # report how many controller decisions old the last observed
+        # allocation is (gamma_rate_signal_age_rounds); never used to
+        # predict a future allocation.
+        self._tick = 0
+        self._last_uplink_rate_mbps: dict[int, float] = {}
+        self._last_uplink_observed_tick: dict[int, int] = {}
         valid_policies = {
             "target_only",
             "fixed_gamma",
@@ -363,15 +373,41 @@ class OnlineController:
         return 0
 
     # ------------------------------------------------------------- capacity_dpp
+    def observe_uplink_allocation(self, client_id: int, rate_mbps: float) -> None:
+        """Section 4.2: record the REALIZED uplink allocation (Mbps) for
+        `client_id`, to be used as r_tilde_i by the NEXT depth decision.
+        Call this after `_allocate_shared_bandwidth()` returns for a
+        speculative payload. Never call with a future/not-yet-realized
+        rate."""
+        self._last_uplink_rate_mbps[int(client_id)] = max(1e-6, float(rate_mbps))
+        self._last_uplink_observed_tick[int(client_id)] = self._tick
+
+    def estimated_uplink_rate_mbps(self, client: ClientProfile) -> float:
+        """r_tilde_i (Mbps): the last REALIZED uplink allocation observed
+        for this client via `observe_uplink_allocation`. Before any
+        allocation has been observed, falls back to the client's nominal
+        link estimate `client.uplink_mbps` (documented fallback, Section
+        4.2)."""
+        return self._last_uplink_rate_mbps.get(client.client_id, max(1e-6, float(client.uplink_mbps)))
+
+    def uplink_rate_signal_age_rounds(self, client: ClientProfile) -> int:
+        """Decision-calls since the r_tilde_i signal for this client was
+        last refreshed via `observe_uplink_allocation`; -1 if never
+        observed (still on the nominal fallback)."""
+        last = self._last_uplink_observed_tick.get(client.client_id)
+        return -1 if last is None else max(0, self._tick - last)
+
     def _capacity_dpp_device_cost_per_token_ms(self, client: ClientProfile) -> float:
-        """tau_d + kappa/r_i in ms (per speculative token), matching
-        _paper_index_cost_ratio's device-latency term."""
+        """tau_d + kappa/r_tilde_i in ms (per speculative token). Uses the
+        CAUSAL realized-allocation signal (Section 4.2), not the client's
+        nominal `uplink_mbps`, once at least one allocation has been
+        observed."""
         tau_d_ms = self._draft_time_ms_per_token(client)
         kappa_bits_per_token = self._uplink_kappa_bits_per_token()
         kappa_over_r_ms = self._network_time_ms_for_kappa_bits(
             client=client,
             kappa_bits_per_token=kappa_bits_per_token,
-            rate_mbps=max(1e-6, client.uplink_mbps),
+            rate_mbps=self.estimated_uplink_rate_mbps(client),
         )
         return float(tau_d_ms + kappa_over_r_ms)
 
@@ -582,6 +618,7 @@ class OnlineController:
         return gamma
 
     def choose_gamma(self, client: ClientProfile, total_rounds: int) -> int:
+        self._tick += 1
         client.refresh_learning_stats(total_rounds)
 
         if self.policy == "target_only":
