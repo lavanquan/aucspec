@@ -202,7 +202,7 @@ def search(mode: str, policy: str = "capacity_dpp", force: bool = False) -> None
     else:
         x_grid = list(cs["x_grid_final"])
         meas_s = float(cs["measurement_seconds_final"])
-        n_cap = int(cs["n_ref"])
+        n_cap = int(cs.get("n_search_cap", cs["n_ref"]))
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     rows = []
