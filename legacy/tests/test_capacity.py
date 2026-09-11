@@ -13,12 +13,20 @@ from edge_specsim.population import PopulationCatalog, PopulationTemplate
 from edge_specsim.capacity import (
     CandidateCache,
     CandidateMeasurement,
+    NStarResult,
+    SearchDecision,
+    XStarResult,
+    area_from_nstar,
+    area_from_xstar,
     classify_feasibility,
+    classify_feasibility_final,
     ica,
     monotone_scale_search,
+    monotone_scale_search_final,
     step_area_bounds,
     sustained_rates,
     tail_slope,
+    xstar_search,
 )
 from edge_specsim.controller import OnlineController
 from edge_specsim.models import ClientProfile
@@ -343,3 +351,168 @@ def test_symmetric_nstar_is_monotone_nonincreasing_and_scales_like_inverse_x():
     assert all(b <= a for a, b in zip(ns, ns[1:]))  # P1 monotone nonincreasing
     s = scaling_exponent([x for x in xs if nstar(x, p)[0] > 0], p)
     assert 0.7 <= s <= 1.3  # Theta(1/x)
+
+
+# =========================================================================
+# CAPACITY_AWARE_FRAMEWORK_CODEX_IMPLEMENTATION.md "final mode" tests
+# (Section 15).
+# =========================================================================
+
+def _cm(seed, per_client, x=1.0, n=None):
+    n = n if n is not None else len(per_client)
+    return CandidateMeasurement(
+        scale=n, n_active=n, x_requirement=x, seed=seed,
+        min_rate_tps=min(per_client.values()), per_client_rates=dict(per_client),
+    )
+
+
+# ---- classify_feasibility_final -----------------------------------------
+
+def test_final_classifier_k1_is_heuristic_only():
+    r = classify_feasibility_final([_cm(1, {0: 5.0, 1: 5.0})], x=1.0, n_clients=2)
+    assert r.status == "heuristic_only"
+
+
+def test_final_classifier_feasible_all_lcb_above_x():
+    meas = [_cm(s, {0: 5.0 + 0.01 * s, 1: 5.2 + 0.01 * s}) for s in range(5)]
+    r = classify_feasibility_final(meas, x=1.0, n_clients=2, confidence_delta=0.05)
+    assert r.status == "feasible"
+    assert r.min_lcb >= 1.0
+
+
+def test_final_classifier_infeasible_all_ucb_below_x():
+    meas = [_cm(s, {0: 0.5 + 0.01 * s, 1: 0.4 + 0.01 * s}) for s in range(5)]
+    r = classify_feasibility_final(meas, x=1.0, n_clients=2, confidence_delta=0.05)
+    assert r.status == "infeasible"
+    assert r.min_ucb < 1.0
+
+
+def test_final_classifier_uncertain_on_overlapping_bounds():
+    # rates scattered right around x=1.0 with real seed-to-seed spread
+    vals0 = [0.7, 1.3, 0.9, 1.1, 1.0]
+    vals1 = [0.8, 1.2, 1.0, 0.9, 1.1]
+    meas = [_cm(s, {0: vals0[s], 1: vals1[s]}) for s in range(5)]
+    r = classify_feasibility_final(meas, x=1.0, n_clients=2, confidence_delta=0.05)
+    assert r.status == "uncertain"
+
+
+def test_final_classifier_never_relaxes_the_floor():
+    # a rate exactly at x with essentially zero seed variance must not be
+    # rejected by a (1-eps)*x floor -- it should read as feasible/uncertain,
+    # never silently pass because the true test was against a lower number
+    meas = [_cm(s, {0: 1.0, 1: 1.0}) for s in range(5)]
+    r = classify_feasibility_final(meas, x=1.0, n_clients=2)
+    assert r.status in {"feasible", "uncertain"}
+    assert r.min_lcb <= 1.0 <= r.min_ucb + 1e-9
+
+
+# ---- NStarResult / monotone_scale_search_final ---------------------------
+
+def _decision(n, status):
+    return SearchDecision(n=n, status=status, min_lcb=0.0, min_ucb=0.0, seeds_used=3)
+
+
+def test_nstar_exact_monotone_boundary_recovered():
+    def feas(n: int) -> SearchDecision:
+        return _decision(n, "feasible" if n <= 7 else "infeasible")
+
+    res = monotone_scale_search_final(feas, lo_feasible=1, hi_cap=30, x_requirement=2.0)
+    assert res.last_confirmed_feasible_n == 7
+    assert res.first_confirmed_infeasible_n == 8
+    assert res.exact is True
+    assert res.hit_search_cap is False
+
+
+def test_nstar_cap_feasible_is_lower_bound_not_equality():
+    def feas(n: int) -> SearchDecision:
+        return _decision(n, "feasible")  # never infeasible up to the cap
+
+    res = monotone_scale_search_final(feas, lo_feasible=1, hi_cap=14, x_requirement=2.0)
+    assert res.hit_search_cap is True
+    assert res.exact is False
+    assert res.lower_bound_n == 14
+    assert res.upper_bound_n is None
+
+
+def test_nstar_uncertain_neighbor_gives_interval():
+    def feas(n: int) -> SearchDecision:
+        if n <= 5:
+            return _decision(n, "feasible")
+        if n == 6:
+            return _decision(n, "uncertain")
+        return _decision(n, "infeasible")
+
+    res = monotone_scale_search_final(feas, lo_feasible=1, hi_cap=30, x_requirement=2.0)
+    assert res.last_confirmed_feasible_n == 5
+    assert 6 in res.uncertain_n
+    assert res.exact is False
+
+
+# ---- xstar_search ----------------------------------------------------
+
+def test_xstar_bisection_matches_synthetic_oracle():
+    true_boundary = 3.37
+
+    def feas(x: float) -> SearchDecision:
+        return _decision(0, "feasible" if x <= true_boundary else "infeasible")
+
+    res = xstar_search(feas, n_active=8, x_lo=0.5, x_hi=6.0, x_tolerance_tps=0.05)
+    assert res.exact_within_tolerance
+    assert abs(res.estimate_x - true_boundary) <= 0.1
+
+
+# ---- area from N*(x) vs x*(N): dual bounds ---------------------------
+
+def test_area_from_nstar_known_staircase():
+    results = [
+        NStarResult(x_requirement=x, last_confirmed_feasible_n=n, first_confirmed_infeasible_n=n + 1,
+                    lower_bound_n=n, upper_bound_n=n + 1, exact=True, hit_search_cap=False)
+        for x, n in [(1.0, 10), (2.0, 10), (3.0, 6), (4.0, 6)]
+    ]
+    out = area_from_nstar(results, x_L=1.0, x_U=4.0, n_ref=30)
+    # step (carry-forward): 10 on [1,3), 6 on [3,4) -> 10*2 + 6*1 = 26
+    assert out["area_lower"] == pytest.approx(26.0)
+    assert out["area_upper"] == pytest.approx(26.0)  # exact everywhere -> bounds coincide
+
+
+def test_area_from_nstar_propagates_cap_and_uncertainty():
+    results = [
+        NStarResult(x_requirement=1.0, last_confirmed_feasible_n=14, first_confirmed_infeasible_n=None,
+                    lower_bound_n=14, upper_bound_n=None, exact=False, hit_search_cap=True),
+        NStarResult(x_requirement=4.0, last_confirmed_feasible_n=14, first_confirmed_infeasible_n=None,
+                    lower_bound_n=14, upper_bound_n=None, exact=False, hit_search_cap=True),
+    ]
+    out = area_from_nstar(results, x_L=1.0, x_U=4.0, n_ref=30)
+    assert out["any_cap_limited"] is True
+    assert out["area_lower"] == pytest.approx(14.0 * 3.0)
+    assert out["area_upper"] == pytest.approx(30.0 * 3.0)  # unresolved -> capped at n_ref
+
+
+def test_area_from_nstar_refuses_extrapolation_outside_measured_grid():
+    results = [
+        NStarResult(x_requirement=2.0, last_confirmed_feasible_n=10, first_confirmed_infeasible_n=11,
+                    lower_bound_n=10, upper_bound_n=11, exact=True, hit_search_cap=False),
+    ]
+    with pytest.raises(ValueError):
+        area_from_nstar(results, x_L=0.5, x_U=4.0, n_ref=30)
+
+
+def test_area_from_xstar_matches_area_from_nstar_on_consistent_data():
+    # a simple step frontier: N*(x)=10 for x in [1,3), N*(x)=6 for x in [3,4]
+    # <=> x*(N)=4 for N<=6, x*(N)=3 for 6<N<=10 (using x_U=4 as the cap for N<=6)
+    nstar_results = [
+        NStarResult(x_requirement=x, last_confirmed_feasible_n=n, first_confirmed_infeasible_n=n + 1,
+                    lower_bound_n=n, upper_bound_n=n + 1, exact=True, hit_search_cap=False)
+        for x, n in [(1.0, 10), (2.0, 10), (3.0, 6), (4.0, 6)]
+    ]
+    area_n = area_from_nstar(nstar_results, x_L=1.0, x_U=4.0, n_ref=10)
+
+    xstar_results = []
+    for n in range(1, 11):
+        x_est = 4.0 if n <= 6 else 3.0
+        xstar_results.append(
+            XStarResult(n_active=n, lower_feasible_x=x_est, upper_infeasible_x=x_est,
+                        estimate_x=x_est, exact_within_tolerance=True)
+        )
+    area_x = area_from_xstar(xstar_results, x_L=1.0, x_U=4.0, n_ref=10)
+    assert area_x["area_lower"] == pytest.approx(area_n["area_lower"], rel=0.05)

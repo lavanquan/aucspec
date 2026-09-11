@@ -426,3 +426,377 @@ def bootstrap_ica(
     lo = vals[int(0.025 * (len(vals) - 1))]
     hi = vals[int(0.975 * (len(vals) - 1))]
     return {"ica_mean": sum(vals) / len(vals), "bootstrap_ci_95": [lo, hi]}
+
+
+# ===========================================================================
+# CAPACITY_AWARE_FRAMEWORK_CODEX_IMPLEMENTATION.md "final mode" additions.
+#
+# The functions above (classify_feasibility, monotone_scale_search,
+# step_area_bounds/ica) are kept unchanged and are now documented as
+# PILOT/SANITY-ONLY (Section 9.2: "A one-seed mode may remain for --pilot,
+# but it must be labelled heuristic/sanity-only and must not produce
+# headline ICA."). Everything below is the exact-SLO, statistically
+# interpretable final-mode path (Sections 9-11).
+# ===========================================================================
+
+
+def _bonferroni_bootstrap_ci(
+    values: Sequence[float],
+    confidence_delta: float,
+    n_clients: int,
+    *,
+    n_boot: int = 2000,
+    rng_seed: int = 0,
+) -> tuple[float, float]:
+    """Section 9.1's documented bootstrap alternative to the Bonferroni
+    Student-t formula (no scipy dependency). Resamples `values` (one
+    client's rate across K independent seeds) with replacement, and reads
+    off the (alpha/2, 1-alpha/2) percentiles where
+    `alpha = confidence_delta / n_clients` is the per-client Bonferroni
+    budget for SIMULTANEOUS coverage across `n_clients` clients.
+
+    K < 2: no interval can be formed; caller must treat the result as
+    heuristic-only, never as a certified bound (Section 9.2).
+    """
+    import random as _random
+
+    k = len(values)
+    if k < 2:
+        v = float(values[0]) if values else 0.0
+        return v, v
+    rng = _random.Random(rng_seed)
+    boots = []
+    for _ in range(n_boot):
+        draw = [values[rng.randrange(k)] for _ in range(k)]
+        boots.append(sum(draw) / k)
+    boots.sort()
+    alpha = confidence_delta / max(1, n_clients)
+    lo_idx = max(0, min(n_boot - 1, int((alpha / 2.0) * (n_boot - 1))))
+    hi_idx = max(0, min(n_boot - 1, int((1.0 - alpha / 2.0) * (n_boot - 1))))
+    return boots[lo_idx], boots[hi_idx]
+
+
+@dataclass
+class FinalFeasibilityResult:
+    """Section 9.1: the exact-SLO classifier. `status` is one of
+    "feasible" | "infeasible" | "uncertain" | "heuristic_only" (K=1: no
+    statistical certification is possible, Section 9.2's test
+    requirement)."""
+
+    status: str
+    per_client_lcb: dict[int, float]
+    per_client_ucb: dict[int, float]
+    min_lcb: float          # min_i L_i -- feasible iff this is >= x
+    min_ucb: float          # min_i U_i -- infeasible iff this is <  x
+    seeds_used: int
+    confidence_delta: float
+    reason: str
+
+
+def classify_feasibility_final(
+    measurements: Sequence["CandidateMeasurement"],
+    x: float,
+    n_clients: int,
+    *,
+    confidence_delta: float = 0.05,
+    n_boot: int = 2000,
+) -> FinalFeasibilityResult:
+    """Section 9.1, verbatim:
+
+        FEASIBLE    iff min_i L_i >= x
+        INFEASIBLE  iff min_i U_i <  x
+        UNCERTAIN   otherwise
+
+    `x` is the EXACT requirement -- no `(1-eps)*x` floor anywhere in this
+    function (Section 0 rule 7). Queue-tail slopes are NOT read here; they
+    are secondary diagnostics logged separately (Section 9.3) and must
+    never veto a rate-based verdict.
+    """
+    k = len(measurements)
+    if k < 2:
+        return FinalFeasibilityResult(
+            status="heuristic_only",
+            per_client_lcb={}, per_client_ucb={},
+            min_lcb=float("nan"), min_ucb=float("nan"),
+            seeds_used=k, confidence_delta=confidence_delta,
+            reason="K=1: cannot form a statistical confidence bound (Section 9.2)",
+        )
+    per_client_lcb: dict[int, float] = {}
+    per_client_ucb: dict[int, float] = {}
+    for cid in range(n_clients):
+        vals = [float(m.per_client_rates.get(cid, 0.0)) for m in measurements]
+        lo, hi = _bonferroni_bootstrap_ci(vals, confidence_delta, n_clients, n_boot=n_boot)
+        per_client_lcb[cid] = lo
+        per_client_ucb[cid] = hi
+    min_lcb = min(per_client_lcb.values()) if per_client_lcb else 0.0
+    min_ucb = min(per_client_ucb.values()) if per_client_ucb else 0.0
+
+    if min_lcb >= x:
+        status, reason = "feasible", "min_i L_i >= x"
+    elif min_ucb < x:
+        status, reason = "infeasible", "min_i U_i < x"
+    else:
+        status, reason = "uncertain", "confidence bounds straddle x"
+
+    return FinalFeasibilityResult(
+        status=status, per_client_lcb=per_client_lcb, per_client_ucb=per_client_ucb,
+        min_lcb=min_lcb, min_ucb=min_ucb, seeds_used=k,
+        confidence_delta=confidence_delta, reason=reason,
+    )
+
+
+@dataclass
+class SearchDecision:
+    n: int
+    status: str
+    min_lcb: float
+    min_ucb: float
+    seeds_used: int
+
+
+@dataclass
+class NStarResult:
+    """Section 10.1. A feasible candidate exactly at the search cap is a
+    LOWER bound, never reported as `N* = N_cap` (Section 0 rule 8)."""
+
+    x_requirement: float
+    last_confirmed_feasible_n: int
+    first_confirmed_infeasible_n: int | None
+    lower_bound_n: int
+    upper_bound_n: int | None
+    exact: bool
+    hit_search_cap: bool
+    uncertain_n: list[int] = field(default_factory=list)
+    trace: list[SearchDecision] = field(default_factory=list)
+
+
+def monotone_scale_search_final(
+    feasibility_fn: Callable[[int], SearchDecision],
+    *,
+    lo_feasible: int = 1,
+    hi_cap: int,
+    hi_hint: int | None = None,
+    x_requirement: float = 0.0,
+) -> NStarResult:
+    """Section 10.1 steps 1-4 (local re-certification, step 5, is the
+    caller's job -- see Gate B in the spec, which re-runs {N*-1,N*,N*+1}
+    on real GPU data). `feasibility_fn(n)` returns a `SearchDecision` with
+    status in {feasible, infeasible, uncertain}; "uncertain" is expected
+    to already reflect the caller's seed-escalation policy (Section 9.2's
+    `min_final_seeds` near the boundary), so this function does NOT retry
+    -- it narrows the bracket through uncertain points and reports them.
+    """
+    if hi_cap < lo_feasible:
+        raise ValueError("hi_cap must be >= lo_feasible")
+    trace: list[SearchDecision] = []
+    uncertain_n: list[int] = []
+
+    def _ev(n: int) -> SearchDecision:
+        d = feasibility_fn(n)
+        trace.append(d)
+        if d.status == "uncertain":
+            uncertain_n.append(n)
+        return d
+
+    lo_decision = _ev(lo_feasible)
+    if lo_decision.status != "feasible":
+        return NStarResult(
+            x_requirement=x_requirement,
+            last_confirmed_feasible_n=0,
+            first_confirmed_infeasible_n=lo_feasible if lo_decision.status == "infeasible" else None,
+            lower_bound_n=0, upper_bound_n=lo_feasible if lo_decision.status == "infeasible" else None,
+            exact=lo_decision.status == "infeasible",
+            hit_search_cap=False, uncertain_n=uncertain_n, trace=trace,
+        )
+
+    lo = lo_feasible
+    probe = min(hi_cap, int(hi_hint)) if (hi_hint is not None and hi_hint > lo) else min(hi_cap, lo + 1)
+    hi: int | None = None
+    while True:
+        d = _ev(probe)
+        if d.status == "feasible":
+            lo = probe
+            if probe >= hi_cap:
+                # Section 0 rule 8: cap-feasible is a lower bound, not N*.
+                return NStarResult(
+                    x_requirement=x_requirement,
+                    last_confirmed_feasible_n=lo, first_confirmed_infeasible_n=None,
+                    lower_bound_n=hi_cap, upper_bound_n=None,
+                    exact=False, hit_search_cap=True,
+                    uncertain_n=uncertain_n, trace=trace,
+                )
+            probe = min(hi_cap, max(probe + 1, probe * 2))
+        else:
+            hi = probe
+            break
+
+    # binary search in (lo, hi]
+    first_infeasible = hi if trace[-1].status == "infeasible" else None
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        d = _ev(mid)
+        if d.status == "feasible":
+            lo = mid
+        elif d.status == "infeasible":
+            first_infeasible = mid
+            hi = mid
+        else:
+            # uncertain: narrow the ceiling but do not certify past it
+            hi = mid
+
+    exact = first_infeasible == lo + 1
+    return NStarResult(
+        x_requirement=x_requirement,
+        last_confirmed_feasible_n=lo,
+        first_confirmed_infeasible_n=first_infeasible,
+        lower_bound_n=lo,
+        upper_bound_n=first_infeasible if first_infeasible is not None else hi,
+        exact=exact,
+        hit_search_cap=False,
+        uncertain_n=uncertain_n,
+        trace=trace,
+    )
+
+
+@dataclass
+class XStarResult:
+    """Section 10.2: the dual search axis at fixed N."""
+
+    n_active: int
+    lower_feasible_x: float
+    upper_infeasible_x: float | None
+    estimate_x: float
+    exact_within_tolerance: bool
+    trace: list[SearchDecision] = field(default_factory=list)
+
+
+def xstar_search(
+    feasibility_fn: Callable[[float], SearchDecision],
+    *,
+    n_active: int,
+    x_lo: float,
+    x_hi: float,
+    x_tolerance_tps: float = 0.10,
+) -> XStarResult:
+    """Bisect `[x_lo, x_hi]` at fixed `n_active` until the bracket width is
+    <= `x_tolerance_tps`. Requires `feasibility_fn(x_lo)` feasible and
+    `feasibility_fn(x_hi)` infeasible (caller should widen the bracket with
+    exponential search first if that does not hold)."""
+    trace: list[SearchDecision] = []
+
+    def _ev(x: float) -> SearchDecision:
+        d = feasibility_fn(x)
+        trace.append(d)
+        return d
+
+    lo_d = _ev(x_lo)
+    hi_d = _ev(x_hi)
+    if lo_d.status != "feasible":
+        return XStarResult(n_active=n_active, lower_feasible_x=x_lo, upper_infeasible_x=x_lo,
+                            estimate_x=x_lo, exact_within_tolerance=False, trace=trace)
+    if hi_d.status == "feasible":
+        return XStarResult(n_active=n_active, lower_feasible_x=x_hi, upper_infeasible_x=None,
+                            estimate_x=x_hi, exact_within_tolerance=False, trace=trace)
+
+    lo, hi = x_lo, x_hi
+    while hi - lo > x_tolerance_tps:
+        mid = 0.5 * (lo + hi)
+        d = _ev(mid)
+        if d.status == "feasible":
+            lo = mid
+        elif d.status == "infeasible":
+            hi = mid
+        else:
+            # uncertain: stop narrowing, report the current bracket
+            break
+
+    return XStarResult(
+        n_active=n_active, lower_feasible_x=lo, upper_infeasible_x=hi,
+        estimate_x=0.5 * (lo + hi), exact_within_tolerance=(hi - lo) <= x_tolerance_tps,
+        trace=trace,
+    )
+
+
+def area_from_nstar(
+    results: Sequence[NStarResult],
+    *,
+    x_L: float,
+    x_U: float,
+    n_ref: float,
+) -> dict:
+    """Section 11: dual-bound capacity area from a sequence of `NStarResult`
+    (one per swept x, sorted by x). NO extrapolation outside `[x_L, x_U]`
+    -- the swept grid must already cover that range (raises otherwise).
+    Cap-limited or interval-valued points widen `area_upper` using
+    `n_ref` as the unresolved upper bound and `area_lower` using the last
+    CONFIRMED feasible count.
+    """
+    pts = sorted(results, key=lambda r: r.x_requirement)
+    if not pts:
+        raise ValueError("need at least one NStarResult")
+    xs = [r.x_requirement for r in pts]
+    if xs[0] > x_L or xs[-1] < x_U:
+        raise ValueError(
+            f"swept grid [{xs[0]}, {xs[-1]}] does not cover [{x_L}, {x_U}] -- "
+            "Section 11: do not extrapolate the ICA window beyond the measured grid"
+        )
+    lower_n = [min(float(n_ref), float(r.lower_bound_n)) for r in pts]
+    upper_n = [
+        min(float(n_ref), float(r.lower_bound_n))
+        if r.exact
+        else min(float(n_ref), float(r.upper_bound_n) if r.upper_bound_n is not None else float(n_ref))
+        for r in pts
+    ]
+    # restrict to [x_L, x_U] and integrate the step function (carry the
+    # value at the last grid point <= the evaluation point)
+    knots = sorted({x_L, x_U, *[x for x in xs if x_L < x < x_U]})
+
+    def _step_area(ns: list[float]) -> float:
+        def n_at(x: float) -> float:
+            if x <= xs[0]:
+                return ns[0]
+            for k in range(len(xs) - 1):
+                if xs[k] <= x < xs[k + 1]:
+                    return ns[k]
+            return ns[-1]
+        return sum(n_at(a) * (b - a) for a, b in zip(knots, knots[1:]))
+
+    area_lower = _step_area(lower_n)
+    area_upper = _step_area(upper_n)
+    width = n_ref * (x_U - x_L)
+    return {
+        "area_lower": area_lower, "area_upper": area_upper,
+        "ica_lower": area_lower / width, "ica_upper": area_upper / width,
+        "any_cap_limited": any(r.hit_search_cap for r in pts),
+        "any_interval_valued": any((not r.exact) and (not r.hit_search_cap) for r in pts),
+    }
+
+
+def area_from_xstar(
+    results: Sequence[XStarResult],
+    *,
+    x_L: float,
+    x_U: float,
+    n_ref: int,
+) -> dict:
+    """Section 11's dual column-sum check:
+    `A_C = sum_{N=1}^{N_ref} [min(x*(N), x_U) - x_L]^+`, using the ESTIMATE
+    (midpoint of the certified bracket) for each `N`. Integer sum over
+    concurrency -- never trapezoidal interpolation over fractional N."""
+    by_n = {r.n_active: r for r in results}
+    total_lower = 0.0
+    total_upper = 0.0
+    for n in range(1, int(n_ref) + 1):
+        r = by_n.get(n)
+        if r is None:
+            continue
+        x_est = r.estimate_x
+        x_hi_bound = r.upper_infeasible_x if r.upper_infeasible_x is not None else x_U
+        total_lower += max(0.0, min(r.lower_feasible_x, x_U) - x_L)
+        total_upper += max(0.0, min(x_hi_bound, x_U) - x_L)
+        del x_est
+    width = n_ref * (x_U - x_L)
+    return {
+        "area_lower": total_lower, "area_upper": total_upper,
+        "ica_lower": total_lower / width, "ica_upper": total_upper / width,
+    }
