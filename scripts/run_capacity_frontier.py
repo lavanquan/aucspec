@@ -386,13 +386,15 @@ def _nstar_row(policy: str, r: NStarResult, seeds_at_boundary: int) -> dict:
     }
 
 
-def run_search_final(run_tag: str | None, policies: list[str], axis: str, resume: bool, force: bool) -> None:
+def run_search_final(run_tag: str | None, policies: list[str], axis: str, resume: bool, force: bool,
+                      config_path: str | None = None) -> None:
     if resume:
         if run_tag is None:
             raise SystemExit("--resume requires --run-tag <existing run directory>")
         ctx = RunContext.resume(run_tag)
     else:
-        with open(REPO_ROOT / "configs" / "capacity_frontier_final.yaml", "r", encoding="utf-8") as f:
+        cfg_path = Path(config_path) if config_path else REPO_ROOT / "configs" / "capacity_frontier_final.yaml"
+        with open(cfg_path, "r", encoding="utf-8") as f:
             base_cfg = yaml.safe_load(f)
         ctx = RunContext.create(base_cfg, run_tag=run_tag)
 
@@ -603,6 +605,8 @@ def main() -> None:
     p.add_argument("--force", action="store_true")
     p.add_argument("--policy", default="capacity_dpp")
     p.add_argument("--policies", default=None)
+    p.add_argument("--config", default=None,
+                   help="override configs/capacity_frontier_final.yaml (e.g. a reduced-grid Gate B/D config)")
     a = p.parse_args()
 
     policies = [s.strip() for s in a.policies.split(",")] if a.policies else [a.policy]
@@ -615,7 +619,8 @@ def main() -> None:
         for pol in policies:
             search_pilot(pol, force=a.force)
     elif a.search or a.resume:
-        run_search_final(a.run_tag, policies, a.search_axis, resume=a.resume, force=a.force and not a.resume)
+        run_search_final(a.run_tag, policies, a.search_axis, resume=a.resume,
+                          force=a.force and not a.resume, config_path=a.config)
     else:
         raise SystemExit("pass one of --pilot / --search / --resume / --analyze-only")
 
