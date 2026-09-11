@@ -1,0 +1,5 @@
+policy,ICA,area_lower,area_upper,area_step_estimate,x_min,x_max,nstar_at_x_min,nstar_at_x_max
+capacity_dpp,0.4666666666666667,21.0,21.0,21.0,2.0,3.5,14.0,14.0
+goodspeed,0.4666666666666667,21.0,21.0,21.0,2.0,3.5,14.0,14.0
+turbospec,0.4666666666666667,21.0,21.0,21.0,2.0,3.5,14.0,14.0
+fixed_slo,0.4380952380952381,12.0,21.0,16.5,2.0,3.5,14.0,8.0

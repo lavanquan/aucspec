@@ -1,5 +1,5 @@
 {
-  "policy": "capacity_dpp",
+  "policy": "turbospec",
   "x_L": 0.5,
   "x_U": 4.0,
   "N_ref": 30.0,

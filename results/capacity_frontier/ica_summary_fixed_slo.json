@@ -1,18 +1,18 @@
 {
-  "policy": "capacity_dpp",
+  "policy": "fixed_slo",
   "x_L": 0.5,
   "x_U": 4.0,
   "N_ref": 30.0,
-  "area_lower": 21.0,
+  "area_lower": 12.0,
   "area_upper": 21.0,
-  "area_step_estimate": 21.0,
-  "ICA": 0.4666666666666667,
+  "area_step_estimate": 16.5,
+  "ICA": 0.4380952380952381,
   "x_grid": [
     2.0,
     3.5
   ],
   "nstar": [
     14.0,
-    14.0
+    8.0
   ]
 }

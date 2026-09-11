@@ -1,0 +1,3 @@
+policy,x_requirement,N_hat_star,boundary_last_feasible_N,boundary_first_infeasible_N,seeds,min_rate_at_last_feasible,queue_stability_at_last_feasible,Y_at_last_feasible,mean_gamma,mean_batch_size,mean_fill_ratio
+turbospec,2.0,14,14,,1,3.653031561456314,0.0,51.275885935692735,0.0718954248366013,8.362229102167182,0.8649810801513588
+turbospec,3.5,14,14,,1,4.444608237330551,5.301306500834051e-05,63.12680421291287,0.0910344827586207,6.929379310344828,0.7643862068965517

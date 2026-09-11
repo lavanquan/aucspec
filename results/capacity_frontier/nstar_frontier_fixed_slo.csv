@@ -1,0 +1,3 @@
+policy,x_requirement,N_hat_star,boundary_last_feasible_N,boundary_first_infeasible_N,seeds,min_rate_at_last_feasible,queue_stability_at_last_feasible,Y_at_last_feasible,mean_gamma,mean_batch_size,mean_fill_ratio
+fixed_slo,2.0,14,14,,1,3.102013803810951,0.03197398000400777,56.50334821135216,2.937803692905734,2.183673469387755,0.842371234207969
+fixed_slo,3.5,8,8,9.0,1,4.090654724214454,0.03717039007490855,38.78608540551093,3.1265243902439024,1.8414634146341464,0.7445121951219512
