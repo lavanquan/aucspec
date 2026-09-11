@@ -210,20 +210,33 @@ def classify_feasibility(
 
 
 # --------------------------------------------------------------------------- 13
+CANDIDATE_CACHE_SCHEMA_VERSION = 2  # bump when CandidateMeasurement's fixed-window
+                                     # semantics change; see reject-on-mismatch below.
+
+
 class CandidateCache:
     """`(x, scale, policy, seed, config_hash)` -> CandidateMeasurement on
     disk as JSON lines. The driver resumes without rerunning GPU points
-    (Section 13.4)."""
+    (Section 13.4). Section 19: versioned -- a record without a matching
+    `schema_version` (e.g. an old cache predating the exact fixed-window
+    denominator fix) is REJECTED at load time rather than silently reused,
+    so a biased legacy rate can never leak into a final-mode result; the
+    candidate is simply re-run.
+    """
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
         self._mem: dict[tuple, CandidateMeasurement] = {}
+        self.rejected_legacy_records = 0
         if self.path.exists():
             for line in self.path.read_text().splitlines():
                 line = line.strip()
                 if not line:
                     continue
                 rec = json.loads(line)
+                if rec.get("schema_version") != CANDIDATE_CACHE_SCHEMA_VERSION:
+                    self.rejected_legacy_records += 1
+                    continue
                 self._mem[self._key_from_rec(rec)] = CandidateMeasurement(**rec["measurement"])
 
     @staticmethod
@@ -241,6 +254,7 @@ class CandidateCache:
         key = self._key(x, scale, policy, seed, config_hash)
         self._mem[key] = measurement
         rec = {
+            "schema_version": CANDIDATE_CACHE_SCHEMA_VERSION,
             "x": float(x),
             "scale": int(scale),
             "policy": str(policy),
