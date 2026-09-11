@@ -107,8 +107,8 @@ capacity_search:
   n_ref: 30
   n_lo_feasible: 1
   n_search_cap: 14
-  initial_seeds: 2
-  max_seeds: 3
+  initial_seeds: 1
+  max_seeds: 1
   rate_tolerance_fraction: 0.05
   queue_slope_tolerance: 0.02
   warmup_seconds: 20
