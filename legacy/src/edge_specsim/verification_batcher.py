@@ -62,6 +62,8 @@ class VerificationBatcher:
         deadline: float | None = None,
         expected_acceptance_rate: float = 0.5,
         expected_acceptance_profile: list[float] | None = None,
+        server_queue_price: float = 0.0,
+        theta_f_ms_per_token: float = 0.0,
     ) -> tuple[VerificationBatchMetadata, VerificationResult]:
         loop = asyncio.get_running_loop()
         future: asyncio.Future[tuple[VerificationBatchMetadata, VerificationResult]] = (
@@ -85,6 +87,11 @@ class VerificationBatcher:
                 draft=draft,
                 remaining_tokens=remaining_tokens,
                 future=future,
+                # CAPACITY_AWARE_FRAMEWORK_CODEX_IMPLEMENTATION.md Section 6:
+                # only consumed by the capacity_knapsack value_fn; harmless
+                # (default 0.0) for every legacy scheduler.
+                server_queue_price=server_queue_price,
+                theta_f_ms_per_token=theta_f_ms_per_token,
             )
         )
         return await future
@@ -217,6 +224,12 @@ class VerificationBatcher:
     ) -> None:
         batch_ready_ms = batch[0].arrival_time + self.batch_wait_ms
         batch_token_cost = sum(request.verifier_token_cost for request in batch)
+        # CAPACITY_AWARE_FRAMEWORK_CODEX_IMPLEMENTATION.md Section 6.3: this
+        # reads the flag set by the pop_batch() call that produced `batch`
+        # immediately before this _process() call (synchronous, no
+        # interleaving pop_batch between them -- see _loop()'s call sites).
+        forced_service = self.server_queue.last_batch_forced_service
+        sum_capacity_value = sum(request.capacity_dpp_value for request in batch)
         batch_metadata = VerificationBatchMetadata(
             batch_id=self.batch_counter,
             batch_size=len(batch),
@@ -230,6 +243,8 @@ class VerificationBatcher:
             batch_ready_ms=batch_ready_ms,
             batch_start_ms=max(batch_ready_ms, self.server_available_at_ms),
             verify_finish_ms=0.0,
+            forced_service=forced_service,
+            sum_capacity_value=sum_capacity_value,
         )
         self.batch_counter += 1
         payload = [
@@ -288,6 +303,8 @@ class VerificationBatcher:
             batch_ready_ms=batch_metadata.batch_ready_ms,
             batch_start_ms=batch_metadata.batch_start_ms,
             verify_finish_ms=batch_metadata.batch_start_ms + modeled_batch_service_ms,
+            forced_service=batch_metadata.forced_service,
+            sum_capacity_value=batch_metadata.sum_capacity_value,
         )
         self.server_available_at_ms = batch_metadata.verify_finish_ms
         for request, result in zip(batch, results):

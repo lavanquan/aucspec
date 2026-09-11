@@ -23,10 +23,23 @@ class VerificationRequest:
     draft: DraftResult
     remaining_tokens: int
     future: asyncio.Future[tuple["VerificationBatchMetadata", VerificationResult]]
+    # CAPACITY_AWARE_FRAMEWORK_CODEX_IMPLEMENTATION.md Section 6.2: fields
+    # for the capacity_dpp-specific batch value, used ONLY by the
+    # `capacity_knapsack` scheduler. Default 0.0 so legacy schedulers
+    # (fcfs, weighted_utility, knapsack, ...) are byte-for-byte unchanged.
+    server_queue_price: float = 0.0       # Q_s at submission time
+    theta_f_ms_per_token: float = 0.0     # DPP compute-work price (ms/verifier-token)
 
     @property
     def verifier_token_cost(self) -> int:
         return max(1, self.gamma + 1)
+
+    @property
+    def service_weight(self) -> float:
+        """Alias for `weight` (= V + Z_i for capacity_dpp) -- Section 6.1's
+        v_i formula names it service_weight; kept as a read-only alias so
+        existing code that sets `weight` needs no change."""
+        return self.weight
 
     @property
     def expected_accepted_tokens(self) -> float:
@@ -49,6 +62,17 @@ class VerificationRequest:
     def batching_utility(self) -> float:
         return max(0.0, float(self.weight)) * self.expected_useful_tokens
 
+    @property
+    def capacity_dpp_value(self) -> float:
+        """Section 6.1: v_i = (V+Z_i) phi_hat_i(gamma_i) - Q_s theta_f c_i^v.
+        Unlike `batching_utility`, this MAY be negative -- the exact DP
+        knapsack must allow an empty batch when every value is
+        non-positive (Section 6.2)."""
+        return (
+            self.service_weight * self.expected_useful_tokens
+            - self.server_queue_price * self.theta_f_ms_per_token * self.verifier_token_cost
+        )
+
 
 @dataclass(frozen=True)
 class VerificationBatchMetadata:
@@ -64,6 +88,8 @@ class VerificationBatchMetadata:
     batch_ready_ms: float
     batch_start_ms: float
     verify_finish_ms: float
+    forced_service: bool = False
+    sum_capacity_value: float = 0.0
 
 
 @dataclass
@@ -71,6 +97,7 @@ class VerificationQueue:
     waiting: list[VerificationRequest] = field(default_factory=list)
     random_seed: int = 0
     _rng: random.Random = field(init=False, repr=False)
+    last_batch_forced_service: bool = False
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.random_seed)
@@ -163,16 +190,36 @@ class VerificationQueue:
                 eligible,
                 max_batch_size,
                 verify_token_budget,
-                utility_lambda,
+                value_fn=lambda request: self._weighted_utility_value(request, utility_lambda),
+            )
+        elif scheduler_name == "capacity_knapsack":
+            # CAPACITY_AWARE_FRAMEWORK_CODEX_IMPLEMENTATION.md Section 6:
+            # capacity_dpp-specific value v_i = (V+Z_i) phi_i - Q_s theta_f
+            # c_i^v, which MAY be negative -- the exact DP already prefers
+            # the empty selection (value 0.0) over any negative-value pick,
+            # so "allow an empty batch when every value is non-positive"
+            # falls out of the existing DP structure with no extra code.
+            selected = self._select_knapsack(
+                eligible,
+                max_batch_size,
+                verify_token_budget,
+                value_fn=lambda request: request.capacity_dpp_value,
             )
         else:
             raise ValueError(
                 "verification_batching.scheduler must be one of: "
                 "fcfs, random, equal_tokens, max_expected_accepted_tokens, "
-                "max_throughput, max_expected_accepted_per_cost, weighted_utility, knapsack"
+                "max_throughput, max_expected_accepted_per_cost, weighted_utility, "
+                "knapsack, capacity_knapsack"
             )
 
+        self.last_batch_forced_service = not selected
         if not selected:
+            # Section 6.2: liveness escape hatch so a request is never
+            # deadlocked forever when the optimizer's honest choice was
+            # "serve nobody this cycle" (e.g. every capacity_dpp_value is
+            # negative). Logged via last_batch_forced_service -- this is
+            # NOT the DPP optimum and must never be presented as one.
             selected = [eligible[0]]
 
         selected_ids = {id(request) for request in selected}
@@ -278,8 +325,13 @@ class VerificationQueue:
         eligible: list[VerificationRequest],
         max_batch_size: int,
         verify_token_budget: int,
-        utility_lambda: float,
+        value_fn,
     ) -> list[VerificationRequest]:
+        """Exact 0/1 knapsack DP. `value_fn(request) -> float` may return
+        negative values (Section 6.2); dp[0][0] = (0.0, []) means the
+        EMPTY selection always competes on equal footing, so the DP
+        naturally returns an empty batch when every value is non-positive
+        -- no special-casing needed."""
         capped_budget = max(1, verify_token_budget)
         max_items = max(1, max_batch_size)
         dp: list[list[tuple[float, list[int]]]] = [
@@ -288,7 +340,7 @@ class VerificationQueue:
         ]
         dp[0][0] = (0.0, [])
         for index, request in enumerate(eligible):
-            value = cls._weighted_utility_value(request, utility_lambda)
+            value = value_fn(request)
             cost = request.verifier_token_cost
             next_dp = [row[:] for row in dp]
             for item_count in range(max_items - 1, -1, -1):

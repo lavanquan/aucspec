@@ -636,6 +636,7 @@ class EdgeSpecSimulator:
         # it for the next round.
         gamma_rate_signal_mbps = self.controller.estimated_uplink_rate_mbps(client)
         gamma_rate_signal_age_rounds = self.controller.uplink_rate_signal_age_rounds(client)
+        server_queue_before = self.controller.server_queue
         selected_gamma = self.controller.choose_gamma(client, self.total_rounds)
         gamma = min(selected_gamma, max(0, remaining - 1))
         client.gamma = gamma
@@ -737,6 +738,11 @@ class EdgeSpecSimulator:
                 gamma,
                 use_ucb=False,
             ),
+            # CAPACITY_AWARE_FRAMEWORK_CODEX_IMPLEMENTATION.md Section 6:
+            # only used by the capacity_knapsack value_fn (0.0 default is a
+            # no-op for every legacy scheduler, see verification_queue.py).
+            server_queue_price=self.controller.server_queue,
+            theta_f_ms_per_token=self.controller.current_verifier_theta_f_ms_per_token,
         )
         batch_id = batch_metadata.batch_id
         verification_batch_size = batch_metadata.batch_size
@@ -839,8 +845,18 @@ class EdgeSpecSimulator:
             "estimated_verifier_budget": estimated_verifier_budget,
             "estimated_verifier_regime": estimated_verifier_regime,
             "verification_scheduler": batch_metadata.scheduler_name,
+            "batch_scheduler": batch_metadata.scheduler_name,
             "verification_batch_service_ms": batch_metadata.modeled_batch_service_ms,
             "verification_batch_measured_service_ms": batch_metadata.measured_batch_service_ms,
+            # CAPACITY_AWARE_FRAMEWORK_CODEX_IMPLEMENTATION.md Section 6.3
+            "batch_fill_ratio": (
+                batch_metadata.batch_token_cost / batch_metadata.batch_token_budget
+                if batch_metadata.batch_token_budget else 0.0
+            ),
+            "sum_capacity_value": batch_metadata.sum_capacity_value,
+            "server_queue_before": server_queue_before,
+            "server_queue_after": self.controller.server_queue,
+            "forced_service": batch_metadata.forced_service,
             "controller_policy": self.controller.policy,
             "controller_V": self.controller.V,
             "population_fingerprint": self.population_fingerprint,
