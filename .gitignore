@@ -40,3 +40,7 @@ results/auc_achievable_region/raw/
 cap_pilot*.log
 cap_ar_*.log
 results/capacity_frontier/raw/
+results/capacity_frontier/*/raw/
+gate_a_*.log
+cap_bl*.log
+cap_pilot*.log

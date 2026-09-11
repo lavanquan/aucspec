@@ -1,0 +1,158 @@
+capacity_search:
+  confidence_delta: 0.05
+  initial_seeds: 3
+  max_measurement_seconds: 480
+  max_seeds: 7
+  measurement_seconds_final: 240
+  measurement_seconds_pilot: 90
+  min_final_seeds: 5
+  n_lo_feasible: 1
+  n_ref: 30
+  n_search_cap: 30
+  queue_slope_tolerance: 0.02
+  rate_tolerance_fraction: 0.05
+  warmup_seconds: 30
+  x_L: 2.0
+  x_U: 6.0
+  x_grid_final:
+  - 2.0
+  - 3.0
+  - 3.5
+  - 4.0
+  - 4.5
+  - 5.0
+  - 6.0
+  x_grid_pilot:
+  - 2.0
+  - 4.0
+  - 6.0
+  x_tolerance_tps: 0.1
+clients:
+  channel_model: iid_block_fading
+  downlink_base_snr_db_range:
+  - 10.0
+  - 20.0
+  downlink_mbps_range:
+  - 10.0
+  - 100.0
+  downlink_snr_jitter_db_range:
+  - 1.0
+  - 4.0
+  draft_fixed_latency_ms_range:
+  - 5.0
+  - 20.0
+  draft_speed_multiplier_range:
+  - 0.7
+  - 1.5
+  draft_tokens_per_second_range:
+  - 20.0
+  - 60.0
+  packet_loss_range:
+  - 0.0
+  - 0.0
+  rtt_ms_range:
+  - 15.0
+  - 100.0
+  shared_wireless:
+    downlink_allocator: queue-weighted
+    total_downlink_bandwidth_mhz: 80.0
+    total_uplink_bandwidth_mhz: 40.0
+    uplink_allocator: square-root
+  snr_block_duration_ms_range:
+  - 100.0
+  - 100.0
+  snr_period_ms_range:
+  - 500.0
+  - 3000.0
+  uplink_base_snr_db_range:
+  - 8.0
+  - 18.0
+  uplink_mbps_range:
+  - 5.0
+  - 50.0
+  uplink_snr_jitter_db_range:
+  - 1.0
+  - 4.0
+control:
+  slot_ms: 100.0
+controller:
+  V: 50.0
+  draft_latency_weight: 0.0
+  exploration_epsilon: 0.05
+  exploration_gamma: 1
+  fixed_gamma: 4
+  gamma_choices:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  learning:
+    alpha_max: 0.999999
+    alpha_min: 1.0e-06
+    alpha_prior_failure: 1.0
+    alpha_prior_success: 1.0
+    confidence_delta: 0.05
+    discount: 0.98
+    mode: bernstein_censored
+    ucb_coefficient: 1.5
+    window_size: 64
+  min_exploration_rounds: 2
+  min_interactivity_tps: 2.0
+  policy: capacity_dpp
+  server_price_scale: 0.02
+  uplink_latency_weight: 0.0
+  use_virtual_queues: true
+  verifier_price_lambda: 1.0
+dataset:
+  max_new_tokens: 96
+  name: gsm8k
+  num_questions: 300
+  seed: 42
+  shuffle: true
+  shuffle_buffer: 1000
+  split: test
+decoding:
+  mode: greedy
+  temperature: 0.0
+experiment:
+  measurement_seconds: null
+  seeds:
+  - 1
+  warmup_seconds: 30
+models:
+  draft: Qwen/Qwen2.5-1.5B-Instruct
+  draft_devices:
+  - cuda:1
+  - cuda:2
+  - cuda:3
+  - cuda:4
+  - cuda:5
+  - cuda:6
+  - cuda:7
+  target: Qwen/Qwen2.5-7B-Instruct
+  target_dtype: auto
+  target_enable_prefix_caching: false
+  target_enforce_eager: false
+  target_gpu_memory_utilization: 0.7
+  target_max_model_len: 4096
+simulation:
+  controller_v: 50.0
+  draft_execution_mode: shared_gpu_emulation
+  gamma_max: 4
+  min_interactivity_tps: 2.0
+  nested_population: true
+  num_clients: 8
+  output_csv: results/capacity_frontier/PLACEHOLDER/raw/PLACEHOLDER.csv
+  population_n_max: 30
+  questions_per_client: 5
+  seed: 42
+  server_price_scale: 0.02
+verification_batching:
+  batch_wait_ms: 150.0
+  budget_mode: fixed
+  max_batch_size: 32
+  scheduler: capacity_knapsack
+  target_replication_factor: 1
+  utility_lambda: 0.25
+  verify_token_budget: 10
