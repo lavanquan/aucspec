@@ -103,16 +103,16 @@ clients:
 
 capacity_search:
   x_grid_pilot: [2.0, 3.0, 4.5, 6.0]
-  x_grid_final: [2.0, 3.0, 4.0]
+  x_grid_final: [2.0, 3.5]
   n_ref: 30
   n_lo_feasible: 1
-  n_search_cap: 18
-  initial_seeds: 3
-  max_seeds: 4
+  n_search_cap: 14
+  initial_seeds: 2
+  max_seeds: 3
   rate_tolerance_fraction: 0.05
   queue_slope_tolerance: 0.02
   warmup_seconds: 20
   measurement_seconds_pilot: 90
-  measurement_seconds_final: 90
+  measurement_seconds_final: 60
   x_L: 0.5
   x_U: 4.0
