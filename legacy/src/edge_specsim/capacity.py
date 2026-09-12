@@ -237,7 +237,20 @@ class CandidateCache:
                 if rec.get("schema_version") != CANDIDATE_CACHE_SCHEMA_VERSION:
                     self.rejected_legacy_records += 1
                     continue
-                self._mem[self._key_from_rec(rec)] = CandidateMeasurement(**rec["measurement"])
+                meas_dict = dict(rec["measurement"])
+                # JSON object keys are always strings; per_client_rates is
+                # keyed by integer client id everywhere else in this codebase
+                # (measure_candidate builds it from int(client_id)). Without
+                # this coercion, classify_feasibility_final's
+                # `per_client_rates.get(cid, 0.0)` with an int `cid` silently
+                # misses every cache-loaded record and substitutes 0.0,
+                # corrupting any feasibility decision that mixes cached and
+                # freshly-computed seeds across a --resume boundary.
+                if "per_client_rates" in meas_dict and meas_dict["per_client_rates"] is not None:
+                    meas_dict["per_client_rates"] = {
+                        int(k): v for k, v in meas_dict["per_client_rates"].items()
+                    }
+                self._mem[self._key_from_rec(rec)] = CandidateMeasurement(**meas_dict)
 
     @staticmethod
     def _key(x: float, scale: int, policy: str, seed: int, config_hash: str) -> tuple:

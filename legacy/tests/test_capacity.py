@@ -129,6 +129,48 @@ def test_candidate_cache_roundtrip(tmp_path):
     assert c2.get(1.0, 3, "capacity_dpp", 1, "hashB") is None
 
 
+def test_candidate_cache_roundtrip_preserves_int_per_client_rate_keys(tmp_path):
+    # regression: JSON round-trips dict keys to strings. classify_feasibility_final
+    # looks up per_client_rates with an int client id (`range(n_clients)`), so a
+    # cache-loaded measurement with string keys would silently resolve every
+    # lookup to the 0.0 default -- corrupting any feasibility decision that mixes
+    # cache-loaded seeds (pre-resume) with freshly-computed seeds (post-resume).
+    path = tmp_path / "cache.jsonl"
+    c = CandidateCache(path)
+    m = CandidateMeasurement(
+        scale=1, n_active=1, x_requirement=6.0, seed=1, min_rate_tps=8.9,
+        per_client_rates={0: 8.9},
+    )
+    c.put(6.0, 1, "capacity_dpp", 1, "hashA", m)
+    c2 = CandidateCache(path)
+    got = c2.get(6.0, 1, "capacity_dpp", 1, "hashA")
+    assert got is not None
+    assert set(got.per_client_rates.keys()) == {0}
+    assert got.per_client_rates[0] == pytest.approx(8.9)
+
+
+def test_classify_feasibility_final_consistent_across_cache_reload(tmp_path):
+    # regression: mixing a cache-reloaded measurement with a freshly-constructed
+    # one must not change the verdict when the underlying rates are identical.
+    path = tmp_path / "cache.jsonl"
+    c = CandidateCache(path)
+    fresh = [
+        CandidateMeasurement(
+            scale=1, n_active=1, x_requirement=6.0, seed=s, min_rate_tps=8.9,
+            per_client_rates={0: 8.9},
+        )
+        for s in (1, 2, 3)
+    ]
+    for s, m in zip((1, 2, 3), fresh):
+        c.put(6.0, 1, "capacity_dpp", s, "hashA", m)
+    reloaded = CandidateCache(path)
+    from_cache = [reloaded.get(6.0, 1, "capacity_dpp", s, "hashA") for s in (1, 2, 3)]
+    r_fresh = classify_feasibility_final(fresh, x=6.0, n_clients=1)
+    r_cached = classify_feasibility_final(from_cache, x=6.0, n_clients=1)
+    assert r_fresh.status == r_cached.status == "feasible"
+    assert r_cached.min_lcb == pytest.approx(r_fresh.min_lcb)
+
+
 # ------------------------------------------------------------------ 5
 def _meas(seed, rate, z_slope=0.0):
     return CandidateMeasurement(
