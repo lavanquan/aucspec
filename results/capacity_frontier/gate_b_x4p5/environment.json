@@ -1,0 +1,18 @@
+{
+  "python_version": "3.12.3 (main, Jun 18 2025, 17:59:45) [GCC 13.3.0]",
+  "hostname": "nid002824",
+  "platform": "Linux-6.4.0-150700.53.78-default-x86_64-with-glibc2.39",
+  "pytorch_version": "2.7.1a0+gite2d141d",
+  "rocm_or_cuda_version": "6.3.42134-a9a80e791",
+  "gpu_models": [
+    "AMD Instinct MI250X",
+    "AMD Instinct MI250X",
+    "AMD Instinct MI250X",
+    "AMD Instinct MI250X",
+    "AMD Instinct MI250X",
+    "AMD Instinct MI250X",
+    "AMD Instinct MI250X",
+    "AMD Instinct MI250X"
+  ],
+  "vllm_version": "0.9.1"
+}

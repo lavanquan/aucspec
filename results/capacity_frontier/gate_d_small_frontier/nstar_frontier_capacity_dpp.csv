@@ -1,0 +1,4 @@
+policy,x_requirement,last_confirmed_feasible_N,first_confirmed_infeasible_N,N_lower,N_upper,exact_boundary,hit_search_cap,boundary_certified,uncertain_n,seeds_at_boundary
+capacity_dpp,3.0,16,17,16,17,True,False,True,16,7
+capacity_dpp,4.5,5,8,5,8,False,False,False,6,3
+capacity_dpp,6.0,3,4,3,4,True,False,True,,5

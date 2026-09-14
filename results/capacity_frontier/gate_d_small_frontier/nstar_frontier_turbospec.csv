@@ -1,0 +1,4 @@
+policy,x_requirement,last_confirmed_feasible_N,first_confirmed_infeasible_N,N_lower,N_upper,exact_boundary,hit_search_cap,boundary_certified,uncertain_n,seeds_at_boundary
+turbospec,3.0,3,4,3,4,True,False,True,,5
+turbospec,4.5,0,1,0,1,True,False,True,,0
+turbospec,6.0,0,1,0,1,True,False,True,,0
