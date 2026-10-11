@@ -1,0 +1,14 @@
+{
+  "policy": "capacity_dpp",
+  "run_tag": "budget100_x6p0",
+  "x_L": 2.0,
+  "x_U": 6.0,
+  "n_ref": 30,
+  "area_lower": null,
+  "area_upper": null,
+  "ica_lower": null,
+  "ica_upper": null,
+  "any_cap_limited": null,
+  "any_interval_valued": null,
+  "error": "swept grid [6.0, 6.0] does not cover [2.0, 6.0] -- Section 11: do not extrapolate the ICA window beyond the measured grid"
+}
