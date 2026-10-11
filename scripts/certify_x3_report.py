@@ -51,6 +51,10 @@ def decide(by_seed: dict, x: float, n: int, initial: int, max_seeds: int, delta:
             status="uncertain_at_max_seeds" if len(contiguous) >= max_seeds else "needs_more_seeds",
             seeds_used=contiguous, min_lcb=last.min_lcb, min_ucb=last.min_ucb,
         )
+    full = classify_feasibility_final([by_seed[s] for s in contiguous], x, n, confidence_delta=delta)
+    out["all_seeds_status"] = full.status
+    out["all_seeds_lcb"], out["all_seeds_ucb"] = full.min_lcb, full.min_ucb
+    out["all_seeds_n"] = len(contiguous)
     ms = [by_seed[s] for s in out["seeds_used"]]
     rates = [m.min_rate_tps for m in ms]
     out.update(
@@ -83,6 +87,10 @@ def conclude(dec: dict) -> tuple[str, str]:
             if st(12) == "feasible":
                 return "anomaly", "N*(3.0) >= 12 under 480 s: contradicts the 240 s sweep (N=12 infeasible). Search upward."
             return "unresolved", f"N*(3.0) unresolved: N=10, 11 feasible; N=12 status is {st(12)}."
+        if st(11) == "uncertain_at_max_seeds":
+            return "unresolved", ("N*(3.0) in [10, 11], unresolved (N=10 certified feasible; N=11 remains uncertain "
+                                  "after the maximum number of 480 s seeds, so it is neither confirmed feasible nor "
+                                  "infeasible; N=12 was not run under the 480 s protocol)")
         return "unresolved", f"N*(3.0) unresolved: N=10 feasible; N=11 status is {st(11)}."
     if st(10) == "uncertain_at_max_seeds":
         return "unresolved", "N*(3.0) in [9, 11], unresolved (N=10 uncertain after the maximum number of 480 s seeds; 9 and 12 bounds come from the earlier 240 s sweep)"
@@ -182,6 +190,9 @@ def write_report(run_dir: Path, out_md: Path) -> None:
     L.append(f"- warmup_s={cs['warmup_seconds']}, measurement_s={meas_s}, initial_seeds={cs['initial_seeds']}, max_seeds={cs['max_seeds']}")
     for n, d in sorted(r["decs"].items()):
         L.append(f"- N={n}: seeds run {d['seeds_available']}; seeds used for verdict {d.get('seeds_used', [])}")
+        if d.get("all_seeds_status"):
+            L.append(f"  - secondary check, classifier on all {d['all_seeds_n']} seeds: {d['all_seeds_status']} "
+                     f"(LCB {d['all_seeds_lcb']:.3f} / UCB {d['all_seeds_ucb']:.3f})")
     L.append(f"- workload exhaustion occurred: {'YES' if exhausted_any else 'no'}")
     unc = [n for n, d in r["decs"].items() if d["status"] in ("uncertain_at_max_seeds", "needs_more_seeds")]
     L.append(f"- candidates still uncertain: {unc if unc else 'none'}")

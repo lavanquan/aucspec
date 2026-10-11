@@ -71,5 +71,7 @@ def test_conclude_branches():
     assert rep.conclude({10: f, 11: f, 12: i})[1] == "N*(3.0) = 11, certified"
     assert rep.conclude({10: f, 11: f, 12: f})[0] == "anomaly"
     assert rep.conclude({10: u})[0] == "unresolved"
+    k, txt = rep.conclude({10: f, 11: u})
+    assert k == "unresolved" and txt.startswith("N*(3.0) in [10, 11], unresolved")
     assert rep.conclude({10: i, 9: u})[0] == "unresolved"
     assert rep.conclude({10: i})[0] == "unresolved"
