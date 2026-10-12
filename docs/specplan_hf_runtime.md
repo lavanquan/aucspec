@@ -26,3 +26,9 @@ per speculative cycle, deterministic draft generation from the full confirmed
 context, no target batching, and no target KV persistence. It is not a
 throughput baseline. Any later cache or batching optimization must rerun the
 same exactness gates.
+
+
+For qualification, the worker also exposes an optional target_only operation.
+It runs repeated one-token greedy target decisions through the same
+HFGreedyCandidateVerifier instance, so target-only and speculative outputs can
+be compared without loading a second target model.

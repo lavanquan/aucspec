@@ -163,7 +163,7 @@ def main() -> int:
                     protocol_version=PROTOCOL_VERSION,
                     target_model=args.target_model,
                     draft_model=args.draft_model,
-                    capabilities=["build_context", "generate_cycle"],
+                    capabilities=["build_context", "generate_cycle", "target_only"],
                     runtime="hf_causal_greedy",
                     active_resources=active_resources,
                 )
@@ -183,6 +183,22 @@ def main() -> int:
                     context_token_ids=target.build_context_token_ids(
                         prompt,
                         history,
+                    ),
+                )
+                continue
+
+            if op == "target_only":
+                prompt = request.get("prompt")
+                max_new_tokens = request.get("max_new_tokens")
+                if not isinstance(prompt, str):
+                    raise ValueError("prompt must be a string")
+                if not isinstance(max_new_tokens, int) or max_new_tokens < 0:
+                    raise ValueError("max_new_tokens must be a non-negative integer")
+                _respond(
+                    request_id,
+                    output_token_ids=target.generate_target_only_greedy(
+                        prompt,
+                        max_new_tokens,
                     ),
                 )
                 continue
