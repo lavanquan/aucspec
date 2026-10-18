@@ -130,7 +130,7 @@ def guard():
     sys.path.remove(str(REPO / "scripts"))
 
 
-GOOD = {"verification_batching": {"service_time_model": "batch_wall", "scheduler": "capacity_knapsack",
+GOOD = {"controller": {"verifier_price_mode": "zero"}, "verification_batching": {"service_time_model": "batch_wall", "scheduler": "capacity_knapsack",
                                   "budget_mode": "fixed", "verify_token_budget": 100,
                                   "max_batch_size": 32, "batch_wait_ms": 3.0}}
 
@@ -176,3 +176,12 @@ def test_guard_quota_parse_and_headroom(guard):
     assert warnings and "/home" in warnings[0]
     with pytest.raises(guard.GuardError):
         guard.check_headroom(ok, 200000, 1)
+
+
+def test_guard_requires_explicit_zero_price_mode(guard):
+    bad = {**GOOD, "controller": {}}
+    with pytest.raises(guard.GuardError):
+        guard.validate_canonical_config(bad)
+    bad = {**GOOD, "controller": {"verifier_price_mode": "calibrated_marginal"}}
+    with pytest.raises(guard.GuardError):
+        guard.validate_canonical_config(bad)

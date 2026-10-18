@@ -71,6 +71,7 @@ control:
   slot_ms: 100.0
 controller:
   V: 50.0
+  verifier_price_mode: zero
   draft_latency_weight: 0.0
   exploration_epsilon: 0.05
   exploration_gamma: 1

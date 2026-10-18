@@ -1086,7 +1086,9 @@ class EdgeSpecSimulator:
                 Path(__file__).resolve().parents[3], self.cfg
             ),
             "verifier_semantics": verifier_semantics_record(
-                self.target, self.cfg.get("verification_batching", {})
+                self.target,
+                self.cfg.get("verification_batching", {}),
+                self.cfg.get("controller", {}),
             ),
             "software_versions": {
                 "python": platform.python_version(),

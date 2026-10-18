@@ -127,7 +127,11 @@ def collect_provenance(repo_root: Path | str, cfg: dict[str, Any]) -> dict[str, 
     }
 
 
-def verifier_semantics_record(target: Any, batching_cfg: dict[str, Any]) -> dict[str, Any]:
+def verifier_semantics_record(
+    target: Any,
+    batching_cfg: dict[str, Any],
+    controller_cfg: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """What the verifier actually does, as exposed by the running objects."""
     return {
         "verifier_semantics": getattr(target, "VERIFIER_SEMANTICS", "unknown"),
@@ -135,6 +139,8 @@ def verifier_semantics_record(target: Any, batching_cfg: dict[str, Any]) -> dict
         "effective_max_logprobs": getattr(target, "effective_max_logprobs", None),
         "greedy_only": getattr(target, "greedy_only", None),
         "service_time_model": str(batching_cfg.get("service_time_model", "amortized_per_request")),
+        # Only "zero" exists today: the controller is handed theta_f = 0 in fixed-budget mode.
+        "verifier_price_mode": str((controller_cfg or {}).get("verifier_price_mode", "zero")),
         "budget_mode": str(batching_cfg.get("budget_mode", "fixed")),
         "verify_token_budget": batching_cfg.get("verify_token_budget"),
         "max_batch_size": batching_cfg.get("max_batch_size"),

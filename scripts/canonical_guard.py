@@ -70,6 +70,9 @@ def validate_canonical_config(cfg: dict, semantics: str = "batch_wall") -> None:
         raise GuardError(f"service_time_model is {model!r} but this launch requires {semantics!r}")
     if batching["budget_mode"] != "fixed":
         raise GuardError("canonical contract uses budget_mode: fixed")
+    mode = (cfg.get("controller") or {}).get("verifier_price_mode")
+    if mode != "zero":
+        raise GuardError(f"controller.verifier_price_mode must be explicitly 'zero' (got {mode!r}); calibrated pricing is not enabled")
 
 
 # ------------------------------------------------------------------- quota
