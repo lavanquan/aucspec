@@ -132,7 +132,7 @@ def _synthetic(theta0=120.0, a=3.0, c=0.15, b=0.0, noise=3.0, knee=None, d=0.0, 
             T += d * max(0.0, SL + Sg - knee)
         gen = 0.9 * T
         recs.append({"item_id": it["item_id"], "phase": it["phase"], "rep": it["rep"], "cell": it["cell"], "B": B,
-                     "well_formed": True, "sum_context": SL, "sum_gamma": Sg, "processed_tokens": SL + Sg,
+                     "well_formed": True, "context_lens": ctx, "gamma_requested": gammas, "gamma_realized_accepted": gammas, "sum_context": SL, "sum_gamma": Sg, "processed_tokens": SL + Sg,
                      "wall_ms": T, "stamped_batch_wall_ms": T, "generate_ms": gen, "host_ms": T - gen})
     return recs
 

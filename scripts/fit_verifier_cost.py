@@ -132,21 +132,42 @@ def main() -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--smoke-csv", nargs="*", default=[])
     ap.add_argument("--n-boot", type=int, default=1000)
+    ap.add_argument("--strict-accept", action="store_true",
+                    help="keep only calls where every proposed token was accepted (coverage drops sharply)")
     a = ap.parse_args()
     raw_path = Path(a.raw)
     recs = load(raw_path)
     sha = hashlib.sha256(raw_path.read_bytes()).hexdigest()
 
+    LQ = {"p10": 113, "p50": 158, "p90": 205}
+
+    def payload_ok(r):
+        """Design check: the payload really had the intended batch size, context lengths and draft tokens."""
+        if len(r["context_lens"]) != r["B"] or len(r["gamma_requested"]) != r["B"]:
+            return False
+        if r["phase"] == "val":
+            return True
+        _, lq, g = r["cell"].split("_")
+        return all(c == LQ[lq[1:]] for c in r["context_lens"]) and all(x == int(g[1:]) for x in r["gamma_requested"])
+
+    def keep(r):
+        ok = payload_ok(r)
+        return ok and r["well_formed"] if a.strict_accept else ok
+
     timed_all = [r for r in recs if r.get("phase") == "timed"]
-    timed = [r for r in timed_all if r["well_formed"]]
-    val = [r for r in recs if r.get("phase") == "val" and r["well_formed"]]
+    timed = [r for r in timed_all if keep(r)]
+    val = [r for r in recs if r.get("phase") == "val" and keep(r)]
     warm = [r for r in recs if r.get("phase") == "warmup"]
     out: dict = {
         "raw_file": raw_path.name, "raw_sha256": sha,
+        "mode": "strict_accept" if a.strict_accept else "payload_design_check",
         "counts": {"records": len(recs), "warmup": len(warm), "timed_primary": len(timed_all),
-                   "timed_primary_well_formed": len(timed), "val_timed": len([r for r in recs if r.get("phase") == "val"]),
-                   "val_well_formed": len(val),
-                   "malformed_primary_cells": sorted({r["cell"] for r in timed_all if not r["well_formed"]})},
+                   "timed_primary_used": len(timed), "val_timed": len([r for r in recs if r.get("phase") == "val"]),
+                   "val_used": len(val),
+                   "payload_design_violations": len([r for r in recs if r.get("phase") in ("timed", "val", "warmup") and not payload_ok(r)]),
+                   "calls_with_incomplete_acceptance": len([r for r in recs if r.get("phase") in ("timed", "val", "warmup") and not r["well_formed"]]),
+                   "cells_with_zero_fully_accepted_calls": sorted(
+                       {r["cell"] for r in timed_all} - {r["cell"] for r in timed_all if r["well_formed"]})},
     }
     # --- model A on all primary data
     X, y = arrays(timed)
@@ -176,6 +197,25 @@ def main() -> int:
         yy = np.array([r[key] for r in timed], float)
         bb = ols(X, yy)
         out[f"affine_{key}"] = {"coef": {n: float(b) for n, b in zip(names, bb)}, "train": metrics(yy, X @ bb)}
+
+    # --- does acceptance outcome change cost? (host post-processing breaks early on a mismatch)
+    for r in timed + val:
+        r["_deficit"] = float(sum(g - x for g, x in zip(r["gamma_requested"], r["gamma_realized_accepted"])))
+    Xd = np.column_stack([X, [r["_deficit"] for r in timed]])
+    bd = ols(Xd, y)
+    dd = boot_blocks(timed, lambda s_: ols(np.column_stack([arrays(s_)[0], [r["_deficit"] for r in s_]]), arrays(s_)[1]),
+                     max(200, a.n_boot // 4))
+    dlo, dhi = ci(dd)
+    out["acceptance_effect"] = {
+        "coef_ms_per_rejected_draft_token": float(bd[-1]), "ci95": [float(dlo[-1]), float(dhi[-1])],
+        "draft_coef_with_deficit_regressor": float(bd[3]),
+        "mean_fraction_proposed_tokens_accepted": float(
+            sum(x for r in timed for x in r["gamma_realized_accepted"]) / max(1, sum(r["sum_gamma"] for r in timed))),
+    }
+    ycell = {}
+    for r in timed:
+        ycell.setdefault(("B" + str(r["B"]), r["cell"].split("_")[2]), []).append(r["host_ms"])
+    out["host_ms_median_by_B_gamma"] = {f"{k[0]}_{k[1]}": float(np.median(v)) for k, v in sorted(ycell.items())}
 
     # --- paired within-round depth comparison
     out["paired_depth"] = paired_depth(timed, a.n_boot)

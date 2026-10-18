@@ -1,0 +1,112 @@
+{
+ "status": "FOR REVIEW - not an accepted controller model; verifier_price_mode stays zero",
+ "model": "T_ms = theta0 + a*B + c*sum(context tokens) + b*sum(draft tokens)  (full-batch wall time, isolated verifier, V1 greedy, batch_wall)",
+ "coefficients_ms": {
+  "theta0_ms": 36.44977252517803,
+  "per_request_const_ms": 5.80949835452311,
+  "per_context_token_ms": 0.20584138128498797,
+  "per_draft_token_ms": 0.42463231920268807
+ },
+ "ci95": {
+  "theta0_ms": [
+   35.374701037456646,
+   37.801974222349564
+  ],
+  "per_request_const_ms": [
+   4.991085665342759,
+   6.429978556130826
+  ],
+  "per_context_token_ms": [
+   0.20212225341842865,
+   0.21074997568697842
+  ],
+  "per_draft_token_ms": [
+   0.33675202125431614,
+   0.5083263424965155
+  ]
+ },
+ "components": {
+  "fixed_batch_overhead_ms": {
+   "estimate": 36.44977252517803,
+   "ci95": [
+    35.374701037456646,
+    37.801974222349564
+   ]
+  },
+  "per_request_cost_at_ctx113_ms": {
+   "estimate": 29.06957443972675,
+   "ci95": [
+    28.764557979922294,
+    29.344583185237255
+   ]
+  },
+  "per_request_cost_at_ctx158_ms": {
+   "estimate": 38.33243659755121,
+   "ci95": [
+    38.13771779306857,
+    38.561289789660414
+   ]
+  },
+  "per_request_cost_at_ctx205_ms": {
+   "estimate": 48.00698151794564,
+   "ci95": [
+    47.76686018566325,
+    48.34018390871888
+   ]
+  },
+  "marginal_cost_per_draft_token_ms": {
+   "estimate": 0.42463231920268807,
+   "ci95": [
+    0.33675202125431614,
+    0.5083263424965155
+   ]
+  }
+ },
+ "paired_depth": {
+  "pooled_ms_per_draft_token_per_request": 0.3901851062198073,
+  "ci95": [
+   0.34604126757373016,
+   0.4486868759099353
+  ],
+  "by_gamma": {
+   "1": {
+    "mean_ms_per_draft_token_per_request": 0.5381517888599774,
+    "n": 300
+   },
+   "2": {
+    "mean_ms_per_draft_token_per_request": 0.20901098859515818,
+    "n": 300
+   },
+   "3": {
+    "mean_ms_per_draft_token_per_request": 0.5408748910202928,
+    "n": 300
+   },
+   "4": {
+    "mean_ms_per_draft_token_per_request": 0.3485344695945969,
+    "n": 300
+   }
+  },
+  "n_pairs": 1200
+ },
+ "valid_range": {
+  "B": [
+   1,
+   16
+  ],
+  "context_per_request": [
+   100,
+   230
+  ],
+  "gamma": [
+   0,
+   4
+  ],
+  "processed_tokens_up_to": 2560
+ },
+ "caveats": [
+  "average of a staircase in sequence length (block-boundary jumps)",
+  "isolated verifier: simulator batches under 10-client load were ~85 ms longer per batch (B-independent)",
+  "heavy tail: ~0.3% of calls 2-3x median"
+ ],
+ "raw_sha256": "16334ebc385db17ffccf696741dd0a48b8ea4b19b5bc1d214b947d47ba949308"
+}
