@@ -84,7 +84,7 @@ from .acceptance import (
     sample_correction_token,
     should_accept,
 )
-from .models import DraftProposal, VerificationResult
+from .models import DraftProposal, VerificationResult, stamp_batch_timing
 
 
 class VLLMCandidateVerifier:
@@ -97,6 +97,10 @@ class VLLMCandidateVerifier:
     max(0, p - q). If all candidates are accepted, the next token is sampled from
     the target distribution at the following position.
     """
+
+    # Recorded in run_config.json; descriptive only, no behavior depends on them.
+    VERIFIER_SEMANTICS = "V1"
+    TIE_BREAK_RULE = "first_max_in_vllm_logprob_dict_order"
 
     def __init__(
         self,
@@ -135,6 +139,7 @@ class VLLMCandidateVerifier:
                 else (1 if self.greedy_only else self.vocab_size)
             ),
         )
+        self.effective_max_logprobs = requested_max_logprobs
         try:
             self.llm = LLM(
                 model=model_name,
@@ -396,8 +401,6 @@ class VLLMCandidateVerifier:
             )
 
         elapsed_ms = (time.perf_counter() - start) * 1000.0
-        per_request_ms = elapsed_ms / max(1, len(results))
-        for result in results:
-            result.target_latency_ms = per_request_ms
+        stamp_batch_timing(results, elapsed_ms)
 
         return results

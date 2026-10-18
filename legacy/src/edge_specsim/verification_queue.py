@@ -90,6 +90,17 @@ class VerificationBatchMetadata:
     verify_finish_ms: float
     forced_service: bool = False
     sum_capacity_value: float = 0.0
+    # Verifier-clock semantics and diagnostics (V1-batchwall instrumentation).
+    # `modeled_batch_service_ms` is what advances the shared verifier clock;
+    # `service_time_model` says how it was derived. `batch_wall_ms` is the
+    # measured wall time of the whole batch, `amortized_request_ms` is
+    # batch_wall_ms / batch_size (diagnostic only).
+    service_time_model: str = "amortized_per_request"
+    batch_wall_ms: float = 0.0
+    amortized_request_ms: float = 0.0
+    batch_context_tokens_sum: int = 0
+    batch_context_tokens_max: int = 0
+    batch_processed_tokens: int = 0
 
 
 @dataclass

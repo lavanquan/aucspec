@@ -198,8 +198,11 @@ class RunContext:
 # candidate execution
 # =========================================================================
 
-def build_run_config(base_cfg: dict, n: int, x: float, seed: int, meas_s: float, out_csv: str) -> dict:
+def build_run_config(base_cfg: dict, n: int, x: float, seed: int, meas_s: float, out_csv: str,
+                     provenance: dict | None = None) -> dict:
     cfg = copy.deepcopy(base_cfg)
+    if provenance:
+        cfg["provenance"] = dict(provenance)
     cfg["simulation"]["num_clients"] = int(n)
     cfg["simulation"]["seed"] = int(seed)
     cfg["simulation"]["min_interactivity_tps"] = float(x)
@@ -300,7 +303,13 @@ def run_one(base_cfg: dict, n: int, x: float, seed: int, meas_s: float, cfg_hash
     label = f"{_ACTIVE_POLICY}_n{n}_x{x}_s{seed}"
     out_csv_abs = raw_dir / f"{label}.csv"
     out_csv_rel = str(out_csv_abs.relative_to(REPO_ROOT))
-    cfg = build_run_config(base_cfg, n, x, seed, meas_s, out_csv_rel)
+    cfg = build_run_config(
+        base_cfg, n, x, seed, meas_s, out_csv_rel,
+        provenance={
+            "campaign_config_hash": cfg_hash,
+            "population_fingerprint": _population_config_fingerprint(base_cfg),
+        },
+    )
     cfg_path = raw_dir / f"{label}.yaml"
     with open(cfg_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f)

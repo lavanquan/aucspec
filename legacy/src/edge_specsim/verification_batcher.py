@@ -1,15 +1,25 @@
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
 
 from .models import DraftResult, VerificationResult
 from .roofline_budget import RooflineBudgetModel
-from .target_client import VLLMCandidateVerifier
 from .verification_queue import (
     VerificationBatchMetadata,
     VerificationQueue,
     VerificationRequest,
 )
+
+if TYPE_CHECKING:  # keeps the batcher importable without torch/vLLM (CPU tests)
+    from .target_client import VLLMCandidateVerifier
+
+# How the shared verifier clock is advanced after a batch.
+#   amortized_per_request : V1 (legacy, reproduces earlier results). The clock
+#                           advances by max(target_latency_ms) = wall time / B.
+#   batch_wall            : V1-batchwall. The whole batch occupies the single
+#                           shared verifier for its full measured wall time.
+SERVICE_TIME_MODELS = ("amortized_per_request", "batch_wall")
 
 
 class VerificationBatcher:
@@ -26,7 +36,14 @@ class VerificationBatcher:
         scheduler_seed: int = 0,
         roofline_budget_model: RooflineBudgetModel | None = None,
         target_replication_factor: int = 1,
+        service_time_model: str = "amortized_per_request",
     ) -> None:
+        if service_time_model not in SERVICE_TIME_MODELS:
+            raise ValueError(
+                f"unknown verifier service_time_model {service_time_model!r}; "
+                f"expected one of {SERVICE_TIME_MODELS}"
+            )
+        self.service_time_model = service_time_model
         self.target = target
         self.max_batch_size = max_batch_size
         self.batch_wait_ms = batch_wait_ms
@@ -230,6 +247,14 @@ class VerificationBatcher:
         # interleaving pop_batch between them -- see _loop()'s call sites).
         forced_service = self.server_queue.last_batch_forced_service
         sum_capacity_value = sum(request.capacity_dpp_value for request in batch)
+        context_lengths = [len(request.context_token_ids) for request in batch]
+        batch_context_tokens_sum = sum(context_lengths)
+        batch_context_tokens_max = max(context_lengths, default=0)
+        # Tokens the target actually processes: stateless generate over
+        # context + draft tokens for every request (logical cost is gamma+1).
+        batch_processed_tokens = batch_context_tokens_sum + sum(
+            len(request.candidate_token_ids) for request in batch
+        )
         batch_metadata = VerificationBatchMetadata(
             batch_id=self.batch_counter,
             batch_size=len(batch),
@@ -245,6 +270,10 @@ class VerificationBatcher:
             verify_finish_ms=0.0,
             forced_service=forced_service,
             sum_capacity_value=sum_capacity_value,
+            service_time_model=self.service_time_model,
+            batch_context_tokens_sum=batch_context_tokens_sum,
+            batch_context_tokens_max=batch_context_tokens_max,
+            batch_processed_tokens=batch_processed_tokens,
         )
         self.batch_counter += 1
         payload = [
@@ -263,11 +292,24 @@ class VerificationBatcher:
             asyncio.get_running_loop().time() - batch_service_start
         ) * 1000.0
 
+        # Full measured wall time of the batch. A verifier that does not stamp
+        # it (e.g. a bare mock) falls back to the event-loop measurement.
+        batch_wall_ms = max(
+            (result.target_batch_wall_ms for result in results),
+            default=0.0,
+        )
+        if batch_wall_ms <= 0.0:
+            batch_wall_ms = measured_batch_service_ms
+        amortized_request_ms = batch_wall_ms / max(1, len(batch))
+
         if self.roofline_budget_model is None:
-            modeled_batch_service_ms = max(
-                (result.target_latency_ms for result in results),
-                default=0.0,
-            )
+            if self.service_time_model == "batch_wall":
+                modeled_batch_service_ms = batch_wall_ms
+            else:
+                modeled_batch_service_ms = max(
+                    (result.target_latency_ms for result in results),
+                    default=0.0,
+                )
             compute_bound_batch_service_ms = modeled_batch_service_ms
             theta_f_ms_per_token = (
                 compute_bound_batch_service_ms / max(1, batch_token_cost)
@@ -305,6 +347,12 @@ class VerificationBatcher:
             verify_finish_ms=batch_metadata.batch_start_ms + modeled_batch_service_ms,
             forced_service=batch_metadata.forced_service,
             sum_capacity_value=batch_metadata.sum_capacity_value,
+            service_time_model=self.service_time_model,
+            batch_wall_ms=batch_wall_ms,
+            amortized_request_ms=amortized_request_ms,
+            batch_context_tokens_sum=batch_context_tokens_sum,
+            batch_context_tokens_max=batch_context_tokens_max,
+            batch_processed_tokens=batch_processed_tokens,
         )
         self.server_available_at_ms = batch_metadata.verify_finish_ms
         for request, result in zip(batch, results):

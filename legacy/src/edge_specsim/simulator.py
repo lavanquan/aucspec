@@ -34,6 +34,7 @@ from .network import (
     paper_square_root_allocation_weight,
 )
 from .metrics import summarize_round_csv
+from .provenance import collect_provenance, verifier_semantics_record
 from .roofline_budget import RooflineBudgetModel
 from .target_client import VLLMCandidateVerifier
 from .verification_batcher import VerificationBatcher
@@ -160,6 +161,9 @@ class EdgeSpecSimulator:
             scheduler_seed=int(sim["seed"]),
             roofline_budget_model=roofline_budget_model,
             target_replication_factor=target_replication_factor,
+            service_time_model=str(
+                batching.get("service_time_model", "amortized_per_request")
+            ),
         )
         proposal_distribution_payload = (
             "delta_proposal" if self.sampling_temperature <= 0.0 else "full_vocab_logprobs"
@@ -848,6 +852,12 @@ class EdgeSpecSimulator:
             "batch_scheduler": batch_metadata.scheduler_name,
             "verification_batch_service_ms": batch_metadata.modeled_batch_service_ms,
             "verification_batch_measured_service_ms": batch_metadata.measured_batch_service_ms,
+            "verification_batch_wall_ms": batch_metadata.batch_wall_ms,
+            "verification_amortized_request_ms": batch_metadata.amortized_request_ms,
+            "verification_service_time_model": batch_metadata.service_time_model,
+            "verification_batch_context_tokens_sum": batch_metadata.batch_context_tokens_sum,
+            "verification_batch_context_tokens_max": batch_metadata.batch_context_tokens_max,
+            "verification_batch_processed_tokens": batch_metadata.batch_processed_tokens,
             # CAPACITY_AWARE_FRAMEWORK_CODEX_IMPLEMENTATION.md Section 6.3
             "batch_fill_ratio": (
                 batch_metadata.batch_token_cost / batch_metadata.batch_token_budget
@@ -1072,6 +1082,12 @@ class EdgeSpecSimulator:
                     self.cfg.get("verification_batching", {}).get("target_replication_factor", 1)
                 ),
             },
+            "provenance": collect_provenance(
+                Path(__file__).resolve().parents[3], self.cfg
+            ),
+            "verifier_semantics": verifier_semantics_record(
+                self.target, self.cfg.get("verification_batching", {})
+            ),
             "software_versions": {
                 "python": platform.python_version(),
                 "pandas": self._package_version("pandas"),

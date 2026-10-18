@@ -385,8 +385,25 @@ class VerificationResult:
     finish_reason: str | None = None
     correction_token_id: int | None = None
     bonus_token_id: int | None = None
+    # Full wall time of the batched verifier call this result belongs to
+    # (identical for every request of the batch). `target_latency_ms` keeps
+    # its V1 meaning: the amortized per-request cost, wall time / batch size.
+    target_batch_wall_ms: float = 0.0
 
     @property
     def useful_token_count(self) -> int:
         """Committed tokens are the only useful tokens for system-level metrics."""
         return len(self.committed_token_ids)
+
+
+def stamp_batch_timing(results: list[VerificationResult], elapsed_ms: float) -> None:
+    """Record the timing of one batched verifier call on its results.
+
+    `target_latency_ms` is the amortized per-request cost (elapsed / B, the V1
+    value, kept as a diagnostic); `target_batch_wall_ms` is the full batch wall
+    time, which is what a single shared verifier is actually occupied for.
+    """
+    per_request_ms = elapsed_ms / max(1, len(results))
+    for result in results:
+        result.target_latency_ms = per_request_ms
+        result.target_batch_wall_ms = float(elapsed_ms)
