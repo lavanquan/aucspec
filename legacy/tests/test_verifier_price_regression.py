@@ -139,3 +139,18 @@ def test_queue_update_uses_service_ms_and_slot_ms_units():
     assert ctrl.server_queue == 0.0  # 40 ms of work in a 100 ms slot
     ctrl.observe_server_batch(1, verify_finish_ms=60.0, theta_f_ms_per_token=10.0, verifier_token_cost=14)
     assert ctrl.server_queue == pytest.approx(80.0)  # (40 + 140) ms - 100 ms slot budget
+
+
+def test_max_finish_diagnostic_does_not_change_queue_state():
+    ctrl = _ctrl()
+    assert ctrl.server_state_max_finish_ms == 0.0
+    ctrl.observe_server_batch(0, verify_finish_ms=250.0, theta_f_ms_per_token=25.0, verifier_token_cost=10)
+    ctrl.observe_server_batch(1, verify_finish_ms=180.0, theta_f_ms_per_token=1.0, verifier_token_cost=1)  # out of order
+    assert ctrl.server_state_max_finish_ms == 250.0
+    ref = _ctrl()
+    ref.observe_server_batch(0, verify_finish_ms=250.0, theta_f_ms_per_token=25.0, verifier_token_cost=10)
+    ref.observe_server_batch(1, verify_finish_ms=180.0, theta_f_ms_per_token=1.0, verifier_token_cost=1)
+    assert ctrl.server_queue == ref.server_queue
+    off = _ctrl(use_virtual_queues=False)
+    off.observe_server_batch(0, verify_finish_ms=90.0, theta_f_ms_per_token=1.0, verifier_token_cost=1)
+    assert off.server_state_max_finish_ms == 90.0 and off.server_queue == 0.0

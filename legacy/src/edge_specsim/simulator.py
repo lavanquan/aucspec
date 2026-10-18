@@ -641,6 +641,10 @@ class EdgeSpecSimulator:
         gamma_rate_signal_mbps = self.controller.estimated_uplink_rate_mbps(client)
         gamma_rate_signal_age_rounds = self.controller.uplink_rate_signal_age_rounds(client)
         server_queue_before = self.controller.server_queue
+        # Causality diagnostics: controller state exactly as seen by this depth decision.
+        decision_virtual_ms = client.virtual_time_ms
+        decision_theta_f = self.controller.current_verifier_theta_f_ms_per_token
+        decision_server_state_max_finish_ms = self.controller.server_state_max_finish_ms
         selected_gamma = self.controller.choose_gamma(client, self.total_rounds)
         gamma = min(selected_gamma, max(0, remaining - 1))
         client.gamma = gamma
@@ -724,6 +728,10 @@ class EdgeSpecSimulator:
         draft_start_ms = client.virtual_time_ms
         draft_finish_ms = draft_start_ms + draft_edge_latency_ms
         server_arrival_ms = draft_finish_ms + client.rtt_ms / 2.0 + upload_ms
+        # Values stamped on the request (read once, here, exactly as before).
+        stamped_server_queue_price = self.controller.server_queue
+        stamped_theta_f = self.controller.current_verifier_theta_f_ms_per_token
+        stamped_server_state_max_finish_ms = self.controller.server_state_max_finish_ms
         batch_metadata, verification = await self.verifier.submit(
             client_id=client.client_id,
             context_token_ids=context_token_ids,
@@ -745,8 +753,8 @@ class EdgeSpecSimulator:
             # CAPACITY_AWARE_FRAMEWORK_CODEX_IMPLEMENTATION.md Section 6:
             # only used by the capacity_knapsack value_fn (0.0 default is a
             # no-op for every legacy scheduler, see verification_queue.py).
-            server_queue_price=self.controller.server_queue,
-            theta_f_ms_per_token=self.controller.current_verifier_theta_f_ms_per_token,
+            server_queue_price=stamped_server_queue_price,
+            theta_f_ms_per_token=stamped_theta_f,
         )
         batch_id = batch_metadata.batch_id
         verification_batch_size = batch_metadata.batch_size
@@ -904,6 +912,12 @@ class EdgeSpecSimulator:
             "z_queue": client.z_queue,
             "device_queue": client.device_queue,
             "server_queue": self.controller.server_queue,
+            "decision_virtual_ms": decision_virtual_ms,
+            "decision_theta_f": decision_theta_f,
+            "decision_server_state_max_finish_ms": decision_server_state_max_finish_ms,
+            "stamped_server_queue_price": stamped_server_queue_price,
+            "stamped_theta_f": stamped_theta_f,
+            "stamped_server_state_max_finish_ms": stamped_server_state_max_finish_ms,
             "lambda_price": lambda_price,
             "rtt_ms": client.rtt_ms,
             "uplink_bandwidth_mhz": uplink_bandwidth_mhz,

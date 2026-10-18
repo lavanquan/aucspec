@@ -1,0 +1,96 @@
+{
+ "bw": {
+  "rows_requests": 14276,
+  "batches": 7460,
+  "samples": 400,
+  "sum_committed_tokens": 38400,
+  "sum_useful_tokens": 38400,
+  "rounds_per_sample_mean": 35.69,
+  "batch_size_hist": {
+   "1": 3063,
+   "2": 2553,
+   "3": 1378,
+   "4": 375,
+   "5": 74,
+   "6": 16,
+   "7": 1
+  },
+  "measurement_rows": 590,
+  "batches_with_measurement_row": 283,
+  "last_batch_id": 7459,
+  "virtual_end_ms": 1557967.0720605848,
+  "tokens_per_sample_mean": 96.0,
+  "per_client_rows": [
+   1342,
+   1598,
+   1556,
+   1081,
+   1131,
+   1604,
+   1613,
+   1627,
+   1077,
+   1647
+  ],
+  "per_client_samples": [
+   40,
+   40,
+   40,
+   40,
+   40,
+   40,
+   40,
+   40,
+   40,
+   40
+  ]
+ },
+ "v1": {
+  "rows_requests": 14931,
+  "batches": 7460,
+  "samples": 400,
+  "sum_committed_tokens": 38335,
+  "sum_useful_tokens": 38335,
+  "rounds_per_sample_mean": 37.3275,
+  "batch_size_hist": {
+   "1": 3202,
+   "2": 2176,
+   "3": 1234,
+   "4": 613,
+   "5": 188,
+   "6": 46,
+   "7": 1
+  },
+  "measurement_rows": 800,
+  "batches_with_measurement_row": 384,
+  "last_batch_id": 7459,
+  "virtual_end_ms": 1202204.8853107104,
+  "tokens_per_sample_mean": 95.8375,
+  "per_client_rows": [
+   1594,
+   1646,
+   1615,
+   1172,
+   1205,
+   1630,
+   1644,
+   1645,
+   1092,
+   1688
+  ],
+  "per_client_samples": [
+   40,
+   40,
+   40,
+   40,
+   40,
+   40,
+   40,
+   40,
+   40,
+   40
+  ]
+ },
+ "same_batch_size_sequence": false,
+ "same_sample_sets": true
+}

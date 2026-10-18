@@ -96,6 +96,9 @@ class OnlineController:
         self.current_verifier_budget_tokens = max(1, max(self.gamma_choices) + 1)
         self.current_verifier_regime = "memory_bound"
         self.current_verifier_theta_f_ms_per_token = 1.0
+        # Diagnostic only (never read by any decision): the latest virtual finish time of any
+        # batch already folded into server-queue state, for later causality checks.
+        self.server_state_max_finish_ms = 0.0
         self.current_active_clients = 1
         self._slot_completions: dict[int, dict[int, int]] = {}
         self._slot_state: dict[int, tuple[int, float, int]] = {}
@@ -717,6 +720,7 @@ class OnlineController:
         theta_f_ms_per_token: float,
         verifier_token_cost: int,
     ) -> float:
+        self.server_state_max_finish_ms = max(self.server_state_max_finish_ms, float(verify_finish_ms))
         if not self.use_virtual_queues:
             self.server_queue = 0.0
             self.server_price = 0.0
