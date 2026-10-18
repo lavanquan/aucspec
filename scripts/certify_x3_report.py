@@ -88,9 +88,21 @@ def conclude(dec: dict) -> tuple[str, str]:
                 return "anomaly", "N*(3.0) >= 12 under 480 s: contradicts the 240 s sweep (N=12 infeasible). Search upward."
             return "unresolved", f"N*(3.0) unresolved: N=10, 11 feasible; N=12 status is {st(12)}."
         if st(11) == "uncertain_at_max_seeds":
+            if st(12) == "infeasible":
+                return "certified_interval", ("N*_capacity_dpp(3.0) in [10, 11], certified interval under the 480-s "
+                                              "protocol (N=10 feasible, N=11 uncertain after the maximum number of "
+                                              "seeds and not resolved, N=12 infeasible)")
+            if st(12) == "feasible":
+                return "anomaly", ("N=12 unexpectedly feasible; boundary search paused for investigation "
+                                   "(contradicts N=11 uncertain / earlier 240 s sweep)")
+            if st(12) == "uncertain_at_max_seeds":
+                return "unresolved", ("N*_capacity_dpp(3.0) >= 10, upper boundary unresolved under the 480-s protocol "
+                                      "(N=11 and N=12 both uncertain after the maximum number of seeds)")
+            tail = ("N=12 was not run under the 480 s protocol" if st(12) == "not_run"
+                    else f"N=12 status is {st(12)}")
             return "unresolved", ("N*(3.0) in [10, 11], unresolved (N=10 certified feasible; N=11 remains uncertain "
                                   "after the maximum number of 480 s seeds, so it is neither confirmed feasible nor "
-                                  "infeasible; N=12 was not run under the 480 s protocol)")
+                                  "infeasible; " + tail + ")")
         return "unresolved", f"N*(3.0) unresolved: N=10 feasible; N=11 status is {st(11)}."
     if st(10) == "uncertain_at_max_seeds":
         return "unresolved", "N*(3.0) in [9, 11], unresolved (N=10 uncertain after the maximum number of 480 s seeds; 9 and 12 bounds come from the earlier 240 s sweep)"

@@ -73,5 +73,12 @@ def test_conclude_branches():
     assert rep.conclude({10: u})[0] == "unresolved"
     k, txt = rep.conclude({10: f, 11: u})
     assert k == "unresolved" and txt.startswith("N*(3.0) in [10, 11], unresolved")
+    k, txt = rep.conclude({10: f, 11: u, 12: i})
+    assert k == "certified_interval"
+    assert txt.startswith("N*_capacity_dpp(3.0) in [10, 11], certified interval under the 480-s protocol")
+    assert rep.conclude({10: f, 11: u, 12: f})[0] == "anomaly"
+    k, txt = rep.conclude({10: f, 11: u, 12: u})
+    assert k == "unresolved" and txt.startswith("N*_capacity_dpp(3.0) >= 10, upper boundary unresolved")
+    assert "N=12 status is needs_more_seeds" in rep.conclude({10: f, 11: u, 12: {"status": "needs_more_seeds"}})[1]
     assert rep.conclude({10: i, 9: u})[0] == "unresolved"
     assert rep.conclude({10: i})[0] == "unresolved"
