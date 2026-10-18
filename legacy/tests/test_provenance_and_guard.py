@@ -185,3 +185,14 @@ def test_guard_requires_explicit_zero_price_mode(guard):
     bad = {**GOOD, "controller": {"verifier_price_mode": "calibrated_marginal"}}
     with pytest.raises(guard.GuardError):
         guard.validate_canonical_config(bad)
+
+
+def test_preflight_degrades_when_tool_missing(guard, monkeypatch):
+    def missing(project="pawsey1257", timeout_s=90):
+        raise FileNotFoundError("pawseyAccountBalance")
+
+    monkeypatch.setattr(guard, "read_pawsey_storage", missing)
+    out = guard.preflight(10, 10, required=False)
+    assert out["storage"] is None and "unavailable" in out["warnings"][0]
+    with pytest.raises(guard.GuardError):
+        guard.preflight(10, 10)

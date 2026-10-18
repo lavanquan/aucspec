@@ -151,7 +151,13 @@ def preflight(
     planned_scratch_files: int,
     margin: int = 2000,
     project: str = "pawsey1257",
+    required: bool = True,
 ) -> dict:
-    storage = read_pawsey_storage(project)
+    try:
+        storage = read_pawsey_storage(project)
+    except FileNotFoundError:
+        if required:
+            raise GuardError("pawseyAccountBalance not found; cannot check file quota")
+        return {"storage": None, "warnings": ["pawseyAccountBalance unavailable on this node; quota not re-checked at run time"]}
     warnings = check_headroom(storage, planned_software_files, planned_scratch_files, margin)
     return {"storage": storage, "warnings": warnings}

@@ -83,7 +83,8 @@ def cmd_run(a) -> int:
     guard.assert_head_matches(ctx.git_sha)
     init_info = json.loads((ctx.run_dir / "provenance_init.json").read_text(encoding="utf-8"))
     guard.validate_canonical_config(ctx.base_cfg, semantics=init_info["semantics"])
-    guard.preflight(SOFTWARE_FILES_PER_RUN + 50, SCRATCH_FILES_PER_RUN + 50)
+    for w in guard.preflight(SOFTWARE_FILES_PER_RUN + 50, SCRATCH_FILES_PER_RUN + 50, required=False)["warnings"]:
+        print(f"[warn] {w}", file=sys.stderr)
     rc = cx.cmd_run(argparse.Namespace(run_tag=a.run_tag, n=a.n, seed=a.seed))
     cmd_summary(argparse.Namespace(run_tag=a.run_tag, n=a.n, seed=a.seed))
     return rc
