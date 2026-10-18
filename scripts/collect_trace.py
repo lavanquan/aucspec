@@ -37,7 +37,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "legacy" / "src"))
 
 import torch  # noqa: E402
-from transformers import AutoModelForCausalLM, AutoTokenizer  # noqa: E402
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer  # noqa: E402
 
 from edge_specsim.models import DraftProposal  # noqa: E402
 from edge_specsim.target_client import VLLMCandidateVerifier  # noqa: E402
@@ -71,9 +71,16 @@ CODE_PROMPTS = [
 
 def load_draft_model(model_name: str, device: str):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
+    config = AutoConfig.from_pretrained(model_name)
+    if getattr(config, "use_sliding_window", None) is False:
+        config.sliding_window = None
     dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
     model = AutoModelForCausalLM.from_pretrained(
-        model_name, torch_dtype=dtype, low_cpu_mem_usage=True
+        model_name,
+        config=config,
+        torch_dtype=dtype,
+        low_cpu_mem_usage=True,
+        attn_implementation="eager",
     ).to(device)
     model.eval()
     return tokenizer, model
@@ -95,9 +102,11 @@ def draft_greedy(tokenizer, model, device: str, context_token_ids: list[int], ga
             distribution_payload="delta_proposal",
         )
     input_ids = torch.tensor([context_token_ids], device=device)
+    attention_mask = torch.ones_like(input_ids)
     with torch.no_grad():
         output = model.generate(
             input_ids,
+            attention_mask=attention_mask,
             max_new_tokens=gamma,
             do_sample=False,
             num_beams=1,

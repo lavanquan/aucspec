@@ -132,7 +132,7 @@ class VLLMCandidateVerifier:
             int(
                 max_logprobs
                 if max_logprobs is not None
-                else (1 if self.greedy_only else self.vocab_size)
+                else (2 if self.greedy_only else self.vocab_size)
             ),
         )
         try:
@@ -188,7 +188,17 @@ class VLLMCandidateVerifier:
 
     @staticmethod
     def _best_token_id(logprob_dict: dict[int, float]) -> int:
-        return max(logprob_dict.items(), key=lambda item: item[1])[0]
+        if not logprob_dict:
+            raise ValueError("logprob_dict must not be empty")
+        best_logprob = max(float(value) for value in logprob_dict.values())
+        # Greedy generation is argmax over the vocabulary axis. On an exact
+        # tie, that semantics selects the first (smallest token-id) index.
+        # vLLM prompt_logprobs dict insertion order is not a valid tie-break.
+        return min(
+            int(token_id)
+            for token_id, value in logprob_dict.items()
+            if float(value) == best_logprob
+        )
 
     @staticmethod
     def _lookup_logprob(logprob_dict: dict[int, float], token_id: int) -> float:
