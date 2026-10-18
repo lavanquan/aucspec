@@ -1,0 +1,67 @@
+{
+  "csv": "capacity_dpp_n10_x3.0_s1.csv",
+  "n_rounds": 14931,
+  "batches_with_inconsistent_field": {
+    "verify_finish_ms": 0,
+    "batch_start_ms": 0,
+    "batch_ready_ms": 0,
+    "verification_batch_wall_ms": 0,
+    "verification_batch_service_ms": 0
+  },
+  "n_batches": 7460,
+  "rows_per_batch_equals_batch_size": true,
+  "service_time_model": [
+    "amortized_per_request"
+  ],
+  "occupancy_minus_modeled_ms_max_abs": 4.656612873077393e-10,
+  "modeled_minus_expected_ms_max_abs": 4.263256414560601e-14,
+  "measured_event_loop_over_wall": {
+    "mean": 1.003107127852661,
+    "min": 1.0002593235832915,
+    "max": 1.038274229753224
+  },
+  "modeled_over_wall_mean": 0.6568355036384527,
+  "wall_ms": {
+    "mean": 207.4223501345451,
+    "p50": 200.7078540045768,
+    "p95": 311.14640653831884,
+    "max": 1306.8265320034698
+  },
+  "batch_size": {
+    "mean": 2.001474530831099,
+    "max": 7,
+    "counts": {
+      "1": 3202,
+      "2": 2176,
+      "3": 1234,
+      "4": 613,
+      "5": 188,
+      "6": 46,
+      "7": 1
+    }
+  },
+  "wall_vs_B_linear_fit_diagnostic": {
+    "intercept_ms": 121.11860122384408,
+    "slope_ms_per_request": 43.120083509063875
+  },
+  "min_gap_between_consecutive_batches_ms": 0.0,
+  "overlapping_batch_pairs": 0,
+  "batch_id_order_matches_start_order": true,
+  "start_ge_ready_violations": 0,
+  "server_arrival_le_ready_violations": 0,
+  "round_latency_decomposition_resid_ms_max": 7.519815881096292e-10,
+  "resid_if_amortized_target_latency_were_added_ms_mean": 103.63476873642628,
+  "receive_minus_finish_equals_rtt_half_plus_download_max_err_ms": 6.383997427916732e-10,
+  "logical_verifier_tokens_per_batch_mean": 6.866487935656837,
+  "processed_tokens_per_batch_mean": 322.0308310991957,
+  "processed_over_logical_mean": 77.15504566016948,
+  "context_tokens_per_request_mean": 158.2356325801098,
+  "budget_binding_batches": 0,
+  "verifier_busy_fraction": 0.7598332203457886,
+  "mean_queue_wait_ms": 256.8484833186006,
+  "server_queue_max": 605.6476510246284,
+  "server_queue_positive_rows": 11923,
+  "verifier_price_coefficient_note": "theta_f stamped on requests is not logged; see report",
+  "failures": [],
+  "pass": true
+}

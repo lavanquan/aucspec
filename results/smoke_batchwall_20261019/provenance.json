@@ -1,0 +1,104 @@
+{
+  "bw_smoke60_r2_20261019/capacity_dpp_n10_x3.0_s1_artifacts": {
+    "git_sha": "04d0bdaee73c0142efb337e1bd16783a4c715040",
+    "git_dirty": false,
+    "slurm_job_id": "51097013",
+    "node": "nid002128",
+    "gpus": [
+      "AMD Instinct MI250X",
+      "x8"
+    ],
+    "hip": "6.3.42134-a9a80e791",
+    "rocm": "6.3.3-74",
+    "campaign_config_hash": "56644278e61c7a09",
+    "resolved_config_sha256": "0af3158ca65e18743419f9a7985cc5b4b415a92143580a194882276f870ab9d4",
+    "population_fingerprint": "7d873c2e94ab447b",
+    "verifier_semantics": {
+      "verifier_semantics": "V1",
+      "tie_break_rule": "first_max_in_vllm_logprob_dict_order",
+      "effective_max_logprobs": 1,
+      "greedy_only": true,
+      "service_time_model": "batch_wall",
+      "verifier_price_mode": "zero",
+      "budget_mode": "fixed",
+      "verify_token_budget": 100,
+      "max_batch_size": 32
+    },
+    "software_versions": {
+      "python": "3.12.3",
+      "pandas": "3.0.5",
+      "pyarrow": "25.0.1",
+      "torch": "2.7.1a0+gite2d141d",
+      "transformers": "4.51.3",
+      "vllm": "0.9.1+rocm633"
+    }
+  },
+  "bw_smoke60_r2_20261019/capacity_dpp_n1_x3.0_s1_artifacts": {
+    "git_sha": "04d0bdaee73c0142efb337e1bd16783a4c715040",
+    "git_dirty": false,
+    "slurm_job_id": "51097012",
+    "node": "nid002126",
+    "gpus": [
+      "AMD Instinct MI250X",
+      "x8"
+    ],
+    "hip": "6.3.42134-a9a80e791",
+    "rocm": "6.3.3-74",
+    "campaign_config_hash": "56644278e61c7a09",
+    "resolved_config_sha256": "682c04702df25d4b95618b0bf84eb6b75cd8a51533836b3a9709542bf9255554",
+    "population_fingerprint": "7d873c2e94ab447b",
+    "verifier_semantics": {
+      "verifier_semantics": "V1",
+      "tie_break_rule": "first_max_in_vllm_logprob_dict_order",
+      "effective_max_logprobs": 1,
+      "greedy_only": true,
+      "service_time_model": "batch_wall",
+      "verifier_price_mode": "zero",
+      "budget_mode": "fixed",
+      "verify_token_budget": 100,
+      "max_batch_size": 32
+    },
+    "software_versions": {
+      "python": "3.12.3",
+      "pandas": "3.0.5",
+      "pyarrow": "25.0.1",
+      "torch": "2.7.1a0+gite2d141d",
+      "transformers": "4.51.3",
+      "vllm": "0.9.1+rocm633"
+    }
+  },
+  "v1ctl_smoke60_r2_20261019/capacity_dpp_n10_x3.0_s1_artifacts": {
+    "git_sha": "04d0bdaee73c0142efb337e1bd16783a4c715040",
+    "git_dirty": false,
+    "slurm_job_id": "51097014",
+    "node": "nid003012",
+    "gpus": [
+      "AMD Instinct MI250X",
+      "x8"
+    ],
+    "hip": "6.3.42134-a9a80e791",
+    "rocm": "6.3.3-74",
+    "campaign_config_hash": "e0856ddc296ef415",
+    "resolved_config_sha256": "22b5c1d0e4d542b304f86dc0166379b9243c53a53bd0cc230cc7b7316bc7f31c",
+    "population_fingerprint": "7d873c2e94ab447b",
+    "verifier_semantics": {
+      "verifier_semantics": "V1",
+      "tie_break_rule": "first_max_in_vllm_logprob_dict_order",
+      "effective_max_logprobs": 1,
+      "greedy_only": true,
+      "service_time_model": "amortized_per_request",
+      "verifier_price_mode": "zero",
+      "budget_mode": "fixed",
+      "verify_token_budget": 100,
+      "max_batch_size": 32
+    },
+    "software_versions": {
+      "python": "3.12.3",
+      "pandas": "3.0.5",
+      "pyarrow": "25.0.1",
+      "torch": "2.7.1a0+gite2d141d",
+      "transformers": "4.51.3",
+      "vllm": "0.9.1+rocm633"
+    }
+  }
+}

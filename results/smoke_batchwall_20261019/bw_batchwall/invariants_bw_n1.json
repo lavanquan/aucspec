@@ -1,0 +1,57 @@
+{
+  "csv": "capacity_dpp_n1_x3.0_s1.csv",
+  "n_rounds": 1466,
+  "batches_with_inconsistent_field": {
+    "verify_finish_ms": 0,
+    "batch_start_ms": 0,
+    "batch_ready_ms": 0,
+    "verification_batch_wall_ms": 0,
+    "verification_batch_service_ms": 0
+  },
+  "n_batches": 1466,
+  "rows_per_batch_equals_batch_size": true,
+  "service_time_model": [
+    "batch_wall"
+  ],
+  "occupancy_minus_modeled_ms_max_abs": 1.1641532182693481e-10,
+  "modeled_minus_expected_ms_max_abs": 0.0,
+  "measured_event_loop_over_wall": {
+    "mean": 1.0023769200331705,
+    "min": 1.0015026781000687,
+    "max": 1.007046968967166
+  },
+  "modeled_over_wall_mean": 1.0,
+  "wall_ms": {
+    "mean": 78.50227609297735,
+    "p50": 78.51656753337011,
+    "p95": 92.57373874424957,
+    "max": 104.23950804397464
+  },
+  "batch_size": {
+    "mean": 1.0,
+    "max": 1,
+    "counts": {
+      "1": 1466
+    }
+  },
+  "min_gap_between_consecutive_batches_ms": 168.44168989208993,
+  "overlapping_batch_pairs": 0,
+  "batch_id_order_matches_start_order": true,
+  "start_ge_ready_violations": 0,
+  "server_arrival_le_ready_violations": 0,
+  "round_latency_decomposition_resid_ms_max": 1.9798562789219432e-10,
+  "resid_if_amortized_target_latency_were_added_ms_mean": 78.50227609295605,
+  "receive_minus_finish_equals_rtt_half_plus_download_max_err_ms": 1.6924451098389304e-10,
+  "logical_verifier_tokens_per_batch_mean": 2.9863574351978173,
+  "processed_tokens_per_batch_mean": 164.74079126875853,
+  "processed_over_logical_mean": 98.58733515234196,
+  "context_tokens_per_request_mean": 162.7544338335607,
+  "budget_binding_batches": 0,
+  "verifier_busy_fraction": 0.26957160711515704,
+  "mean_queue_wait_ms": 150.0,
+  "server_queue_max": 4.239508043974638,
+  "server_queue_positive_rows": 1,
+  "verifier_price_coefficient_note": "theta_f stamped on requests is not logged; see report",
+  "failures": [],
+  "pass": true
+}

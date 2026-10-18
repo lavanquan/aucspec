@@ -1,0 +1,47 @@
+{
+  "bw N=10": {
+    "min_rate_tps": 2.15,
+    "goodput_tps": 25.049999999999997,
+    "median_client_rate": 2.4833333333333334,
+    "mean_gamma": 2.461016949152542,
+    "mean_batch_size": 2.0848056537102475,
+    "mean_round_latency_ms": 1017.21695741571,
+    "mean_batch_wall_ms": 211.25491125041836,
+    "mean_modeled_service_ms": 211.25491125041836,
+    "verifier_busy_fraction(modeled)": 0.99941594871182,
+    "rate_signal_age_min": -1.0,
+    "rate_signal_age_frac_zero": 0.0026618100308209583,
+    "measurement_rounds": 590,
+    "exhausted": []
+  },
+  "bw N=1": {
+    "min_rate_tps": 8.75,
+    "goodput_tps": 8.75,
+    "median_client_rate": 8.75,
+    "mean_gamma": 1.9607843137254901,
+    "mean_batch_size": 1.0,
+    "mean_round_latency_ms": 294.2448412235961,
+    "mean_batch_wall_ms": 81.7968041930512,
+    "mean_modeled_service_ms": 81.7968041930512,
+    "verifier_busy_fraction(modeled)": 0.27877118907244963,
+    "rate_signal_age_min": -1.0,
+    "rate_signal_age_frac_zero": 0.5034106412005457,
+    "measurement_rounds": 204,
+    "exhausted": []
+  },
+  "v1ctl N=10": {
+    "min_rate_tps": 2.716666666666667,
+    "goodput_tps": 32.55,
+    "median_client_rate": 3.35,
+    "mean_gamma": 2.425,
+    "mean_batch_size": 2.0833333333333335,
+    "mean_round_latency_ms": 750.1154558722559,
+    "mean_batch_wall_ms": 215.82393527751265,
+    "mean_modeled_service_ms": 124.59017666582845,
+    "verifier_busy_fraction(modeled)": 0.7981217602141809,
+    "rate_signal_age_min": -1.0,
+    "rate_signal_age_frac_zero": 0.003817560779586096,
+    "measurement_rounds": 800,
+    "exhausted": []
+  }
+}
