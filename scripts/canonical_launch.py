@@ -44,7 +44,7 @@ def cmd_init(a) -> int:
 
     cfg = yaml.safe_load(Path(a.config).read_text(encoding="utf-8"))
     prov = guard.assert_clean_source()
-    guard.validate_canonical_config(cfg)
+    guard.validate_canonical_config(cfg, semantics=a.semantics)
     n_runs = int(a.planned_runs)
     pre = guard.preflight(n_runs * SOFTWARE_FILES_PER_RUN + 50, n_runs * SCRATCH_FILES_PER_RUN + 50)
     for w in pre["warnings"]:
@@ -64,7 +64,10 @@ def cmd_init(a) -> int:
     (ctx.run_dir / "cache_parts").mkdir(exist_ok=True)
     (ctx.run_dir / "compact").mkdir(exist_ok=True)
     (ctx.run_dir / "provenance_init.json").write_text(
-        json.dumps({"git": prov, "storage": pre["storage"], "scratch_dir": str(scratch)}, indent=2),
+        json.dumps(
+            {"git": prov, "storage": pre["storage"], "scratch_dir": str(scratch), "semantics": a.semantics},
+            indent=2,
+        ),
         encoding="utf-8",
     )
     print(f"[init] run_dir={ctx.run_dir} raw/logs -> {scratch} config_hash={ctx.config_hash} git={ctx.git_sha}")
@@ -78,7 +81,8 @@ def cmd_run(a) -> int:
     ctx = rcf.RunContext.resume(a.run_tag)
     guard.assert_clean_source()
     guard.assert_head_matches(ctx.git_sha)
-    guard.validate_canonical_config(ctx.base_cfg)
+    init_info = json.loads((ctx.run_dir / "provenance_init.json").read_text(encoding="utf-8"))
+    guard.validate_canonical_config(ctx.base_cfg, semantics=init_info["semantics"])
     guard.preflight(SOFTWARE_FILES_PER_RUN + 50, SCRATCH_FILES_PER_RUN + 50)
     rc = cx.cmd_run(argparse.Namespace(run_tag=a.run_tag, n=a.n, seed=a.seed))
     cmd_summary(argparse.Namespace(run_tag=a.run_tag, n=a.n, seed=a.seed))
@@ -159,6 +163,8 @@ def main() -> int:
     i.add_argument("--run-tag", required=True)
     i.add_argument("--config", required=True)
     i.add_argument("--planned-runs", type=int, default=1)
+    i.add_argument("--semantics", default="batch_wall", choices=["batch_wall", "amortized_per_request"],
+                   help="amortized_per_request is only for a labelled legacy-V1 control run")
     for name in ("run", "summary"):
         s = sub.add_parser(name)
         s.add_argument("--run-tag", required=True)
