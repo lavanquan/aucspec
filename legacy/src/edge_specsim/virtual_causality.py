@@ -64,7 +64,8 @@ class EventLedger:
 
         D1: a batch_formed event with cutoff C must not be followed (in real/recording order) by an arrival
             whose virtual timestamp is <= C -- that request had already arrived in virtual time.
-        D2: a decision at t must not have seen a server-state update with timestamp > t.
+        D2: a decision at t must not have seen a server-state update with timestamp > t, and must have seen every
+            batch that finished at or before t (version completeness).
         Also: verifier service intervals do not overlap; no request is served twice or before it arrived.
         """
         bad: list[str] = []
@@ -102,6 +103,16 @@ class EventLedger:
                 if start + EPS < last_finish:
                     bad.append(f"seq {e.seq}: verifier service [{start},{finish}] overlaps previous finish {last_finish}")
                 last_finish = max(last_finish, finish)
+        # D2 completeness: a decision at t must see EXACTLY the batches that finish at or before t (no future one,
+        # and no past one missing because it had not been processed yet when the decision was taken).
+        finishes = sorted(e.detail["finish_ms"] for e in self.events if e.type == "batch_complete")
+        import bisect
+        for e in self.events:
+            if e.type == "decision" and e.decision_ts is not None:
+                expected = bisect.bisect_right(finishes, e.decision_ts + EPS)
+                if e.queue_state_version != expected:
+                    bad.append(f"D2 seq {e.seq}: decision at {e.decision_ts:.3f} saw state version "
+                               f"{e.queue_state_version}, expected {expected} batches finished by then")
         dropped = set(arrival_ts) - served
         # a request still queued when the run ends is a dropped request
         if dropped:

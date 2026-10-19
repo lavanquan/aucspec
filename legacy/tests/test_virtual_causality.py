@@ -190,3 +190,33 @@ def test_no_real_time_sleep_is_used_for_correctness():
     import edge_specsim.virtual_causality as vc
     causal_src = inspect.getsource(vb.VerificationBatcher._loop_causal) + inspect.getsource(vc)
     assert "asyncio.sleep" not in causal_src and "time.sleep" not in causal_src
+
+
+def test_decision_blocks_until_a_batch_finishing_before_it_has_been_processed():
+    """D2 completeness: without the horizon wait a decision would run on STALE state (a past batch not yet processed)."""
+    async def go():
+        coord = VirtualCoordinator(50.0)
+        coord.register_client(0, 20.0)
+        coord.register_client(1, 20.0)
+        coord.begin_round(0, 0.0)
+        coord.note_submit(0, 0, 100.0)                     # queued request, cutoff 150, batch not formed yet
+        coord._head_cutoff_fn = lambda: 150.0              # a batcher exists and could form that batch
+        waiter = asyncio.ensure_future(coord.wait_decision(1, 200.0))
+        await asyncio.sleep(0.05)
+        assert not waiter.done(), "client 1 decided at t=200 although a batch finishing before 200 is still pending"
+        coord.batch_formed(0, 150.0, [(0, 0)], 150.0)      # in service: finish unknown but >= 150
+        await asyncio.sleep(0.05)
+        assert not waiter.done()
+        coord.batch_done(0, [(0, 0)], 150.0, 180.0)        # finishes at 180 <= 200: now visible
+        coord.begin_round(0, 190.0)
+        await asyncio.wait_for(waiter, 2)
+        assert coord.state_version == 1
+
+    run(go())
+
+
+def test_ledger_flags_a_stale_decision_that_missed_a_batch_finished_before_it():
+    led = EventLedger()
+    led.add(180.0, "batch_complete", "verifier", version=1, batch=0, start_ms=150.0, finish_ms=180.0, members=[[0, 0]])
+    led.add(200.0, "decision", "client:1", decision_ts=200.0, visible_update_ts=0.0, version=0, client=1)
+    assert any("expected 1" in v for v in led.check_causality())
