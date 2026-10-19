@@ -228,6 +228,11 @@ class EdgeSpecSimulator:
             None if measurement_seconds is None else max(0.0, float(measurement_seconds))
         )
         self.measurement_start_ms = self.warmup_seconds * 1000.0
+        # M12: optional early stop. A client stops starting new rounds once ITS virtual clock passes
+        # measurement_end + margin; behaviour inside the measurement window is unchanged and the unfinished
+        # work is ACTIVE (not exhausted) for the lifecycle assessment.
+        _margin = experiment_cfg.get("early_stop_margin_seconds")
+        self.early_stop_margin_ms = None if _margin is None else max(0.0, float(_margin)) * 1000.0
         self.measurement_end_ms = (
             None
             if self.measurement_seconds is None
@@ -661,18 +666,29 @@ class EdgeSpecSimulator:
             if self.coordinator is not None:
                 self.coordinator.retire_client(client.client_id)
 
+    def _past_early_stop(self, client: ClientProfile) -> bool:
+        if self.early_stop_margin_ms is None or self.measurement_end_ms is None:
+            return False
+        return client.virtual_time_ms > self.measurement_end_ms + self.early_stop_margin_ms
+
     async def _run_client_inner(self, client: ClientProfile) -> None:
-        while client.start_next_sample():
+        stopped = False
+        while not stopped and client.start_next_sample():
             assert client.current_sample is not None
             worker = self.workers[client.client_id % len(self.workers)]
             await worker.reset_client(client.client_id)
             self.target.set_confirmed_prefix(client.client_id, [])
             sample_round = 0
             while client.remaining_tokens > 0:
+                if self._past_early_stop(client):
+                    stopped = True
+                    break
                 reached_eos = await self._run_round(client, sample_round)
                 sample_round += 1
                 if reached_eos:
                     break
+            if stopped:
+                break
             client.samples_completed += 1
             print(
                 f"client={client.client_id:02d} completed sample={client.current_sample.sample_id} "
@@ -779,6 +795,8 @@ class EdgeSpecSimulator:
             measured_wall_latency_ms=draft_wall_latency_ms,
             fixed_latency_ms=client.draft_fixed_latency_ms,
             speed_multiplier=client.draft_speed_multiplier,
+            gamma=gamma,
+            profile=self.cfg["simulation"].get("draft_profile"),
         )
         draft_wait_ms = draft_queue_wait_ms(
             measured_gpu_latency_ms=draft.latency_ms,
