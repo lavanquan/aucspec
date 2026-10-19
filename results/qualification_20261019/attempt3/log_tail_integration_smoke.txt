@@ -1,0 +1,40 @@
+client=05 sample=gsm8k-test-35 round=14 batch=448/1 gamma=4 accepted=4 useful=5 proposed=[256, 481, 576, 2331] committed=[256, 481, 576, 2331, 13713] progress=29/48
+client=02 sample=gsm8k-test-17 round=13 batch=449/2 gamma=0 accepted=0 useful=1 proposed=[] committed=[2714] progress=40/48
+client=07 sample=gsm8k-test-47 round=9 batch=449/2 gamma=0 accepted=0 useful=1 proposed=[] committed=[576] progress=30/48
+client=01 sample=gsm8k-test-11 round=14 batch=450/2 gamma=4 accepted=4 useful=5 proposed=[22730, 25908, 25, 220] committed=[22730, 25908, 25, 220, 20] progress=43/48
+client=05 sample=gsm8k-test-35 round=15 batch=451/1 gamma=0 accepted=0 useful=1 proposed=[] committed=[2783] progress=30/48
+client=01 sample=gsm8k-test-11 round=15 batch=452/1 gamma=0 accepted=0 useful=1 proposed=[] committed=[198] progress=44/48
+client=00 sample=gsm8k-test-5 round=13 batch=450/2 gamma=0 accepted=0 useful=1 proposed=[] committed=[13509] progress=33/48
+client=02 sample=gsm8k-test-17 round=14 batch=453/1 gamma=4 accepted=4 useful=5 proposed=[59730, 25, 1019, 256] committed=[59730, 25, 1019, 256, 481] progress=45/48
+client=02 sample=gsm8k-test-17 round=15 batch=455/1 gamma=0 accepted=0 useful=1 proposed=[] committed=[576] progress=46/48
+client=07 sample=gsm8k-test-47 round=10 batch=454/1 gamma=4 accepted=4 useful=5 proposed=[37799, 43054, 504, 220] committed=[37799, 43054, 504, 220, 16] progress=35/48
+client=05 sample=gsm8k-test-35 round=16 batch=456/1 gamma=4 accepted=0 useful=1 proposed=[374, 400, 16, 17] committed=[5646] progress=31/48
+client=00 sample=gsm8k-test-5 round=14 batch=457/1 gamma=4 accepted=4 useful=5 proposed=[594, 13475, 6084, 8090] committed=[594, 13475, 6084, 8090, 25] progress=38/48
+client=07 sample=gsm8k-test-47 round=11 batch=458/2 gamma=0 accepted=0 useful=1 proposed=[] committed=[25] progress=36/48
+client=01 sample=gsm8k-test-11 round=16 batch=458/2 gamma=3 accepted=3 useful=4 proposed=[256, 481, 2521] committed=[256, 481, 2521, 5520] progress=48/48
+client=01 completed sample=gsm8k-test-11 tokens=48 rounds=17
+client=02 sample=gsm8k-test-17 round=16 batch=459/3 gamma=1 accepted=1 useful=2 proposed=[2783] committed=[2783, 315] progress=48/48
+client=02 completed sample=gsm8k-test-17 tokens=48 rounds=17
+client=05 sample=gsm8k-test-35 round=17 batch=459/3 gamma=0 accepted=0 useful=1 proposed=[] committed=[20704] progress=32/48
+client=00 sample=gsm8k-test-5 round=15 batch=459/3 gamma=0 accepted=0 useful=1 proposed=[] committed=[1019] progress=39/48
+client=07 sample=gsm8k-test-47 round=12 batch=460/1 gamma=4 accepted=4 useful=5 proposed=[15, 15, 5851, 311] committed=[15, 15, 5851, 311, 220] progress=41/48
+client=05 sample=gsm8k-test-35 round=18 batch=461/1 gamma=4 accepted=4 useful=5 proposed=[220, 19, 40485, 11] committed=[220, 19, 40485, 11, 220] progress=37/48
+client=07 sample=gsm8k-test-47 round=13 batch=462/2 gamma=0 accepted=0 useful=1 proposed=[] committed=[20] progress=42/48
+client=00 sample=gsm8k-test-5 round=16 batch=462/2 gamma=4 accepted=3 useful=4 proposed=[256, 481, 13509, 5780] committed=[256, 481, 13509, 5990] progress=43/48
+client=05 sample=gsm8k-test-35 round=19 batch=463/1 gamma=0 accepted=0 useful=1 proposed=[] committed=[17] progress=38/48
+client=00 sample=gsm8k-test-5 round=17 batch=464/1 gamma=0 accepted=0 useful=1 proposed=[] committed=[5780] progress=44/48
+client=05 sample=gsm8k-test-35 round=20 batch=466/1 gamma=4 accepted=4 useful=5 proposed=[35210, 11, 220, 16] committed=[35210, 11, 220, 16, 521] progress=43/48
+client=07 sample=gsm8k-test-47 round=14 batch=465/1 gamma=4 accepted=4 useful=5 proposed=[25, 15, 15, 5851] committed=[25, 15, 15, 5851, 624] progress=47/48
+client=00 sample=gsm8k-test-5 round=18 batch=467/1 gamma=3 accepted=3 useful=4 proposed=[311, 6084, 518] committed=[311, 6084, 518, 220] progress=48/48
+client=00 completed sample=gsm8k-test-5 tokens=48 rounds=19
+client=07 sample=gsm8k-test-47 round=15 batch=468/2 gamma=0 accepted=0 useful=1 proposed=[] committed=[256] progress=48/48
+client=07 completed sample=gsm8k-test-47 tokens=48 rounds=16
+client=05 sample=gsm8k-test-35 round=21 batch=468/2 gamma=0 accepted=0 useful=1 proposed=[] committed=[78121] progress=44/48
+client=05 sample=gsm8k-test-35 round=22 batch=469/1 gamma=3 accepted=3 useful=4 proposed=[11, 323, 220] committed=[11, 323, 220, 16] progress=48/48
+client=05 completed sample=gsm8k-test-35 tokens=48 rounds=23
+Wrote 826 records to results/capacity_frontier/tfa33_wiring_smoke_r4_20261019/raw/capacity_dpp_n8_x3.0_s1.csv
+[rank0]:[W1020 00:53:13.380371393 ProcessGroupNCCL.cpp:1479] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+  !! WORKLOAD EXHAUSTION at n=8 x=3.0 seed=1: 5/8 client(s) ran out of prompts before the 20.0s window ended (increase questions_per_client): [{'client_id': 1, 'active_span_s': 16.5}, {'client_id': 3, 'active_span_s': 16.0}, {'client_id': 4, 'active_span_s': 15.8}, {'client_id': 5, 'active_span_s': 16.3}, {'client_id': 6, 'active_span_s': 16.3}]
+[done] n=8 seed=1 min_rate=0.9500 exhausted=5
+INVALID: workload exhaustion; rerun after increasing workload supply
+[summary] /scratch/pawsey1257/quanla/aucspec_worktrees/wt_batchwall/results/capacity_frontier/tfa33_wiring_smoke_r4_20261019/compact/capacity_dpp_n8_x3.0_s1.verifier_summary.json

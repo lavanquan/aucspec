@@ -1,0 +1,49 @@
+{
+ "steps": [
+  {
+   "step": "preflight",
+   "rc": 0,
+   "wall_s": 5.724025726318359,
+   "elapsed_s": 5.724064111709595
+  },
+  {
+   "step": "qualification",
+   "rc": 0,
+   "wall_s": 198.9800579547882,
+   "elapsed_s": 204.71619701385498
+  },
+  {
+   "step": "integration_smoke",
+   "rc": 3,
+   "wall_s": 223.65792965888977,
+   "elapsed_s": 428.4022328853607
+  }
+ ],
+ "verdict": {
+  "ok": true,
+  "reasons": [],
+  "sets": {
+   "dev": {
+    "pass": true,
+    "failures": []
+   },
+   "heldout": {
+    "pass": true,
+    "failures": []
+   }
+  }
+ },
+ "frozen_integrity": {
+  "ok": true,
+  "problems": [],
+  "n_problems": 0,
+  "sha256": "b59718762095c13c20fc196acc52e3b86038680a0785ae6f53390c680ae6cffc",
+  "counts": {
+   "dev": 64,
+   "heldout": 32
+  }
+ },
+ "exit_code": 12,
+ "why": "integration smoke process failed",
+ "total_wall_s": 428.40376901626587
+}

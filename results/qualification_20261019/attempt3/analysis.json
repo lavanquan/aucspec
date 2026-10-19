@@ -1,0 +1,4982 @@
+{
+ "status": "ok",
+ "calls": 398,
+ "init_s": 65.32728219032288,
+ "latency_ms": {
+  "warmup": {
+   "n": 2,
+   "mean": 569.3315275129862,
+   "max": 792.6196280168369
+  },
+  "verify_B1": {
+   "n": 48,
+   "mean": 144.85886647404791,
+   "max": 718.4426039457321
+  },
+  "verify_B2": {
+   "n": 48,
+   "mean": 89.9870905802042,
+   "max": 107.1305819787085
+  },
+  "verify_B4": {
+   "n": 120,
+   "mean": 145.73487674836846,
+   "max": 413.27400400768965
+  },
+  "verify_B8": {
+   "n": 28,
+   "mean": 255.4512222413905,
+   "max": 323.8116529537365
+  },
+  "verify_B16": {
+   "n": 66,
+   "mean": 646.2635018009072,
+   "max": 1451.6507550142705
+  },
+  "verify_B32": {
+   "n": 17,
+   "mean": 931.6183636855225,
+   "max": 1216.1968009313568
+  },
+  "decode_B1": {
+   "n": 24,
+   "mean": 158.45560142285345,
+   "max": 740.1889080647379
+  },
+  "decode_B4": {
+   "n": 24,
+   "mean": 175.96433593522912,
+   "max": 203.05311400443316
+  },
+  "decode_B8": {
+   "n": 8,
+   "mean": 279.1646866244264,
+   "max": 333.6695309262723
+  },
+  "decode_B16": {
+   "n": 10,
+   "mean": 454.6927538816817,
+   "max": 560.6627909000963
+  },
+  "decode_B32": {
+   "n": 3,
+   "mean": 816.1701783537865,
+   "max": 974.3171740556136
+  }
+ },
+ "runtime_evidence": {
+  "identity": "V1-batchwall-tritonfa33",
+  "imports": {
+   "python_executable": "/usr/bin/python3",
+   "torch_version": "2.7.1a0+gite2d141d",
+   "torch_file": "/usr/local/lib/python3.12/dist-packages/torch/__init__.py",
+   "triton_version": "3.3.1",
+   "triton_file": "/usr/local/lib/python3.12/dist-packages/triton/__init__.py",
+   "triton_import_path": "/software/projects/pawsey1257/quanla/aucspec_runtime/tritonfa33/shim/triton/__init__.py",
+   "hip_version": "6.3.42134-a9a80e791",
+   "shim_on_sys_path_index": 5,
+   "sys_path_head": [
+    "/software/projects/pawsey1257/quanla/aucspec/.pythonuserbase-rocm-vllm/lib/python3.12/site-packages/ray/thirdparty_files",
+    "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_batchwall/legacy/src",
+    "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_batchwall/scripts",
+    "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_batchwall/legacy/src",
+    "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_batchwall/scripts",
+    "/software/projects/pawsey1257/quanla/aucspec_runtime/tritonfa33/shim",
+    "/usr/lib/python312.zip",
+    "/usr/lib/python3.12",
+    "/usr/lib/python3.12/lib-dynload",
+    "/software/projects/pawsey1257/quanla/aucspec/.pythonuserbase-rocm-vllm/lib/python3.12/site-packages",
+    "__editable__.vllm-0.9.1+rocm633.finder.__path_hook__",
+    "/usr/local/lib/python3.12/dist-packages"
+   ]
+  },
+  "live_engine": {
+   "engine_class": "vllm.engine.llm_engine.LLMEngine",
+   "executor_class": "UniProcExecutor",
+   "n_attention_layers": 28,
+   "n_expected_layers": 28,
+   "layers_triton_flash_attn": 28,
+   "layers_naive_sdpa": 0,
+   "layers_with_naive_func_attribute": 0,
+   "attention_impl_class": "ROCmFlashAttentionImpl",
+   "dtype": "torch.bfloat16",
+   "enforce_eager": false,
+   "prefix_caching": false,
+   "chunked_prefill": false,
+   "max_num_batched_tokens": 4096,
+   "max_num_seqs": 256,
+   "effective_max_logprobs": 1,
+   "tie_break_rule": "first_max_in_vllm_logprob_dict_order",
+   "greedy_only": true,
+   "triton_fa_calls": 0,
+   "pids": [],
+   "pid_now": 2096013
+  },
+  "semantics": {
+   "service_time_model": "batch_wall",
+   "verifier_price_mode": "zero",
+   "budget_mode": "fixed"
+  },
+  "vllm_version": "0.9.1",
+  "vllm_file": "/software/projects/pawsey1257/quanla/aucspec/vllm_rocm_build/vllm/vllm/__init__.py",
+  "manifest_sha256": "564571978a95c23c11136bf7bc66822357cd0b13eca2110c32348412f549bfed",
+  "env": {
+   "VLLM_USE_TRITON_FLASH_ATTN": "1",
+   "PYTHONPATH": "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_batchwall/legacy/src:/software/projects/pawsey1257/quanla/aucspec_runtime/tritonfa33/shim",
+   "VLLM_ATTENTION_BACKEND": null,
+   "VLLM_USE_V1": "0"
+  }
+ },
+ "runtime_evidence_end": {
+  "identity": "V1-batchwall-tritonfa33",
+  "imports": {
+   "python_executable": "/usr/bin/python3",
+   "torch_version": "2.7.1a0+gite2d141d",
+   "torch_file": "/usr/local/lib/python3.12/dist-packages/torch/__init__.py",
+   "triton_version": "3.3.1",
+   "triton_file": "/usr/local/lib/python3.12/dist-packages/triton/__init__.py",
+   "triton_import_path": "/software/projects/pawsey1257/quanla/aucspec_runtime/tritonfa33/shim/triton/__init__.py",
+   "hip_version": "6.3.42134-a9a80e791",
+   "shim_on_sys_path_index": 5,
+   "sys_path_head": [
+    "/software/projects/pawsey1257/quanla/aucspec/.pythonuserbase-rocm-vllm/lib/python3.12/site-packages/ray/thirdparty_files",
+    "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_batchwall/legacy/src",
+    "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_batchwall/scripts",
+    "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_batchwall/legacy/src",
+    "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_batchwall/scripts",
+    "/software/projects/pawsey1257/quanla/aucspec_runtime/tritonfa33/shim",
+    "/usr/lib/python312.zip",
+    "/usr/lib/python3.12",
+    "/usr/lib/python3.12/lib-dynload",
+    "/software/projects/pawsey1257/quanla/aucspec/.pythonuserbase-rocm-vllm/lib/python3.12/site-packages",
+    "__editable__.vllm-0.9.1+rocm633.finder.__path_hook__",
+    "/usr/local/lib/python3.12/dist-packages"
+   ]
+  },
+  "live_engine": {
+   "engine_class": "vllm.engine.llm_engine.LLMEngine",
+   "executor_class": "UniProcExecutor",
+   "n_attention_layers": 28,
+   "n_expected_layers": 28,
+   "layers_triton_flash_attn": 28,
+   "layers_naive_sdpa": 0,
+   "layers_with_naive_func_attribute": 0,
+   "attention_impl_class": "ROCmFlashAttentionImpl",
+   "dtype": "torch.bfloat16",
+   "enforce_eager": false,
+   "prefix_caching": false,
+   "chunked_prefill": false,
+   "max_num_batched_tokens": 4096,
+   "max_num_seqs": 256,
+   "effective_max_logprobs": 1,
+   "tie_break_rule": "first_max_in_vllm_logprob_dict_order",
+   "greedy_only": true,
+   "triton_fa_calls": 11508,
+   "pids": [
+    2096013
+   ],
+   "pid_now": 2096013
+  },
+  "semantics": {
+   "service_time_model": "batch_wall",
+   "verifier_price_mode": "zero",
+   "budget_mode": "fixed"
+  },
+  "vllm_version": "0.9.1",
+  "vllm_file": "/software/projects/pawsey1257/quanla/aucspec/vllm_rocm_build/vllm/vllm/__init__.py",
+  "manifest_sha256": "564571978a95c23c11136bf7bc66822357cd0b13eca2110c32348412f549bfed",
+  "env": {
+   "VLLM_USE_TRITON_FLASH_ATTN": "1",
+   "PYTHONPATH": "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_batchwall/legacy/src:/software/projects/pawsey1257/quanla/aucspec_runtime/tritonfa33/shim",
+   "VLLM_ATTENTION_BACKEND": null,
+   "VLLM_USE_V1": "0"
+  }
+ },
+ "provenance": {
+  "git_sha": "b7a1f66fca5facb4af8dcc6f6100ec1096ab924d",
+  "git_dirty": false,
+  "resolved_config_sha256": "98411c459958f33c375ccf699e91968b73460c5f2895999765c580bcdbe6f4de"
+ },
+ "dev": {
+  "table": {
+   "corrupt_B16_g2_ident": {
+    "B": 16,
+    "gamma": 2,
+    "order": "ident",
+    "n_requests": 64,
+    "accepted_raw": "64/64",
+    "committed_raw": "64/64",
+    "accepted_margin": "59/59",
+    "committed_margin": "59/59"
+   },
+   "corrupt_B16_g4_ident": {
+    "B": 16,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 64,
+    "accepted_raw": "63/64",
+    "committed_raw": "63/64",
+    "accepted_margin": "55/55",
+    "committed_margin": "55/55"
+   },
+   "corrupt_B16_g4_perm1": {
+    "B": 16,
+    "gamma": 4,
+    "order": "perm1",
+    "n_requests": 64,
+    "accepted_raw": "62/64",
+    "committed_raw": "62/64",
+    "accepted_margin": "55/55",
+    "committed_margin": "55/55"
+   },
+   "corrupt_B32_g4_ident": {
+    "B": 32,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 64,
+    "accepted_raw": "63/64",
+    "committed_raw": "63/64",
+    "accepted_margin": "55/55",
+    "committed_margin": "55/55"
+   },
+   "corrupt_B4_g4_ident": {
+    "B": 4,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 64,
+    "accepted_raw": "63/64",
+    "committed_raw": "63/64",
+    "accepted_margin": "55/55",
+    "committed_margin": "55/55"
+   },
+   "decode_B16_g4_ident": {
+    "B": 16,
+    "order": "ident",
+    "n_requests": 64,
+    "four_token_chain_vs_fp32": "62/64",
+    "first_token_vs_fp32": "63/64",
+    "four_token_chain_vs_fp32 (all 4 positions margin>=0.5)": "48/48",
+    "decode_chain==prefill_target_greedy(B16 g4 ident)": "62/64"
+   },
+   "decode_B16_g4_perm1": {
+    "B": 16,
+    "order": "perm1",
+    "n_requests": 64,
+    "four_token_chain_vs_fp32": "62/64",
+    "first_token_vs_fp32": "63/64",
+    "four_token_chain_vs_fp32 (all 4 positions margin>=0.5)": "48/48",
+    "decode_chain==prefill_target_greedy(B16 g4 ident)": null
+   },
+   "decode_B1_g4_ident": {
+    "B": 1,
+    "order": "ident",
+    "n_requests": 16,
+    "four_token_chain_vs_fp32": "14/16",
+    "first_token_vs_fp32": "15/16",
+    "four_token_chain_vs_fp32 (all 4 positions margin>=0.5)": "11/11",
+    "decode_chain==prefill_target_greedy(B16 g4 ident)": null
+   },
+   "decode_B32_g4_ident": {
+    "B": 32,
+    "order": "ident",
+    "n_requests": 64,
+    "four_token_chain_vs_fp32": "64/64",
+    "first_token_vs_fp32": "64/64",
+    "four_token_chain_vs_fp32 (all 4 positions margin>=0.5)": "48/48",
+    "decode_chain==prefill_target_greedy(B16 g4 ident)": null
+   },
+   "decode_B4_g4_ident": {
+    "B": 4,
+    "order": "ident",
+    "n_requests": 64,
+    "four_token_chain_vs_fp32": "63/64",
+    "first_token_vs_fp32": "64/64",
+    "four_token_chain_vs_fp32 (all 4 positions margin>=0.5)": "48/48",
+    "decode_chain==prefill_target_greedy(B16 g4 ident)": null
+   },
+   "decode_B8_g4_ident": {
+    "B": 8,
+    "order": "ident",
+    "n_requests": 64,
+    "four_token_chain_vs_fp32": "62/64",
+    "first_token_vs_fp32": "63/64",
+    "four_token_chain_vs_fp32 (all 4 positions margin>=0.5)": "48/48",
+    "decode_chain==prefill_target_greedy(B16 g4 ident)": null
+   },
+   "true_B16_g0_ident": {
+    "B": 16,
+    "gamma": 0,
+    "order": "ident",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "0/0",
+    "targets_vs_fp32_margin>=0.5": "0/0",
+    "bonus_vs_fp32_raw": "63/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "63/64",
+    "vs_B1_identical_input": "31/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {},
+    "gate_margin_pass": null,
+    "systematic_wrong_slots": []
+   },
+   "true_B16_g0_perm1": {
+    "B": 16,
+    "gamma": 0,
+    "order": "perm1",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "0/0",
+    "targets_vs_fp32_margin>=0.5": "0/0",
+    "bonus_vs_fp32_raw": "63/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "63/64",
+    "vs_B1_identical_input": "31/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {},
+    "gate_margin_pass": null,
+    "systematic_wrong_slots": []
+   },
+   "true_B16_g1_ident": {
+    "B": 16,
+    "gamma": 1,
+    "order": "ident",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "64/64",
+    "targets_vs_fp32_margin>=0.5": "61/61",
+    "bonus_vs_fp32_raw": "63/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "63/64",
+    "vs_B1_identical_input": "31/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "16/16",
+      "15/15"
+     ],
+     "1": [
+      "16/16",
+      "15/15"
+     ],
+     "2": [
+      "16/16",
+      "15/15"
+     ],
+     "3": [
+      "16/16",
+      "16/16"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B16_g1_perm1": {
+    "B": 16,
+    "gamma": 1,
+    "order": "perm1",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "64/64",
+    "targets_vs_fp32_margin>=0.5": "61/61",
+    "bonus_vs_fp32_raw": "63/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "63/64",
+    "vs_B1_identical_input": "31/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "16/16",
+      "15/15"
+     ],
+     "1": [
+      "16/16",
+      "15/15"
+     ],
+     "2": [
+      "16/16",
+      "15/15"
+     ],
+     "3": [
+      "16/16",
+      "16/16"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B16_g2_ident": {
+    "B": 16,
+    "gamma": 2,
+    "order": "ident",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "118/118",
+    "bonus_vs_fp32_raw": "63/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "63/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "32/32",
+      "29/29"
+     ],
+     "1": [
+      "32/32",
+      "29/29"
+     ],
+     "2": [
+      "32/32",
+      "30/30"
+     ],
+     "3": [
+      "32/32",
+      "30/30"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B16_g2_perm1": {
+    "B": 16,
+    "gamma": 2,
+    "order": "perm1",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "118/118",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "32/32",
+      "29/29"
+     ],
+     "1": [
+      "32/32",
+      "29/29"
+     ],
+     "2": [
+      "32/32",
+      "30/30"
+     ],
+     "3": [
+      "32/32",
+      "30/30"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B16_g3_ident": {
+    "B": 16,
+    "gamma": 3,
+    "order": "ident",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "192/192",
+    "targets_vs_fp32_margin>=0.5": "176/176",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "48/48",
+      "43/43"
+     ],
+     "1": [
+      "48/48",
+      "42/42"
+     ],
+     "2": [
+      "48/48",
+      "46/46"
+     ],
+     "3": [
+      "48/48",
+      "45/45"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B16_g3_perm1": {
+    "B": 16,
+    "gamma": 3,
+    "order": "perm1",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "192/192",
+    "targets_vs_fp32_margin>=0.5": "176/176",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "48/48",
+      "43/43"
+     ],
+     "1": [
+      "48/48",
+      "42/42"
+     ],
+     "2": [
+      "48/48",
+      "46/46"
+     ],
+     "3": [
+      "48/48",
+      "45/45"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B16_g4_ident": {
+    "B": 16,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "256/256",
+    "targets_vs_fp32_margin>=0.5": "236/236",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "57/57"
+     ],
+     "1": [
+      "64/64",
+      "58/58"
+     ],
+     "2": [
+      "64/64",
+      "61/61"
+     ],
+     "3": [
+      "64/64",
+      "60/60"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B16_g4_perm1": {
+    "B": 16,
+    "gamma": 4,
+    "order": "perm1",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "256/256",
+    "targets_vs_fp32_margin>=0.5": "236/236",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "57/57"
+     ],
+     "1": [
+      "64/64",
+      "58/58"
+     ],
+     "2": [
+      "64/64",
+      "61/61"
+     ],
+     "3": [
+      "64/64",
+      "60/60"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B16_g4_perm2": {
+    "B": 16,
+    "gamma": 4,
+    "order": "perm2",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "256/256",
+    "targets_vs_fp32_margin>=0.5": "236/236",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "57/57"
+     ],
+     "1": [
+      "64/64",
+      "58/58"
+     ],
+     "2": [
+      "64/64",
+      "61/61"
+     ],
+     "3": [
+      "64/64",
+      "60/60"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B1_g4_ident": {
+    "B": 1,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 32,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "116/116",
+    "bonus_vs_fp32_raw": "32/32",
+    "accepted==gamma": "32/32",
+    "committed==fp32_expected": "32/32",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "32/32",
+      "28/28"
+     ],
+     "1": [
+      "32/32",
+      "29/29"
+     ],
+     "2": [
+      "32/32",
+      "29/29"
+     ],
+     "3": [
+      "32/32",
+      "30/30"
+     ]
+    },
+    "gate_margin_pass": null,
+    "systematic_wrong_slots": []
+   },
+   "true_B2_g4_ident": {
+    "B": 2,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 32,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "116/116",
+    "bonus_vs_fp32_raw": "32/32",
+    "accepted==gamma": "32/32",
+    "committed==fp32_expected": "32/32",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "32/32",
+      "28/28"
+     ],
+     "1": [
+      "32/32",
+      "29/29"
+     ],
+     "2": [
+      "32/32",
+      "29/29"
+     ],
+     "3": [
+      "32/32",
+      "30/30"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B2_g4_perm1": {
+    "B": 2,
+    "gamma": 4,
+    "order": "perm1",
+    "n_requests": 32,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "116/116",
+    "bonus_vs_fp32_raw": "32/32",
+    "accepted==gamma": "32/32",
+    "committed==fp32_expected": "32/32",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "32/32",
+      "28/28"
+     ],
+     "1": [
+      "32/32",
+      "29/29"
+     ],
+     "2": [
+      "32/32",
+      "29/29"
+     ],
+     "3": [
+      "32/32",
+      "30/30"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B2_g4_perm2": {
+    "B": 2,
+    "gamma": 4,
+    "order": "perm2",
+    "n_requests": 32,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "116/116",
+    "bonus_vs_fp32_raw": "32/32",
+    "accepted==gamma": "32/32",
+    "committed==fp32_expected": "32/32",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "32/32",
+      "28/28"
+     ],
+     "1": [
+      "32/32",
+      "29/29"
+     ],
+     "2": [
+      "32/32",
+      "29/29"
+     ],
+     "3": [
+      "32/32",
+      "30/30"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B32_g0_ident": {
+    "B": 32,
+    "gamma": 0,
+    "order": "ident",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "0/0",
+    "targets_vs_fp32_margin>=0.5": "0/0",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {},
+    "gate_margin_pass": null,
+    "systematic_wrong_slots": []
+   },
+   "true_B32_g1_ident": {
+    "B": 32,
+    "gamma": 1,
+    "order": "ident",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "64/64",
+    "targets_vs_fp32_margin>=0.5": "61/61",
+    "bonus_vs_fp32_raw": "63/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "63/64",
+    "vs_B1_identical_input": "31/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "16/16",
+      "15/15"
+     ],
+     "1": [
+      "16/16",
+      "15/15"
+     ],
+     "2": [
+      "16/16",
+      "15/15"
+     ],
+     "3": [
+      "16/16",
+      "16/16"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B32_g2_ident": {
+    "B": 32,
+    "gamma": 2,
+    "order": "ident",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "118/118",
+    "bonus_vs_fp32_raw": "62/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "62/64",
+    "vs_B1_identical_input": "31/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "32/32",
+      "29/29"
+     ],
+     "1": [
+      "32/32",
+      "29/29"
+     ],
+     "2": [
+      "32/32",
+      "30/30"
+     ],
+     "3": [
+      "32/32",
+      "30/30"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B32_g3_ident": {
+    "B": 32,
+    "gamma": 3,
+    "order": "ident",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "192/192",
+    "targets_vs_fp32_margin>=0.5": "176/176",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "48/48",
+      "43/43"
+     ],
+     "1": [
+      "48/48",
+      "42/42"
+     ],
+     "2": [
+      "48/48",
+      "46/46"
+     ],
+     "3": [
+      "48/48",
+      "45/45"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B32_g4_ident": {
+    "B": 32,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "256/256",
+    "targets_vs_fp32_margin>=0.5": "236/236",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "57/57"
+     ],
+     "1": [
+      "64/64",
+      "58/58"
+     ],
+     "2": [
+      "64/64",
+      "61/61"
+     ],
+     "3": [
+      "64/64",
+      "60/60"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B32_g4_perm1": {
+    "B": 32,
+    "gamma": 4,
+    "order": "perm1",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "256/256",
+    "targets_vs_fp32_margin>=0.5": "236/236",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "57/57"
+     ],
+     "1": [
+      "64/64",
+      "58/58"
+     ],
+     "2": [
+      "64/64",
+      "61/61"
+     ],
+     "3": [
+      "64/64",
+      "60/60"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B32_g4_perm2": {
+    "B": 32,
+    "gamma": 4,
+    "order": "perm2",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "256/256",
+    "targets_vs_fp32_margin>=0.5": "236/236",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "57/57"
+     ],
+     "1": [
+      "64/64",
+      "58/58"
+     ],
+     "2": [
+      "64/64",
+      "61/61"
+     ],
+     "3": [
+      "64/64",
+      "60/60"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B4_g0_ident": {
+    "B": 4,
+    "gamma": 0,
+    "order": "ident",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "0/0",
+    "targets_vs_fp32_margin>=0.5": "0/0",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {},
+    "gate_margin_pass": null,
+    "systematic_wrong_slots": []
+   },
+   "true_B4_g2_ident": {
+    "B": 4,
+    "gamma": 2,
+    "order": "ident",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "118/118",
+    "bonus_vs_fp32_raw": "63/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "63/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "32/32",
+      "29/29"
+     ],
+     "1": [
+      "32/32",
+      "29/29"
+     ],
+     "2": [
+      "32/32",
+      "30/30"
+     ],
+     "3": [
+      "32/32",
+      "30/30"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B4_g4_ident": {
+    "B": 4,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "256/256",
+    "targets_vs_fp32_margin>=0.5": "236/236",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "57/57"
+     ],
+     "1": [
+      "64/64",
+      "58/58"
+     ],
+     "2": [
+      "64/64",
+      "61/61"
+     ],
+     "3": [
+      "64/64",
+      "60/60"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B4_g4_perm1": {
+    "B": 4,
+    "gamma": 4,
+    "order": "perm1",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "256/256",
+    "targets_vs_fp32_margin>=0.5": "236/236",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "57/57"
+     ],
+     "1": [
+      "64/64",
+      "58/58"
+     ],
+     "2": [
+      "64/64",
+      "61/61"
+     ],
+     "3": [
+      "64/64",
+      "60/60"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B4_g4_perm2": {
+    "B": 4,
+    "gamma": 4,
+    "order": "perm2",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "256/256",
+    "targets_vs_fp32_margin>=0.5": "236/236",
+    "bonus_vs_fp32_raw": "63/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "63/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "57/57"
+     ],
+     "1": [
+      "64/64",
+      "58/58"
+     ],
+     "2": [
+      "64/64",
+      "61/61"
+     ],
+     "3": [
+      "64/64",
+      "60/60"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B8_g4_ident": {
+    "B": 8,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "256/256",
+    "targets_vs_fp32_margin>=0.5": "236/236",
+    "bonus_vs_fp32_raw": "63/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "63/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "57/57"
+     ],
+     "1": [
+      "64/64",
+      "58/58"
+     ],
+     "2": [
+      "64/64",
+      "61/61"
+     ],
+     "3": [
+      "64/64",
+      "60/60"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B8_g4_perm1": {
+    "B": 8,
+    "gamma": 4,
+    "order": "perm1",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "256/256",
+    "targets_vs_fp32_margin>=0.5": "236/236",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "57/57"
+     ],
+     "1": [
+      "64/64",
+      "58/58"
+     ],
+     "2": [
+      "64/64",
+      "61/61"
+     ],
+     "3": [
+      "64/64",
+      "60/60"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B8_g4_perm2": {
+    "B": 8,
+    "gamma": 4,
+    "order": "perm2",
+    "n_requests": 64,
+    "targets_vs_fp32_raw": "256/256",
+    "targets_vs_fp32_margin>=0.5": "236/236",
+    "bonus_vs_fp32_raw": "64/64",
+    "accepted==gamma": "64/64",
+    "committed==fp32_expected": "64/64",
+    "vs_B1_identical_input": "32/32",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "57/57"
+     ],
+     "1": [
+      "64/64",
+      "58/58"
+     ],
+     "2": [
+      "64/64",
+      "61/61"
+     ],
+     "3": [
+      "64/64",
+      "60/60"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   }
+  },
+  "mismatch_classes": {
+   "near_tie(<0.5)": 25
+  },
+  "mismatches": [
+   {
+    "run": "corrupt_B16_g4_ident",
+    "ctx": 50,
+    "kind": "corrupt",
+    "corrupt_pos": 2,
+    "accepted": 3,
+    "expected_accepted": 2,
+    "gaps": [
+     9.382,
+     3.5,
+     0.092
+    ],
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "corrupt_B16_g4_perm1",
+    "ctx": 50,
+    "kind": "corrupt",
+    "corrupt_pos": 2,
+    "accepted": 3,
+    "expected_accepted": 2,
+    "gaps": [
+     9.382,
+     3.5,
+     0.092
+    ],
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "corrupt_B16_g4_perm1",
+    "ctx": 32,
+    "kind": "corrupt",
+    "corrupt_pos": 0,
+    "accepted": 3,
+    "expected_accepted": 0,
+    "gaps": [
+     0.082
+    ],
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "corrupt_B32_g4_ident",
+    "ctx": 50,
+    "kind": "corrupt",
+    "corrupt_pos": 2,
+    "accepted": 3,
+    "expected_accepted": 2,
+    "gaps": [
+     9.382,
+     3.5,
+     0.092
+    ],
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "corrupt_B4_g4_ident",
+    "ctx": 32,
+    "kind": "corrupt",
+    "corrupt_pos": 0,
+    "accepted": 3,
+    "expected_accepted": 0,
+    "gaps": [
+     0.082
+    ],
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "decode_B16_g4_ident",
+    "ctx": 12,
+    "kind": "decode",
+    "pos": 1,
+    "fp32_gap": 0.053,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "decode_B16_g4_ident",
+    "ctx": 32,
+    "kind": "decode",
+    "pos": 0,
+    "fp32_gap": 0.082,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "decode_B16_g4_perm1",
+    "ctx": 12,
+    "kind": "decode",
+    "pos": 1,
+    "fp32_gap": 0.053,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "decode_B16_g4_perm1",
+    "ctx": 32,
+    "kind": "decode",
+    "pos": 0,
+    "fp32_gap": 0.082,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "decode_B1_g4_ident",
+    "ctx": 12,
+    "kind": "decode",
+    "pos": 1,
+    "fp32_gap": 0.053,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "decode_B1_g4_ident",
+    "ctx": 32,
+    "kind": "decode",
+    "pos": 0,
+    "fp32_gap": 0.082,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "decode_B4_g4_ident",
+    "ctx": 12,
+    "kind": "decode",
+    "pos": 1,
+    "fp32_gap": 0.053,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "decode_B8_g4_ident",
+    "ctx": 12,
+    "kind": "decode",
+    "pos": 1,
+    "fp32_gap": 0.053,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "decode_B8_g4_ident",
+    "ctx": 32,
+    "kind": "decode",
+    "pos": 0,
+    "fp32_gap": 0.082,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "true_B16_g0_ident",
+    "ctx": 32,
+    "group": 2,
+    "pos": 0,
+    "slot": 0,
+    "kind": "bonus",
+    "vllm": 315,
+    "fp32": 369,
+    "fp32_gap": 0.082,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "true_B16_g0_perm1",
+    "ctx": 32,
+    "group": 2,
+    "pos": 0,
+    "slot": 6,
+    "kind": "bonus",
+    "vllm": 315,
+    "fp32": 369,
+    "fp32_gap": 0.082,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "true_B16_g1_ident",
+    "ctx": 12,
+    "group": 0,
+    "pos": 1,
+    "slot": 12,
+    "kind": "bonus",
+    "vllm": 220,
+    "fp32": 2661,
+    "fp32_gap": 0.053,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "true_B16_g1_perm1",
+    "ctx": 12,
+    "group": 0,
+    "pos": 1,
+    "slot": 10,
+    "kind": "bonus",
+    "vllm": 220,
+    "fp32": 2661,
+    "fp32_gap": 0.053,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "true_B16_g2_ident",
+    "ctx": 25,
+    "group": 1,
+    "pos": 2,
+    "slot": 9,
+    "kind": "bonus",
+    "vllm": 35,
+    "fp32": 47866,
+    "fp32_gap": 0.051,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "true_B32_g1_ident",
+    "ctx": 12,
+    "group": 0,
+    "pos": 1,
+    "slot": 12,
+    "kind": "bonus",
+    "vllm": 220,
+    "fp32": 2661,
+    "fp32_gap": 0.053,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "true_B32_g2_ident",
+    "ctx": 16,
+    "group": 1,
+    "pos": 2,
+    "slot": 16,
+    "kind": "bonus",
+    "vllm": 382,
+    "fp32": 389,
+    "fp32_gap": 0.2941,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "true_B32_g2_ident",
+    "ctx": 25,
+    "group": 1,
+    "pos": 2,
+    "slot": 25,
+    "kind": "bonus",
+    "vllm": 35,
+    "fp32": 47866,
+    "fp32_gap": 0.051,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "true_B4_g2_ident",
+    "ctx": 25,
+    "group": 1,
+    "pos": 2,
+    "slot": 1,
+    "kind": "bonus",
+    "vllm": 35,
+    "fp32": 47866,
+    "fp32_gap": 0.051,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "true_B4_g4_perm2",
+    "ctx": 47,
+    "group": 2,
+    "pos": 4,
+    "slot": 0,
+    "kind": "bonus",
+    "vllm": 2790,
+    "fp32": 10657,
+    "fp32_gap": 0.0992,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "true_B8_g4_ident",
+    "ctx": 47,
+    "group": 2,
+    "pos": 4,
+    "slot": 7,
+    "kind": "bonus",
+    "vllm": 2790,
+    "fp32": 10657,
+    "fp32_gap": 0.0992,
+    "class": "near_tie(<0.5)"
+   }
+  ],
+  "permutation_dependence": {
+   "B2": {
+    "reference_run": "true_B2_g4_ident",
+    "contexts_whose_result_differs_from_reference": {
+     "true_B2_g4_perm1": 0,
+     "true_B2_g4_perm2": 0
+    }
+   },
+   "B4": {
+    "reference_run": "true_B4_g4_ident",
+    "contexts_whose_result_differs_from_reference": {
+     "true_B4_g4_perm1": 0,
+     "true_B4_g4_perm2": 1
+    }
+   },
+   "B8": {
+    "reference_run": "true_B8_g4_ident",
+    "contexts_whose_result_differs_from_reference": {
+     "true_B8_g4_perm1": 1,
+     "true_B8_g4_perm2": 1
+    }
+   },
+   "B16": {
+    "reference_run": "true_B16_g4_ident",
+    "contexts_whose_result_differs_from_reference": {
+     "true_B16_g4_perm1": 0,
+     "true_B16_g4_perm2": 0
+    }
+   },
+   "B32": {
+    "reference_run": "true_B32_g4_ident",
+    "contexts_whose_result_differs_from_reference": {
+     "true_B32_g4_perm1": 0,
+     "true_B32_g4_perm2": 0
+    }
+   }
+  },
+  "scheduling_examples(n_seq, [(prefill_groups, batched_tokens)...])": {
+   "true_B16_g4_ident": [
+    [
+     16,
+     [
+      [
+       16,
+       1792
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2272
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2752
+      ]
+     ]
+    ]
+   ],
+   "true_B16_g4_perm1": [
+    [
+     16,
+     [
+      [
+       16,
+       2734
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2540
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2353
+      ]
+     ]
+    ]
+   ],
+   "true_B16_g4_perm2": [
+    [
+     16,
+     [
+      [
+       16,
+       2219
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2533
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2868
+      ]
+     ]
+    ]
+   ],
+   "true_B32_g4_ident": [
+    [
+     32,
+     [
+      [
+       32,
+       4064
+      ]
+     ]
+    ],
+    [
+     32,
+     [
+      [
+       22,
+       4006
+      ],
+      [
+       10,
+       2090
+      ]
+     ]
+    ]
+   ],
+   "true_B32_g4_perm1": [
+    [
+     32,
+     [
+      [
+       24,
+       4034
+      ],
+      [
+       8,
+       1240
+      ]
+     ]
+    ],
+    [
+     32,
+     [
+      [
+       27,
+       3945
+      ],
+      [
+       5,
+       941
+      ]
+     ]
+    ]
+   ],
+   "true_B32_g4_perm2": [
+    [
+     32,
+     [
+      [
+       27,
+       3945
+      ],
+      [
+       5,
+       807
+      ]
+     ]
+    ],
+    [
+     32,
+     [
+      [
+       24,
+       4041
+      ],
+      [
+       8,
+       1367
+      ]
+     ]
+    ]
+   ],
+   "true_B16_g0_ident": [
+    [
+     16,
+     [
+      [
+       16,
+       1728
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2208
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2688
+      ]
+     ]
+    ]
+   ],
+   "true_B16_g0_perm1": [
+    [
+     16,
+     [
+      [
+       16,
+       2670
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2476
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2289
+      ]
+     ]
+    ]
+   ],
+   "true_B32_g0_ident": [
+    [
+     32,
+     [
+      [
+       32,
+       3936
+      ]
+     ]
+    ],
+    [
+     32,
+     [
+      [
+       22,
+       3918
+      ],
+      [
+       10,
+       2050
+      ]
+     ]
+    ]
+   ],
+   "true_B16_g1_ident": [
+    [
+     16,
+     [
+      [
+       16,
+       1744
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2224
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2704
+      ]
+     ]
+    ]
+   ],
+   "true_B16_g1_perm1": [
+    [
+     16,
+     [
+      [
+       16,
+       2686
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2492
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2305
+      ]
+     ]
+    ]
+   ],
+   "true_B32_g1_ident": [
+    [
+     32,
+     [
+      [
+       32,
+       3968
+      ]
+     ]
+    ],
+    [
+     32,
+     [
+      [
+       22,
+       3940
+      ],
+      [
+       10,
+       2060
+      ]
+     ]
+    ]
+   ],
+   "true_B16_g2_ident": [
+    [
+     16,
+     [
+      [
+       16,
+       1760
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2240
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2720
+      ]
+     ]
+    ]
+   ],
+   "true_B16_g2_perm1": [
+    [
+     16,
+     [
+      [
+       16,
+       2702
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2508
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2321
+      ]
+     ]
+    ]
+   ],
+   "true_B32_g2_ident": [
+    [
+     32,
+     [
+      [
+       32,
+       4000
+      ]
+     ]
+    ],
+    [
+     32,
+     [
+      [
+       22,
+       3962
+      ],
+      [
+       10,
+       2070
+      ]
+     ]
+    ]
+   ],
+   "true_B16_g3_ident": [
+    [
+     16,
+     [
+      [
+       16,
+       1776
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2256
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2736
+      ]
+     ]
+    ]
+   ],
+   "true_B16_g3_perm1": [
+    [
+     16,
+     [
+      [
+       16,
+       2718
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2524
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2337
+      ]
+     ]
+    ]
+   ],
+   "true_B32_g3_ident": [
+    [
+     32,
+     [
+      [
+       32,
+       4032
+      ]
+     ]
+    ],
+    [
+     32,
+     [
+      [
+       22,
+       3984
+      ],
+      [
+       10,
+       2080
+      ]
+     ]
+    ]
+   ]
+  },
+  "gate_pass_inprocess": true,
+  "gate_inputs": {
+   "checks": {
+    "true_B1_g4_ident:accepted_length": [
+     23,
+     23
+    ],
+    "true_B1_g4_ident:committed_tokens": [
+     23,
+     23
+    ],
+    "true_B1_g4_ident:correction_token": [
+     23,
+     23
+    ],
+    "true_B1_g4_ident:bonus_token": [
+     23,
+     23
+    ],
+    "true_B1_g4_ident:reached_eos": [
+     23,
+     23
+    ],
+    "true_B1_g4_ident:target_greedy_tokens": [
+     23,
+     23
+    ],
+    "true_B1_g4_ident:raw": {
+     "accepted_length": [
+      32,
+      32
+     ],
+     "committed_tokens": [
+      32,
+      32
+     ],
+     "correction_token": [
+      32,
+      32
+     ],
+     "bonus_token": [
+      32,
+      32
+     ],
+     "reached_eos": [
+      32,
+      32
+     ],
+     "target_greedy_tokens": [
+      32,
+      32
+     ]
+    },
+    "true_B2_g4_ident:accepted_length": [
+     23,
+     23
+    ],
+    "true_B2_g4_ident:committed_tokens": [
+     23,
+     23
+    ],
+    "true_B2_g4_ident:correction_token": [
+     23,
+     23
+    ],
+    "true_B2_g4_ident:bonus_token": [
+     23,
+     23
+    ],
+    "true_B2_g4_ident:reached_eos": [
+     23,
+     23
+    ],
+    "true_B2_g4_ident:target_greedy_tokens": [
+     23,
+     23
+    ],
+    "true_B2_g4_ident:raw": {
+     "accepted_length": [
+      32,
+      32
+     ],
+     "committed_tokens": [
+      32,
+      32
+     ],
+     "correction_token": [
+      32,
+      32
+     ],
+     "bonus_token": [
+      32,
+      32
+     ],
+     "reached_eos": [
+      32,
+      32
+     ],
+     "target_greedy_tokens": [
+      32,
+      32
+     ]
+    },
+    "true_B2_g4_ident:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B2_g4_perm1:accepted_length": [
+     23,
+     23
+    ],
+    "true_B2_g4_perm1:committed_tokens": [
+     23,
+     23
+    ],
+    "true_B2_g4_perm1:correction_token": [
+     23,
+     23
+    ],
+    "true_B2_g4_perm1:bonus_token": [
+     23,
+     23
+    ],
+    "true_B2_g4_perm1:reached_eos": [
+     23,
+     23
+    ],
+    "true_B2_g4_perm1:target_greedy_tokens": [
+     23,
+     23
+    ],
+    "true_B2_g4_perm1:raw": {
+     "accepted_length": [
+      32,
+      32
+     ],
+     "committed_tokens": [
+      32,
+      32
+     ],
+     "correction_token": [
+      32,
+      32
+     ],
+     "bonus_token": [
+      32,
+      32
+     ],
+     "reached_eos": [
+      32,
+      32
+     ],
+     "target_greedy_tokens": [
+      32,
+      32
+     ]
+    },
+    "true_B2_g4_perm1:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B2_g4_perm2:accepted_length": [
+     23,
+     23
+    ],
+    "true_B2_g4_perm2:committed_tokens": [
+     23,
+     23
+    ],
+    "true_B2_g4_perm2:correction_token": [
+     23,
+     23
+    ],
+    "true_B2_g4_perm2:bonus_token": [
+     23,
+     23
+    ],
+    "true_B2_g4_perm2:reached_eos": [
+     23,
+     23
+    ],
+    "true_B2_g4_perm2:target_greedy_tokens": [
+     23,
+     23
+    ],
+    "true_B2_g4_perm2:raw": {
+     "accepted_length": [
+      32,
+      32
+     ],
+     "committed_tokens": [
+      32,
+      32
+     ],
+     "correction_token": [
+      32,
+      32
+     ],
+     "bonus_token": [
+      32,
+      32
+     ],
+     "reached_eos": [
+      32,
+      32
+     ],
+     "target_greedy_tokens": [
+      32,
+      32
+     ]
+    },
+    "true_B2_g4_perm2:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B4_g4_ident:accepted_length": [
+     46,
+     46
+    ],
+    "true_B4_g4_ident:committed_tokens": [
+     46,
+     46
+    ],
+    "true_B4_g4_ident:correction_token": [
+     46,
+     46
+    ],
+    "true_B4_g4_ident:bonus_token": [
+     46,
+     46
+    ],
+    "true_B4_g4_ident:reached_eos": [
+     46,
+     46
+    ],
+    "true_B4_g4_ident:target_greedy_tokens": [
+     46,
+     46
+    ],
+    "true_B4_g4_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B4_g4_ident:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B4_g4_perm1:accepted_length": [
+     46,
+     46
+    ],
+    "true_B4_g4_perm1:committed_tokens": [
+     46,
+     46
+    ],
+    "true_B4_g4_perm1:correction_token": [
+     46,
+     46
+    ],
+    "true_B4_g4_perm1:bonus_token": [
+     46,
+     46
+    ],
+    "true_B4_g4_perm1:reached_eos": [
+     46,
+     46
+    ],
+    "true_B4_g4_perm1:target_greedy_tokens": [
+     46,
+     46
+    ],
+    "true_B4_g4_perm1:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B4_g4_perm1:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B4_g4_perm2:accepted_length": [
+     46,
+     46
+    ],
+    "true_B4_g4_perm2:committed_tokens": [
+     46,
+     46
+    ],
+    "true_B4_g4_perm2:correction_token": [
+     46,
+     46
+    ],
+    "true_B4_g4_perm2:bonus_token": [
+     46,
+     46
+    ],
+    "true_B4_g4_perm2:reached_eos": [
+     46,
+     46
+    ],
+    "true_B4_g4_perm2:target_greedy_tokens": [
+     46,
+     46
+    ],
+    "true_B4_g4_perm2:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      63,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      63,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      63,
+      64
+     ]
+    },
+    "true_B4_g4_perm2:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B8_g4_ident:accepted_length": [
+     46,
+     46
+    ],
+    "true_B8_g4_ident:committed_tokens": [
+     46,
+     46
+    ],
+    "true_B8_g4_ident:correction_token": [
+     46,
+     46
+    ],
+    "true_B8_g4_ident:bonus_token": [
+     46,
+     46
+    ],
+    "true_B8_g4_ident:reached_eos": [
+     46,
+     46
+    ],
+    "true_B8_g4_ident:target_greedy_tokens": [
+     46,
+     46
+    ],
+    "true_B8_g4_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      63,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      63,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      63,
+      64
+     ]
+    },
+    "true_B8_g4_ident:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B8_g4_perm1:accepted_length": [
+     46,
+     46
+    ],
+    "true_B8_g4_perm1:committed_tokens": [
+     46,
+     46
+    ],
+    "true_B8_g4_perm1:correction_token": [
+     46,
+     46
+    ],
+    "true_B8_g4_perm1:bonus_token": [
+     46,
+     46
+    ],
+    "true_B8_g4_perm1:reached_eos": [
+     46,
+     46
+    ],
+    "true_B8_g4_perm1:target_greedy_tokens": [
+     46,
+     46
+    ],
+    "true_B8_g4_perm1:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B8_g4_perm1:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B8_g4_perm2:accepted_length": [
+     46,
+     46
+    ],
+    "true_B8_g4_perm2:committed_tokens": [
+     46,
+     46
+    ],
+    "true_B8_g4_perm2:correction_token": [
+     46,
+     46
+    ],
+    "true_B8_g4_perm2:bonus_token": [
+     46,
+     46
+    ],
+    "true_B8_g4_perm2:reached_eos": [
+     46,
+     46
+    ],
+    "true_B8_g4_perm2:target_greedy_tokens": [
+     46,
+     46
+    ],
+    "true_B8_g4_perm2:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B8_g4_perm2:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B16_g4_ident:accepted_length": [
+     46,
+     46
+    ],
+    "true_B16_g4_ident:committed_tokens": [
+     46,
+     46
+    ],
+    "true_B16_g4_ident:correction_token": [
+     46,
+     46
+    ],
+    "true_B16_g4_ident:bonus_token": [
+     46,
+     46
+    ],
+    "true_B16_g4_ident:reached_eos": [
+     46,
+     46
+    ],
+    "true_B16_g4_ident:target_greedy_tokens": [
+     46,
+     46
+    ],
+    "true_B16_g4_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B16_g4_ident:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B16_g4_perm1:accepted_length": [
+     46,
+     46
+    ],
+    "true_B16_g4_perm1:committed_tokens": [
+     46,
+     46
+    ],
+    "true_B16_g4_perm1:correction_token": [
+     46,
+     46
+    ],
+    "true_B16_g4_perm1:bonus_token": [
+     46,
+     46
+    ],
+    "true_B16_g4_perm1:reached_eos": [
+     46,
+     46
+    ],
+    "true_B16_g4_perm1:target_greedy_tokens": [
+     46,
+     46
+    ],
+    "true_B16_g4_perm1:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B16_g4_perm1:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B16_g4_perm2:accepted_length": [
+     46,
+     46
+    ],
+    "true_B16_g4_perm2:committed_tokens": [
+     46,
+     46
+    ],
+    "true_B16_g4_perm2:correction_token": [
+     46,
+     46
+    ],
+    "true_B16_g4_perm2:bonus_token": [
+     46,
+     46
+    ],
+    "true_B16_g4_perm2:reached_eos": [
+     46,
+     46
+    ],
+    "true_B16_g4_perm2:target_greedy_tokens": [
+     46,
+     46
+    ],
+    "true_B16_g4_perm2:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B16_g4_perm2:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B32_g4_ident:accepted_length": [
+     46,
+     46
+    ],
+    "true_B32_g4_ident:committed_tokens": [
+     46,
+     46
+    ],
+    "true_B32_g4_ident:correction_token": [
+     46,
+     46
+    ],
+    "true_B32_g4_ident:bonus_token": [
+     46,
+     46
+    ],
+    "true_B32_g4_ident:reached_eos": [
+     46,
+     46
+    ],
+    "true_B32_g4_ident:target_greedy_tokens": [
+     46,
+     46
+    ],
+    "true_B32_g4_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B32_g4_ident:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B32_g4_perm1:accepted_length": [
+     46,
+     46
+    ],
+    "true_B32_g4_perm1:committed_tokens": [
+     46,
+     46
+    ],
+    "true_B32_g4_perm1:correction_token": [
+     46,
+     46
+    ],
+    "true_B32_g4_perm1:bonus_token": [
+     46,
+     46
+    ],
+    "true_B32_g4_perm1:reached_eos": [
+     46,
+     46
+    ],
+    "true_B32_g4_perm1:target_greedy_tokens": [
+     46,
+     46
+    ],
+    "true_B32_g4_perm1:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B32_g4_perm1:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B32_g4_perm2:accepted_length": [
+     46,
+     46
+    ],
+    "true_B32_g4_perm2:committed_tokens": [
+     46,
+     46
+    ],
+    "true_B32_g4_perm2:correction_token": [
+     46,
+     46
+    ],
+    "true_B32_g4_perm2:bonus_token": [
+     46,
+     46
+    ],
+    "true_B32_g4_perm2:reached_eos": [
+     46,
+     46
+    ],
+    "true_B32_g4_perm2:target_greedy_tokens": [
+     46,
+     46
+    ],
+    "true_B32_g4_perm2:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B32_g4_perm2:identical_to_B1_input": [
+     23,
+     23
+    ],
+    "true_B16_g0_ident:accepted_length": [
+     61,
+     61
+    ],
+    "true_B16_g0_ident:committed_tokens": [
+     61,
+     61
+    ],
+    "true_B16_g0_ident:correction_token": [
+     61,
+     61
+    ],
+    "true_B16_g0_ident:bonus_token": [
+     61,
+     61
+    ],
+    "true_B16_g0_ident:reached_eos": [
+     61,
+     61
+    ],
+    "true_B16_g0_ident:target_greedy_tokens": [
+     61,
+     61
+    ],
+    "true_B16_g0_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      63,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      63,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      63,
+      64
+     ]
+    },
+    "true_B16_g0_perm1:accepted_length": [
+     61,
+     61
+    ],
+    "true_B16_g0_perm1:committed_tokens": [
+     61,
+     61
+    ],
+    "true_B16_g0_perm1:correction_token": [
+     61,
+     61
+    ],
+    "true_B16_g0_perm1:bonus_token": [
+     61,
+     61
+    ],
+    "true_B16_g0_perm1:reached_eos": [
+     61,
+     61
+    ],
+    "true_B16_g0_perm1:target_greedy_tokens": [
+     61,
+     61
+    ],
+    "true_B16_g0_perm1:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      63,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      63,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      63,
+      64
+     ]
+    },
+    "true_B32_g0_ident:accepted_length": [
+     61,
+     61
+    ],
+    "true_B32_g0_ident:committed_tokens": [
+     61,
+     61
+    ],
+    "true_B32_g0_ident:correction_token": [
+     61,
+     61
+    ],
+    "true_B32_g0_ident:bonus_token": [
+     61,
+     61
+    ],
+    "true_B32_g0_ident:reached_eos": [
+     61,
+     61
+    ],
+    "true_B32_g0_ident:target_greedy_tokens": [
+     61,
+     61
+    ],
+    "true_B32_g0_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B16_g1_ident:accepted_length": [
+     55,
+     55
+    ],
+    "true_B16_g1_ident:committed_tokens": [
+     55,
+     55
+    ],
+    "true_B16_g1_ident:correction_token": [
+     55,
+     55
+    ],
+    "true_B16_g1_ident:bonus_token": [
+     55,
+     55
+    ],
+    "true_B16_g1_ident:reached_eos": [
+     55,
+     55
+    ],
+    "true_B16_g1_ident:target_greedy_tokens": [
+     55,
+     55
+    ],
+    "true_B16_g1_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      63,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      63,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      63,
+      64
+     ]
+    },
+    "true_B16_g1_perm1:accepted_length": [
+     55,
+     55
+    ],
+    "true_B16_g1_perm1:committed_tokens": [
+     55,
+     55
+    ],
+    "true_B16_g1_perm1:correction_token": [
+     55,
+     55
+    ],
+    "true_B16_g1_perm1:bonus_token": [
+     55,
+     55
+    ],
+    "true_B16_g1_perm1:reached_eos": [
+     55,
+     55
+    ],
+    "true_B16_g1_perm1:target_greedy_tokens": [
+     55,
+     55
+    ],
+    "true_B16_g1_perm1:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      63,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      63,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      63,
+      64
+     ]
+    },
+    "true_B32_g1_ident:accepted_length": [
+     55,
+     55
+    ],
+    "true_B32_g1_ident:committed_tokens": [
+     55,
+     55
+    ],
+    "true_B32_g1_ident:correction_token": [
+     55,
+     55
+    ],
+    "true_B32_g1_ident:bonus_token": [
+     55,
+     55
+    ],
+    "true_B32_g1_ident:reached_eos": [
+     55,
+     55
+    ],
+    "true_B32_g1_ident:target_greedy_tokens": [
+     55,
+     55
+    ],
+    "true_B32_g1_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      63,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      63,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      63,
+      64
+     ]
+    },
+    "true_B16_g2_ident:accepted_length": [
+     49,
+     49
+    ],
+    "true_B16_g2_ident:committed_tokens": [
+     49,
+     49
+    ],
+    "true_B16_g2_ident:correction_token": [
+     49,
+     49
+    ],
+    "true_B16_g2_ident:bonus_token": [
+     49,
+     49
+    ],
+    "true_B16_g2_ident:reached_eos": [
+     49,
+     49
+    ],
+    "true_B16_g2_ident:target_greedy_tokens": [
+     49,
+     49
+    ],
+    "true_B16_g2_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      63,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      63,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      63,
+      64
+     ]
+    },
+    "true_B16_g2_perm1:accepted_length": [
+     49,
+     49
+    ],
+    "true_B16_g2_perm1:committed_tokens": [
+     49,
+     49
+    ],
+    "true_B16_g2_perm1:correction_token": [
+     49,
+     49
+    ],
+    "true_B16_g2_perm1:bonus_token": [
+     49,
+     49
+    ],
+    "true_B16_g2_perm1:reached_eos": [
+     49,
+     49
+    ],
+    "true_B16_g2_perm1:target_greedy_tokens": [
+     49,
+     49
+    ],
+    "true_B16_g2_perm1:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B32_g2_ident:accepted_length": [
+     49,
+     49
+    ],
+    "true_B32_g2_ident:committed_tokens": [
+     49,
+     49
+    ],
+    "true_B32_g2_ident:correction_token": [
+     49,
+     49
+    ],
+    "true_B32_g2_ident:bonus_token": [
+     49,
+     49
+    ],
+    "true_B32_g2_ident:reached_eos": [
+     49,
+     49
+    ],
+    "true_B32_g2_ident:target_greedy_tokens": [
+     49,
+     49
+    ],
+    "true_B32_g2_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      62,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      62,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      62,
+      64
+     ]
+    },
+    "true_B16_g3_ident:accepted_length": [
+     48,
+     48
+    ],
+    "true_B16_g3_ident:committed_tokens": [
+     48,
+     48
+    ],
+    "true_B16_g3_ident:correction_token": [
+     48,
+     48
+    ],
+    "true_B16_g3_ident:bonus_token": [
+     48,
+     48
+    ],
+    "true_B16_g3_ident:reached_eos": [
+     48,
+     48
+    ],
+    "true_B16_g3_ident:target_greedy_tokens": [
+     48,
+     48
+    ],
+    "true_B16_g3_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B16_g3_perm1:accepted_length": [
+     48,
+     48
+    ],
+    "true_B16_g3_perm1:committed_tokens": [
+     48,
+     48
+    ],
+    "true_B16_g3_perm1:correction_token": [
+     48,
+     48
+    ],
+    "true_B16_g3_perm1:bonus_token": [
+     48,
+     48
+    ],
+    "true_B16_g3_perm1:reached_eos": [
+     48,
+     48
+    ],
+    "true_B16_g3_perm1:target_greedy_tokens": [
+     48,
+     48
+    ],
+    "true_B16_g3_perm1:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B32_g3_ident:accepted_length": [
+     48,
+     48
+    ],
+    "true_B32_g3_ident:committed_tokens": [
+     48,
+     48
+    ],
+    "true_B32_g3_ident:correction_token": [
+     48,
+     48
+    ],
+    "true_B32_g3_ident:bonus_token": [
+     48,
+     48
+    ],
+    "true_B32_g3_ident:reached_eos": [
+     48,
+     48
+    ],
+    "true_B32_g3_ident:target_greedy_tokens": [
+     48,
+     48
+    ],
+    "true_B32_g3_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B4_g0_ident:accepted_length": [
+     61,
+     61
+    ],
+    "true_B4_g0_ident:committed_tokens": [
+     61,
+     61
+    ],
+    "true_B4_g0_ident:correction_token": [
+     61,
+     61
+    ],
+    "true_B4_g0_ident:bonus_token": [
+     61,
+     61
+    ],
+    "true_B4_g0_ident:reached_eos": [
+     61,
+     61
+    ],
+    "true_B4_g0_ident:target_greedy_tokens": [
+     61,
+     61
+    ],
+    "true_B4_g0_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "true_B4_g2_ident:accepted_length": [
+     49,
+     49
+    ],
+    "true_B4_g2_ident:committed_tokens": [
+     49,
+     49
+    ],
+    "true_B4_g2_ident:correction_token": [
+     49,
+     49
+    ],
+    "true_B4_g2_ident:bonus_token": [
+     49,
+     49
+    ],
+    "true_B4_g2_ident:reached_eos": [
+     49,
+     49
+    ],
+    "true_B4_g2_ident:target_greedy_tokens": [
+     49,
+     49
+    ],
+    "true_B4_g2_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      63,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      63,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      63,
+      64
+     ]
+    },
+    "corrupt_B16_g4_ident:accepted_length": [
+     55,
+     55
+    ],
+    "corrupt_B16_g4_ident:committed_tokens": [
+     55,
+     55
+    ],
+    "corrupt_B16_g4_ident:correction_token": [
+     55,
+     55
+    ],
+    "corrupt_B16_g4_ident:bonus_token": [
+     55,
+     55
+    ],
+    "corrupt_B16_g4_ident:reached_eos": [
+     55,
+     55
+    ],
+    "corrupt_B16_g4_ident:target_greedy_tokens": [
+     55,
+     55
+    ],
+    "corrupt_B16_g4_ident:raw": {
+     "accepted_length": [
+      63,
+      64
+     ],
+     "committed_tokens": [
+      63,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      63,
+      64
+     ]
+    },
+    "corrupt_B16_g4_perm1:accepted_length": [
+     55,
+     55
+    ],
+    "corrupt_B16_g4_perm1:committed_tokens": [
+     55,
+     55
+    ],
+    "corrupt_B16_g4_perm1:correction_token": [
+     55,
+     55
+    ],
+    "corrupt_B16_g4_perm1:bonus_token": [
+     55,
+     55
+    ],
+    "corrupt_B16_g4_perm1:reached_eos": [
+     55,
+     55
+    ],
+    "corrupt_B16_g4_perm1:target_greedy_tokens": [
+     55,
+     55
+    ],
+    "corrupt_B16_g4_perm1:raw": {
+     "accepted_length": [
+      62,
+      64
+     ],
+     "committed_tokens": [
+      62,
+      64
+     ],
+     "correction_token": [
+      63,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      62,
+      64
+     ]
+    },
+    "corrupt_B16_g2_ident:accepted_length": [
+     59,
+     59
+    ],
+    "corrupt_B16_g2_ident:committed_tokens": [
+     59,
+     59
+    ],
+    "corrupt_B16_g2_ident:correction_token": [
+     59,
+     59
+    ],
+    "corrupt_B16_g2_ident:bonus_token": [
+     59,
+     59
+    ],
+    "corrupt_B16_g2_ident:reached_eos": [
+     59,
+     59
+    ],
+    "corrupt_B16_g2_ident:target_greedy_tokens": [
+     59,
+     59
+    ],
+    "corrupt_B16_g2_ident:raw": {
+     "accepted_length": [
+      64,
+      64
+     ],
+     "committed_tokens": [
+      64,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      64,
+      64
+     ]
+    },
+    "corrupt_B32_g4_ident:accepted_length": [
+     55,
+     55
+    ],
+    "corrupt_B32_g4_ident:committed_tokens": [
+     55,
+     55
+    ],
+    "corrupt_B32_g4_ident:correction_token": [
+     55,
+     55
+    ],
+    "corrupt_B32_g4_ident:bonus_token": [
+     55,
+     55
+    ],
+    "corrupt_B32_g4_ident:reached_eos": [
+     55,
+     55
+    ],
+    "corrupt_B32_g4_ident:target_greedy_tokens": [
+     55,
+     55
+    ],
+    "corrupt_B32_g4_ident:raw": {
+     "accepted_length": [
+      63,
+      64
+     ],
+     "committed_tokens": [
+      63,
+      64
+     ],
+     "correction_token": [
+      64,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      63,
+      64
+     ]
+    },
+    "corrupt_B4_g4_ident:accepted_length": [
+     55,
+     55
+    ],
+    "corrupt_B4_g4_ident:committed_tokens": [
+     55,
+     55
+    ],
+    "corrupt_B4_g4_ident:correction_token": [
+     55,
+     55
+    ],
+    "corrupt_B4_g4_ident:bonus_token": [
+     55,
+     55
+    ],
+    "corrupt_B4_g4_ident:reached_eos": [
+     55,
+     55
+    ],
+    "corrupt_B4_g4_ident:target_greedy_tokens": [
+     55,
+     55
+    ],
+    "corrupt_B4_g4_ident:raw": {
+     "accepted_length": [
+      63,
+      64
+     ],
+     "committed_tokens": [
+      63,
+      64
+     ],
+     "correction_token": [
+      63,
+      64
+     ],
+     "bonus_token": [
+      64,
+      64
+     ],
+     "reached_eos": [
+      64,
+      64
+     ],
+     "target_greedy_tokens": [
+      63,
+      64
+     ]
+    },
+    "decode_B1_g4_ident:four_token_chain_vs_fp32": [
+     11,
+     11
+    ],
+    "decode_B1_g4_ident:raw_chain": [
+     14,
+     16
+    ],
+    "decode_B4_g4_ident:four_token_chain_vs_fp32": [
+     48,
+     48
+    ],
+    "decode_B4_g4_ident:raw_chain": [
+     63,
+     64
+    ],
+    "decode_B8_g4_ident:four_token_chain_vs_fp32": [
+     48,
+     48
+    ],
+    "decode_B8_g4_ident:raw_chain": [
+     62,
+     64
+    ],
+    "decode_B16_g4_ident:four_token_chain_vs_fp32": [
+     48,
+     48
+    ],
+    "decode_B16_g4_ident:raw_chain": [
+     62,
+     64
+    ],
+    "decode_B16_g4_perm1:four_token_chain_vs_fp32": [
+     48,
+     48
+    ],
+    "decode_B16_g4_perm1:raw_chain": [
+     62,
+     64
+    ],
+    "decode_B32_g4_ident:four_token_chain_vs_fp32": [
+     48,
+     48
+    ],
+    "decode_B32_g4_ident:raw_chain": [
+     64,
+     64
+    ],
+    "decode_vs_prefill_B16_g4": [
+     46,
+     46
+    ],
+    "permutation_identical_B2:true_B2_g4_ident_vs_true_B2_g4_perm1": [
+     23,
+     23
+    ],
+    "permutation_identical_B2:true_B2_g4_ident_vs_true_B2_g4_perm2": [
+     23,
+     23
+    ],
+    "permutation_identical_B4:true_B4_g4_ident_vs_true_B4_g4_perm1": [
+     46,
+     46
+    ],
+    "permutation_identical_B4:true_B4_g4_ident_vs_true_B4_g4_perm2": [
+     46,
+     46
+    ],
+    "permutation_identical_B8:true_B8_g4_ident_vs_true_B8_g4_perm1": [
+     46,
+     46
+    ],
+    "permutation_identical_B8:true_B8_g4_ident_vs_true_B8_g4_perm2": [
+     46,
+     46
+    ],
+    "permutation_identical_B16:true_B16_g4_ident_vs_true_B16_g4_perm1": [
+     46,
+     46
+    ],
+    "permutation_identical_B16:true_B16_g4_ident_vs_true_B16_g4_perm2": [
+     46,
+     46
+    ],
+    "permutation_identical_B32:true_B32_g4_ident_vs_true_B32_g4_perm1": [
+     46,
+     46
+    ],
+    "permutation_identical_B32:true_B32_g4_ident_vs_true_B32_g4_perm2": [
+     46,
+     46
+    ]
+   },
+   "failures": []
+  }
+ },
+ "heldout": {
+  "table": {
+   "corrupt_B16_g4_ident": {
+    "B": 16,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 32,
+    "accepted_raw": "32/32",
+    "committed_raw": "32/32",
+    "accepted_margin": "30/30",
+    "committed_margin": "30/30"
+   },
+   "corrupt_B4_g4_ident": {
+    "B": 4,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 32,
+    "accepted_raw": "32/32",
+    "committed_raw": "32/32",
+    "accepted_margin": "30/30",
+    "committed_margin": "30/30"
+   },
+   "decode_B16_g4_ident": {
+    "B": 16,
+    "order": "ident",
+    "n_requests": 32,
+    "four_token_chain_vs_fp32": "31/32",
+    "first_token_vs_fp32": "32/32",
+    "four_token_chain_vs_fp32 (all 4 positions margin>=0.5)": "28/28",
+    "decode_chain==prefill_target_greedy(B16 g4 ident)": "31/32"
+   },
+   "decode_B1_g4_ident": {
+    "B": 1,
+    "order": "ident",
+    "n_requests": 8,
+    "four_token_chain_vs_fp32": "7/8",
+    "first_token_vs_fp32": "8/8",
+    "four_token_chain_vs_fp32 (all 4 positions margin>=0.5)": "6/6",
+    "decode_chain==prefill_target_greedy(B16 g4 ident)": null
+   },
+   "decode_B32_g4_ident": {
+    "B": 32,
+    "order": "ident",
+    "n_requests": 32,
+    "four_token_chain_vs_fp32": "31/32",
+    "first_token_vs_fp32": "32/32",
+    "four_token_chain_vs_fp32 (all 4 positions margin>=0.5)": "28/28",
+    "decode_chain==prefill_target_greedy(B16 g4 ident)": null
+   },
+   "decode_B4_g4_ident": {
+    "B": 4,
+    "order": "ident",
+    "n_requests": 32,
+    "four_token_chain_vs_fp32": "30/32",
+    "first_token_vs_fp32": "32/32",
+    "four_token_chain_vs_fp32 (all 4 positions margin>=0.5)": "28/28",
+    "decode_chain==prefill_target_greedy(B16 g4 ident)": null
+   },
+   "true_B16_g2_ident": {
+    "B": 16,
+    "gamma": 2,
+    "order": "ident",
+    "n_requests": 32,
+    "targets_vs_fp32_raw": "64/64",
+    "targets_vs_fp32_margin>=0.5": "61/61",
+    "bonus_vs_fp32_raw": "32/32",
+    "accepted==gamma": "32/32",
+    "committed==fp32_expected": "32/32",
+    "vs_B1_identical_input": "16/16",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "32/32",
+      "31/31"
+     ],
+     "1": [
+      "32/32",
+      "30/30"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B16_g4_ident": {
+    "B": 16,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 32,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "123/123",
+    "bonus_vs_fp32_raw": "32/32",
+    "accepted==gamma": "32/32",
+    "committed==fp32_expected": "32/32",
+    "vs_B1_identical_input": "16/16",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "61/61"
+     ],
+     "1": [
+      "64/64",
+      "62/62"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B16_g4_perm1": {
+    "B": 16,
+    "gamma": 4,
+    "order": "perm1",
+    "n_requests": 32,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "123/123",
+    "bonus_vs_fp32_raw": "32/32",
+    "accepted==gamma": "32/32",
+    "committed==fp32_expected": "32/32",
+    "vs_B1_identical_input": "16/16",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "61/61"
+     ],
+     "1": [
+      "64/64",
+      "62/62"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B16_g4_perm2": {
+    "B": 16,
+    "gamma": 4,
+    "order": "perm2",
+    "n_requests": 32,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "123/123",
+    "bonus_vs_fp32_raw": "32/32",
+    "accepted==gamma": "32/32",
+    "committed==fp32_expected": "32/32",
+    "vs_B1_identical_input": "16/16",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "61/61"
+     ],
+     "1": [
+      "64/64",
+      "62/62"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B1_g4_ident": {
+    "B": 1,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 16,
+    "targets_vs_fp32_raw": "64/64",
+    "targets_vs_fp32_margin>=0.5": "60/60",
+    "bonus_vs_fp32_raw": "16/16",
+    "accepted==gamma": "16/16",
+    "committed==fp32_expected": "16/16",
+    "vs_B1_identical_input": "16/16",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "32/32",
+      "29/29"
+     ],
+     "1": [
+      "32/32",
+      "31/31"
+     ]
+    },
+    "gate_margin_pass": null,
+    "systematic_wrong_slots": []
+   },
+   "true_B32_g4_ident": {
+    "B": 32,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 32,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "123/123",
+    "bonus_vs_fp32_raw": "32/32",
+    "accepted==gamma": "32/32",
+    "committed==fp32_expected": "32/32",
+    "vs_B1_identical_input": "16/16",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "61/61"
+     ],
+     "1": [
+      "64/64",
+      "62/62"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B4_g4_ident": {
+    "B": 4,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 32,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "123/123",
+    "bonus_vs_fp32_raw": "32/32",
+    "accepted==gamma": "32/32",
+    "committed==fp32_expected": "32/32",
+    "vs_B1_identical_input": "16/16",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "61/61"
+     ],
+     "1": [
+      "64/64",
+      "62/62"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B4_g4_perm1": {
+    "B": 4,
+    "gamma": 4,
+    "order": "perm1",
+    "n_requests": 32,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "123/123",
+    "bonus_vs_fp32_raw": "32/32",
+    "accepted==gamma": "32/32",
+    "committed==fp32_expected": "32/32",
+    "vs_B1_identical_input": "16/16",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "61/61"
+     ],
+     "1": [
+      "64/64",
+      "62/62"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   },
+   "true_B8_g4_ident": {
+    "B": 8,
+    "gamma": 4,
+    "order": "ident",
+    "n_requests": 32,
+    "targets_vs_fp32_raw": "128/128",
+    "targets_vs_fp32_margin>=0.5": "123/123",
+    "bonus_vs_fp32_raw": "32/32",
+    "accepted==gamma": "32/32",
+    "committed==fp32_expected": "32/32",
+    "vs_B1_identical_input": "16/16",
+    "by_length_group(raw ok/tot ; margin ok/tot)": {
+     "0": [
+      "64/64",
+      "61/61"
+     ],
+     "1": [
+      "64/64",
+      "62/62"
+     ]
+    },
+    "gate_margin_pass": true,
+    "systematic_wrong_slots": []
+   }
+  },
+  "mismatch_classes": {
+   "near_tie(<0.5)": 5
+  },
+  "mismatches": [
+   {
+    "run": "decode_B16_g4_ident",
+    "ctx": 16,
+    "kind": "decode",
+    "pos": 1,
+    "fp32_gap": 0.0172,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "decode_B1_g4_ident",
+    "ctx": 16,
+    "kind": "decode",
+    "pos": 1,
+    "fp32_gap": 0.0172,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "decode_B32_g4_ident",
+    "ctx": 16,
+    "kind": "decode",
+    "pos": 1,
+    "fp32_gap": 0.0172,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "decode_B4_g4_ident",
+    "ctx": 14,
+    "kind": "decode",
+    "pos": 3,
+    "fp32_gap": 0.0743,
+    "class": "near_tie(<0.5)"
+   },
+   {
+    "run": "decode_B4_g4_ident",
+    "ctx": 16,
+    "kind": "decode",
+    "pos": 1,
+    "fp32_gap": 0.0172,
+    "class": "near_tie(<0.5)"
+   }
+  ],
+  "permutation_dependence": {
+   "B4": {
+    "reference_run": "true_B4_g4_ident",
+    "contexts_whose_result_differs_from_reference": {
+     "true_B4_g4_perm1": 0
+    }
+   },
+   "B16": {
+    "reference_run": "true_B16_g4_ident",
+    "contexts_whose_result_differs_from_reference": {
+     "true_B16_g4_perm1": 0,
+     "true_B16_g4_perm2": 0
+    }
+   }
+  },
+  "scheduling_examples(n_seq, [(prefill_groups, batched_tokens)...])": {
+   "true_B16_g4_ident": [
+    [
+     16,
+     [
+      [
+       16,
+       2064
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       3104
+      ]
+     ]
+    ]
+   ],
+   "true_B16_g4_perm1": [
+    [
+     16,
+     [
+      [
+       16,
+       2649
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2519
+      ]
+     ]
+    ]
+   ],
+   "true_B16_g4_perm2": [
+    [
+     16,
+     [
+      [
+       16,
+       2519
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       2649
+      ]
+     ]
+    ]
+   ],
+   "true_B32_g4_ident": [
+    [
+     32,
+     [
+      [
+       26,
+       4004
+      ],
+      [
+       6,
+       1164
+      ]
+     ]
+    ]
+   ],
+   "true_B16_g2_ident": [
+    [
+     16,
+     [
+      [
+       16,
+       2032
+      ]
+     ]
+    ],
+    [
+     16,
+     [
+      [
+       16,
+       3072
+      ]
+     ]
+    ]
+   ]
+  },
+  "gate_pass_inprocess": true,
+  "gate_inputs": {
+   "checks": {
+    "true_B1_g4_ident:accepted_length": [
+     13,
+     13
+    ],
+    "true_B1_g4_ident:committed_tokens": [
+     13,
+     13
+    ],
+    "true_B1_g4_ident:correction_token": [
+     13,
+     13
+    ],
+    "true_B1_g4_ident:bonus_token": [
+     13,
+     13
+    ],
+    "true_B1_g4_ident:reached_eos": [
+     13,
+     13
+    ],
+    "true_B1_g4_ident:target_greedy_tokens": [
+     13,
+     13
+    ],
+    "true_B1_g4_ident:raw": {
+     "accepted_length": [
+      16,
+      16
+     ],
+     "committed_tokens": [
+      16,
+      16
+     ],
+     "correction_token": [
+      16,
+      16
+     ],
+     "bonus_token": [
+      16,
+      16
+     ],
+     "reached_eos": [
+      16,
+      16
+     ],
+     "target_greedy_tokens": [
+      16,
+      16
+     ]
+    },
+    "true_B4_g4_ident:accepted_length": [
+     27,
+     27
+    ],
+    "true_B4_g4_ident:committed_tokens": [
+     27,
+     27
+    ],
+    "true_B4_g4_ident:correction_token": [
+     27,
+     27
+    ],
+    "true_B4_g4_ident:bonus_token": [
+     27,
+     27
+    ],
+    "true_B4_g4_ident:reached_eos": [
+     27,
+     27
+    ],
+    "true_B4_g4_ident:target_greedy_tokens": [
+     27,
+     27
+    ],
+    "true_B4_g4_ident:raw": {
+     "accepted_length": [
+      32,
+      32
+     ],
+     "committed_tokens": [
+      32,
+      32
+     ],
+     "correction_token": [
+      32,
+      32
+     ],
+     "bonus_token": [
+      32,
+      32
+     ],
+     "reached_eos": [
+      32,
+      32
+     ],
+     "target_greedy_tokens": [
+      32,
+      32
+     ]
+    },
+    "true_B4_g4_ident:identical_to_B1_input": [
+     13,
+     13
+    ],
+    "true_B4_g4_perm1:accepted_length": [
+     27,
+     27
+    ],
+    "true_B4_g4_perm1:committed_tokens": [
+     27,
+     27
+    ],
+    "true_B4_g4_perm1:correction_token": [
+     27,
+     27
+    ],
+    "true_B4_g4_perm1:bonus_token": [
+     27,
+     27
+    ],
+    "true_B4_g4_perm1:reached_eos": [
+     27,
+     27
+    ],
+    "true_B4_g4_perm1:target_greedy_tokens": [
+     27,
+     27
+    ],
+    "true_B4_g4_perm1:raw": {
+     "accepted_length": [
+      32,
+      32
+     ],
+     "committed_tokens": [
+      32,
+      32
+     ],
+     "correction_token": [
+      32,
+      32
+     ],
+     "bonus_token": [
+      32,
+      32
+     ],
+     "reached_eos": [
+      32,
+      32
+     ],
+     "target_greedy_tokens": [
+      32,
+      32
+     ]
+    },
+    "true_B4_g4_perm1:identical_to_B1_input": [
+     13,
+     13
+    ],
+    "true_B8_g4_ident:accepted_length": [
+     27,
+     27
+    ],
+    "true_B8_g4_ident:committed_tokens": [
+     27,
+     27
+    ],
+    "true_B8_g4_ident:correction_token": [
+     27,
+     27
+    ],
+    "true_B8_g4_ident:bonus_token": [
+     27,
+     27
+    ],
+    "true_B8_g4_ident:reached_eos": [
+     27,
+     27
+    ],
+    "true_B8_g4_ident:target_greedy_tokens": [
+     27,
+     27
+    ],
+    "true_B8_g4_ident:raw": {
+     "accepted_length": [
+      32,
+      32
+     ],
+     "committed_tokens": [
+      32,
+      32
+     ],
+     "correction_token": [
+      32,
+      32
+     ],
+     "bonus_token": [
+      32,
+      32
+     ],
+     "reached_eos": [
+      32,
+      32
+     ],
+     "target_greedy_tokens": [
+      32,
+      32
+     ]
+    },
+    "true_B8_g4_ident:identical_to_B1_input": [
+     13,
+     13
+    ],
+    "true_B16_g4_ident:accepted_length": [
+     27,
+     27
+    ],
+    "true_B16_g4_ident:committed_tokens": [
+     27,
+     27
+    ],
+    "true_B16_g4_ident:correction_token": [
+     27,
+     27
+    ],
+    "true_B16_g4_ident:bonus_token": [
+     27,
+     27
+    ],
+    "true_B16_g4_ident:reached_eos": [
+     27,
+     27
+    ],
+    "true_B16_g4_ident:target_greedy_tokens": [
+     27,
+     27
+    ],
+    "true_B16_g4_ident:raw": {
+     "accepted_length": [
+      32,
+      32
+     ],
+     "committed_tokens": [
+      32,
+      32
+     ],
+     "correction_token": [
+      32,
+      32
+     ],
+     "bonus_token": [
+      32,
+      32
+     ],
+     "reached_eos": [
+      32,
+      32
+     ],
+     "target_greedy_tokens": [
+      32,
+      32
+     ]
+    },
+    "true_B16_g4_ident:identical_to_B1_input": [
+     13,
+     13
+    ],
+    "true_B16_g4_perm1:accepted_length": [
+     27,
+     27
+    ],
+    "true_B16_g4_perm1:committed_tokens": [
+     27,
+     27
+    ],
+    "true_B16_g4_perm1:correction_token": [
+     27,
+     27
+    ],
+    "true_B16_g4_perm1:bonus_token": [
+     27,
+     27
+    ],
+    "true_B16_g4_perm1:reached_eos": [
+     27,
+     27
+    ],
+    "true_B16_g4_perm1:target_greedy_tokens": [
+     27,
+     27
+    ],
+    "true_B16_g4_perm1:raw": {
+     "accepted_length": [
+      32,
+      32
+     ],
+     "committed_tokens": [
+      32,
+      32
+     ],
+     "correction_token": [
+      32,
+      32
+     ],
+     "bonus_token": [
+      32,
+      32
+     ],
+     "reached_eos": [
+      32,
+      32
+     ],
+     "target_greedy_tokens": [
+      32,
+      32
+     ]
+    },
+    "true_B16_g4_perm1:identical_to_B1_input": [
+     13,
+     13
+    ],
+    "true_B16_g4_perm2:accepted_length": [
+     27,
+     27
+    ],
+    "true_B16_g4_perm2:committed_tokens": [
+     27,
+     27
+    ],
+    "true_B16_g4_perm2:correction_token": [
+     27,
+     27
+    ],
+    "true_B16_g4_perm2:bonus_token": [
+     27,
+     27
+    ],
+    "true_B16_g4_perm2:reached_eos": [
+     27,
+     27
+    ],
+    "true_B16_g4_perm2:target_greedy_tokens": [
+     27,
+     27
+    ],
+    "true_B16_g4_perm2:raw": {
+     "accepted_length": [
+      32,
+      32
+     ],
+     "committed_tokens": [
+      32,
+      32
+     ],
+     "correction_token": [
+      32,
+      32
+     ],
+     "bonus_token": [
+      32,
+      32
+     ],
+     "reached_eos": [
+      32,
+      32
+     ],
+     "target_greedy_tokens": [
+      32,
+      32
+     ]
+    },
+    "true_B16_g4_perm2:identical_to_B1_input": [
+     13,
+     13
+    ],
+    "true_B32_g4_ident:accepted_length": [
+     27,
+     27
+    ],
+    "true_B32_g4_ident:committed_tokens": [
+     27,
+     27
+    ],
+    "true_B32_g4_ident:correction_token": [
+     27,
+     27
+    ],
+    "true_B32_g4_ident:bonus_token": [
+     27,
+     27
+    ],
+    "true_B32_g4_ident:reached_eos": [
+     27,
+     27
+    ],
+    "true_B32_g4_ident:target_greedy_tokens": [
+     27,
+     27
+    ],
+    "true_B32_g4_ident:raw": {
+     "accepted_length": [
+      32,
+      32
+     ],
+     "committed_tokens": [
+      32,
+      32
+     ],
+     "correction_token": [
+      32,
+      32
+     ],
+     "bonus_token": [
+      32,
+      32
+     ],
+     "reached_eos": [
+      32,
+      32
+     ],
+     "target_greedy_tokens": [
+      32,
+      32
+     ]
+    },
+    "true_B32_g4_ident:identical_to_B1_input": [
+     13,
+     13
+    ],
+    "true_B16_g2_ident:accepted_length": [
+     28,
+     28
+    ],
+    "true_B16_g2_ident:committed_tokens": [
+     28,
+     28
+    ],
+    "true_B16_g2_ident:correction_token": [
+     28,
+     28
+    ],
+    "true_B16_g2_ident:bonus_token": [
+     28,
+     28
+    ],
+    "true_B16_g2_ident:reached_eos": [
+     28,
+     28
+    ],
+    "true_B16_g2_ident:target_greedy_tokens": [
+     28,
+     28
+    ],
+    "true_B16_g2_ident:raw": {
+     "accepted_length": [
+      32,
+      32
+     ],
+     "committed_tokens": [
+      32,
+      32
+     ],
+     "correction_token": [
+      32,
+      32
+     ],
+     "bonus_token": [
+      32,
+      32
+     ],
+     "reached_eos": [
+      32,
+      32
+     ],
+     "target_greedy_tokens": [
+      32,
+      32
+     ]
+    },
+    "corrupt_B16_g4_ident:accepted_length": [
+     30,
+     30
+    ],
+    "corrupt_B16_g4_ident:committed_tokens": [
+     30,
+     30
+    ],
+    "corrupt_B16_g4_ident:correction_token": [
+     30,
+     30
+    ],
+    "corrupt_B16_g4_ident:bonus_token": [
+     30,
+     30
+    ],
+    "corrupt_B16_g4_ident:reached_eos": [
+     30,
+     30
+    ],
+    "corrupt_B16_g4_ident:target_greedy_tokens": [
+     30,
+     30
+    ],
+    "corrupt_B16_g4_ident:raw": {
+     "accepted_length": [
+      32,
+      32
+     ],
+     "committed_tokens": [
+      32,
+      32
+     ],
+     "correction_token": [
+      32,
+      32
+     ],
+     "bonus_token": [
+      32,
+      32
+     ],
+     "reached_eos": [
+      32,
+      32
+     ],
+     "target_greedy_tokens": [
+      32,
+      32
+     ]
+    },
+    "corrupt_B4_g4_ident:accepted_length": [
+     30,
+     30
+    ],
+    "corrupt_B4_g4_ident:committed_tokens": [
+     30,
+     30
+    ],
+    "corrupt_B4_g4_ident:correction_token": [
+     30,
+     30
+    ],
+    "corrupt_B4_g4_ident:bonus_token": [
+     30,
+     30
+    ],
+    "corrupt_B4_g4_ident:reached_eos": [
+     30,
+     30
+    ],
+    "corrupt_B4_g4_ident:target_greedy_tokens": [
+     30,
+     30
+    ],
+    "corrupt_B4_g4_ident:raw": {
+     "accepted_length": [
+      32,
+      32
+     ],
+     "committed_tokens": [
+      32,
+      32
+     ],
+     "correction_token": [
+      32,
+      32
+     ],
+     "bonus_token": [
+      32,
+      32
+     ],
+     "reached_eos": [
+      32,
+      32
+     ],
+     "target_greedy_tokens": [
+      32,
+      32
+     ]
+    },
+    "decode_B1_g4_ident:four_token_chain_vs_fp32": [
+     6,
+     6
+    ],
+    "decode_B1_g4_ident:raw_chain": [
+     7,
+     8
+    ],
+    "decode_B4_g4_ident:four_token_chain_vs_fp32": [
+     28,
+     28
+    ],
+    "decode_B4_g4_ident:raw_chain": [
+     30,
+     32
+    ],
+    "decode_B16_g4_ident:four_token_chain_vs_fp32": [
+     28,
+     28
+    ],
+    "decode_B16_g4_ident:raw_chain": [
+     31,
+     32
+    ],
+    "decode_B32_g4_ident:four_token_chain_vs_fp32": [
+     28,
+     28
+    ],
+    "decode_B32_g4_ident:raw_chain": [
+     31,
+     32
+    ],
+    "decode_vs_prefill_B16_g4": [
+     27,
+     27
+    ],
+    "permutation_identical_B4:true_B4_g4_ident_vs_true_B4_g4_perm1": [
+     27,
+     27
+    ],
+    "permutation_identical_B16:true_B16_g4_ident_vs_true_B16_g4_perm1": [
+     27,
+     27
+    ],
+    "permutation_identical_B16:true_B16_g4_ident_vs_true_B16_g4_perm2": [
+     27,
+     27
+    ]
+   },
+   "failures": []
+  }
+ }
+}

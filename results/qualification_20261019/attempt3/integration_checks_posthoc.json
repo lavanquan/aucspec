@@ -1,0 +1,117 @@
+{
+ "ok": true,
+ "problems": [],
+ "checks": {
+  "runtime_identity": {
+   "identity": "V1-batchwall-tritonfa33",
+   "vllm_version": "0.9.1",
+   "vllm_file": "/software/projects/pawsey1257/quanla/aucspec/vllm_rocm_build/vllm/vllm/__init__.py",
+   "engine_class": "vllm.engine.llm_engine.LLMEngine",
+   "n_attention_layers": 28,
+   "layers_triton_flash_attn": 28,
+   "layers_naive_sdpa": 0,
+   "effective_max_logprobs": 1,
+   "tie_break_rule": "first_max_in_vllm_logprob_dict_order",
+   "prefix_caching": false,
+   "triton_fa_calls": 13160,
+   "pids": [
+    2097483
+   ],
+   "pid_now": 2097483
+  },
+  "runtime_imports": {
+   "python_executable": "/usr/bin/python3",
+   "torch_version": "2.7.1a0+gite2d141d",
+   "torch_file": "/usr/local/lib/python3.12/dist-packages/torch/__init__.py",
+   "triton_version": "3.3.1",
+   "triton_file": "/usr/local/lib/python3.12/dist-packages/triton/__init__.py",
+   "triton_import_path": "/software/projects/pawsey1257/quanla/aucspec_runtime/tritonfa33/shim/triton/__init__.py",
+   "hip_version": "6.3.42134-a9a80e791",
+   "shim_on_sys_path_index": 3,
+   "sys_path_head": [
+    "/software/projects/pawsey1257/quanla/aucspec/.pythonuserbase-rocm-vllm/lib/python3.12/site-packages/ray/thirdparty_files",
+    "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_batchwall/legacy/src",
+    "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_batchwall/legacy/scripts",
+    "/software/projects/pawsey1257/quanla/aucspec_runtime/tritonfa33/shim",
+    "/usr/lib/python312.zip",
+    "/usr/lib/python3.12",
+    "/usr/lib/python3.12/lib-dynload",
+    "/software/projects/pawsey1257/quanla/aucspec/.pythonuserbase-rocm-vllm/lib/python3.12/site-packages",
+    "__editable__.vllm-0.9.1+rocm633.finder.__path_hook__",
+    "/usr/local/lib/python3.12/dist-packages",
+    "/usr/local/lib/python3.12/dist-packages/torchvision-0.22.1+59a3e1f-py3.12-linux-x86_64.egg",
+    "/usr/local/lib/python3.12/dist-packages/torchaudio-2.7.1a0+95c61b4-py3.12-linux-x86_64.egg"
+   ]
+  },
+  "semantics": {
+   "service_time_model": "batch_wall",
+   "verifier_price_mode": "zero",
+   "budget_mode": "fixed"
+  },
+  "provenance": {
+   "git_sha": "b7a1f66fca5facb4af8dcc6f6100ec1096ab924d",
+   "git_dirty": false,
+   "slurm_job_id": "51144179",
+   "campaign_config_hash": "8d4854bafea314ae",
+   "population_fingerprint": "c2f648e92c714b70"
+  },
+  "verifier_semantics": {
+   "verifier_semantics": "V1",
+   "tie_break_rule": "first_max_in_vllm_logprob_dict_order",
+   "effective_max_logprobs": 1,
+   "greedy_only": true,
+   "service_time_model": "batch_wall",
+   "verifier_price_mode": "zero",
+   "budget_mode": "fixed",
+   "verify_token_budget": 100,
+   "max_batch_size": 32
+  },
+  "timing_invariants": {
+   "pass": true,
+   "failures": [],
+   "n_batches": 470,
+   "overlapping_batch_pairs": 0,
+   "occupancy_minus_modeled_ms_max_abs": 2.9118041311448906e-11,
+   "round_latency_decomposition_resid_ms_max": 5.547917680814862e-11,
+   "modeled_over_wall_mean": 1.0,
+   "batch_size": {
+    "mean": 1.7574468085106383,
+    "max": 6,
+    "counts": {
+     "1": 252,
+     "2": 121,
+     "3": 65,
+     "4": 26,
+     "5": 3,
+     "6": 3
+    }
+   },
+   "verifier_busy_fraction": 0.8983047801208927
+  },
+  "batches_with_B_gt_2": 97,
+  "b_gt2_exercised": true,
+  "batch_size_counts": {
+   "1": 252,
+   "2": 121,
+   "3": 65,
+   "4": 26,
+   "5": 3,
+   "6": 3
+  },
+  "acceptance_accounting": {
+   "rows": 826,
+   "accepted_outside_[0,gamma]": 0,
+   "committed>accepted+1": 0,
+   "useful!=committed": 0,
+   "mean_accepted_over_gamma": 0.7787144362486829
+  },
+  "workload_accounting": {
+   "samples": 48,
+   "per_client_samples_min": 6,
+   "expected_per_client": 6,
+   "clients": 8,
+   "sample_token_sum_mismatch": 0,
+   "samples_over_max_new_tokens": 0
+  }
+ }
+}
