@@ -56,7 +56,7 @@ def main() -> int:
             enable_prefix_caching=bool(m.get("target_enable_prefix_caching", True)),
             sampling_temperature=0.0, seed=int(sim["seed"]))
         res["init_s"] = time.time() - t0
-        evidence = rg.enforce_runtime(ver, cfg["runtime"], REPO_ROOT)
+        evidence = rg.enforce_runtime(ver, cfg["runtime"], REPO_ROOT, full_cfg=cfg)
         res["runtime_evidence"] = rg.serialisable(evidence)
         llm = ver.llm
         sched = llm.llm_engine.scheduler[0]
@@ -148,22 +148,16 @@ def main() -> int:
             R = {}
             for item in plan:
                 R[q.key(item)] = run_item(S, item)
-            gate = {}
-            for k, run in R.items():
-                if run["item"]["kind"] == "true" and run["item"]["gamma"] >= 1 and run["item"]["B"] >= 2:
-                    ok, tot = margin_rate(S, run)
-                    gate[k] = [ok, tot]
-            return R, gate, need
+            ev = q.evaluate_set(S, R, level)      # semantic gate: accepted/committed/correction/bonus/eos/greedy + B1 + permutations
+            return R, {"checks": ev["checks"], "failures": ev["failures"]}, need, ev["pass"]
 
         res["dev"] = {}
-        R, gate, need = run_level("dev", "dev")
-        res["dev"] = {"runs": R, "gate": gate, "planned_calls": need,
-                      "pass": all(q.passes(ok, tot) for ok, tot in gate.values())}
+        R, gate, need, ok_dev = run_level("dev", "dev")
+        res["dev"] = {"runs": R, "gate": gate, "planned_calls": need, "pass": bool(ok_dev)}
         if res["dev"]["pass"]:
             try:
-                R2, gate2, need2 = run_level("heldout", "heldout")
-                res["heldout"] = {"runs": R2, "gate": gate2, "planned_calls": need2,
-                                  "pass": all(q.passes(ok, tot) for ok, tot in gate2.values())}
+                R2, gate2, need2, ok_ho = run_level("heldout", "heldout")
+                res["heldout"] = {"runs": R2, "gate": gate2, "planned_calls": need2, "pass": bool(ok_ho)}
             except RuntimeError as exc:
                 res["heldout_error"] = repr(exc)
         res["latency_ms"] = {k: {"n": len(v), "mean": sum(v) / len(v), "max": max(v)} for k, v in lat.items()}

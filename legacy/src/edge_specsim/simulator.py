@@ -131,7 +131,7 @@ class EdgeSpecSimulator:
             from . import runtime_guard
 
             self.runtime_evidence = runtime_guard.enforce_runtime(
-                self.target, self.cfg["runtime"], Path(__file__).resolve().parents[3]
+                self.target, self.cfg["runtime"], Path(__file__).resolve().parents[3], full_cfg=self.cfg
             )
         self.workers = [
             DraftWorker(

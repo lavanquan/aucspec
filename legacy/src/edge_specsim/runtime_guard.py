@@ -165,7 +165,22 @@ def verify_live_engine(llm, target, rt_cfg: dict[str, Any]) -> dict[str, Any]:
     return ev
 
 
-def enforce_runtime(target, rt_cfg: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+def check_semantics_config(full_cfg: dict[str, Any]) -> dict[str, Any]:
+    """The frozen experimental semantics of the runtime identity (config level)."""
+    vb, ctl = full_cfg.get("verification_batching") or {}, full_cfg.get("controller") or {}
+    rec = {"service_time_model": vb.get("service_time_model"), "verifier_price_mode": ctl.get("verifier_price_mode"),
+           "budget_mode": vb.get("budget_mode")}
+    bad = []
+    if rec["service_time_model"] != "batch_wall":
+        bad.append(f"service_time_model must be batch_wall (got {rec['service_time_model']!r})")
+    if rec["verifier_price_mode"] != "zero":
+        bad.append(f"verifier_price_mode must be zero (got {rec['verifier_price_mode']!r})")
+    if bad:
+        raise RuntimeGuardError("; ".join(bad))
+    return rec
+
+
+def enforce_runtime(target, rt_cfg: dict[str, Any], repo_root: Path, full_cfg: dict[str, Any] | None = None) -> dict[str, Any]:
     """Full check used by the simulator right after the target engine exists. Returns the identity record."""
     manifest = load_manifest(Path(repo_root) / rt_cfg.get("manifest", "runtime/tritonfa33/MANIFEST.json"))
     if rt_cfg.get("identity") != IDENTITY:
@@ -175,9 +190,10 @@ def enforce_runtime(target, rt_cfg: dict[str, Any], repo_root: Path) -> dict[str
         raise RuntimeGuardError("; ".join(bad))
     imports = check_imports(manifest)
     live = verify_live_engine(target.llm, target, rt_cfg)
+    semantics = check_semantics_config(full_cfg) if full_cfg is not None else None
     import vllm
 
-    return {"identity": IDENTITY, "imports": imports, "live_engine": live,
+    return {"identity": IDENTITY, "imports": imports, "live_engine": live, "semantics": semantics,
             "vllm_version": vllm.__version__, "vllm_file": os.path.realpath(vllm.__file__),
             "manifest_sha256": __import__("hashlib").sha256((Path(repo_root) / rt_cfg.get("manifest", "runtime/tritonfa33/MANIFEST.json")).read_bytes()).hexdigest(),
             "env": {k: os.environ.get(k) for k in ("VLLM_USE_TRITON_FLASH_ATTN", "PYTHONPATH", "VLLM_ATTENTION_BACKEND", "VLLM_USE_V1")}}
