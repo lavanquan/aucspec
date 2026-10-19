@@ -127,3 +127,10 @@ def test_new_canonical_configs_declare_the_runtime():
         assert cfg["verification_batching"]["service_time_model"] == "batch_wall"
         assert cfg["controller"]["verifier_price_mode"] == "zero"
         assert cfg["models"].get("target_enable_prefix_caching") is False
+
+
+def test_in_process_environment_check_tolerates_target_client_prefixing_pythonpath():
+    mutated = {**GOOD_ENV, "PYTHONPATH": "/repo/legacy/src:" + GOOD_ENV["PYTHONPATH"]}   # what importing target_client does
+    assert rg.check_environment(mutated, MAN)                                  # launch-time (strict) rule refuses it
+    assert rg.check_environment(mutated, MAN, strict_first=False) == []         # in-process rule accepts, shim still present
+    assert rg.check_environment({**mutated, "PYTHONPATH": "/repo/legacy/src"}, MAN, strict_first=False)   # shim missing

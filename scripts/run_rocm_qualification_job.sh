@@ -5,10 +5,10 @@
 #SBATCH --nodes=1
 #SBATCH --time=0:35:00
 # usage: sbatch --job-name=tfa33_qual --output=/scratch/pawsey1257/quanla/rocm_qualification/<tag>/slurm_%j.log \
-#   <worktree>/scripts/run_rocm_qualification_job.sh <WORKTREE> <CONFIG> <B4_FROZEN> <TAG> <SMOKE_RUN_TAG>
+#   <worktree>/scripts/run_rocm_qualification_job.sh <WORKTREE> <CONFIG> <B4_FROZEN> <TAG> <SMOKE_RUN_TAG> [REUSE_FROZEN]
 # Runtime V1-batchwall-tritonfa33. No pip installs; Triton shim first on PYTHONPATH; real exit code propagated.
 set -uo pipefail
-WT="$1"; CFG="$2"; B4FROZEN="$3"; TAG="$4"; SMOKE_TAG="$5"
+WT="$1"; CFG="$2"; B4FROZEN="$3"; TAG="$4"; SMOKE_TAG="$5"; REUSE="${6:-}"
 cd "$WT" || exit 66
 module load pytorch/2.7.1-rocm6.3.3
 PROJECT=/software/projects/pawsey1257/quanla/aucspec
@@ -33,7 +33,7 @@ OUT=/scratch/pawsey1257/quanla/rocm_qualification/"$TAG"
 mkdir -p "$OUT"
 date +%s > "$OUT/job_start_unix.txt"
 python3 scripts/rocm_qual_orchestrate.py --config "$CFG" --exclude-frozen "$B4FROZEN" --out-dir "$OUT" \
-  --smoke-run-tag "$SMOKE_TAG" --smoke-n 8
+  --smoke-run-tag "$SMOKE_TAG" --smoke-n 8 ${REUSE:+--reuse-frozen "$REUSE"}
 rc=$?
 date +%s > "$OUT/job_end_unix.txt"
 echo "=== ROCM_QUALIFICATION_DONE exit=$rc ==="

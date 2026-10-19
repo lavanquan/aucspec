@@ -44,7 +44,7 @@ def main() -> int:
         cfg = yaml.safe_load(Path(a.config).read_text(encoding="utf-8"))
         guard.assert_clean_source()
         guard.validate_canonical_config(cfg)
-        guard.assert_runtime_env()
+        guard.assert_runtime_env(strict_first=False)   # target_client import already prepended legacy/src to PYTHONPATH
         res["provenance"] = collect_provenance(REPO_ROOT, cfg)
         frozen = json.load(open(a.frozen))
         m, sim = cfg["models"], cfg["simulation"]

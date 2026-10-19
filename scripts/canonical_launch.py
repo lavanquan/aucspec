@@ -80,7 +80,7 @@ def cmd_run(a) -> int:
 
     ctx = rcf.RunContext.resume(a.run_tag)
     guard.assert_clean_source()
-    guard.assert_runtime_env()
+    guard.assert_runtime_env(strict_first=False)   # launch-time strict check is done by preflight_runtime.py
     guard.assert_head_matches(ctx.git_sha)
     init_info = json.loads((ctx.run_dir / "provenance_init.json").read_text(encoding="utf-8"))
     guard.validate_canonical_config(ctx.base_cfg, semantics=init_info["semantics"])

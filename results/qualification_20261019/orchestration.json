@@ -1,0 +1,28 @@
+{
+ "steps": [
+  {
+   "step": "preflight",
+   "rc": 0,
+   "wall_s": 5.223462104797363,
+   "elapsed_s": 5.223496437072754
+  },
+  {
+   "step": "prepare",
+   "rc": 0,
+   "wall_s": 95.39084839820862,
+   "elapsed_s": 100.61630153656006
+  },
+  {
+   "step": "qualification",
+   "rc": 1,
+   "wall_s": 9.833340883255005,
+   "elapsed_s": 110.45191025733948
+  },
+  {
+   "step": "integration_smoke",
+   "skipped": "qualification gate not passed"
+  }
+ ],
+ "qualification_gate_pass": false,
+ "total_wall_s": 110.45402073860168
+}

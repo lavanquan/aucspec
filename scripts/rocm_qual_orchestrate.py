@@ -19,6 +19,7 @@ def main() -> int:
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--smoke-run-tag", required=True)
     ap.add_argument("--smoke-n", type=int, default=8)
+    ap.add_argument("--reuse-frozen", default=None, help="frozen qualification contexts from an earlier job in which no vLLM call ran")
     a = ap.parse_args()
     out = Path(a.out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -40,8 +41,13 @@ def main() -> int:
     if step("preflight", [py, str(HERE / "preflight_runtime.py"), "--out", str(out / "preflight.json")], 300) != 0:
         return 65
     frozen = out / "frozen_qualification_contexts.json"
-    if step("prepare", [py, str(HERE / "rocm_qual_prepare.py"), "--config", a.config, "--exclude-frozen", a.exclude_frozen,
-                        "--out", str(frozen)], 12 * 60) != 0:
+    if a.reuse_frozen:
+        import shutil
+
+        shutil.copyfile(a.reuse_frozen, frozen)
+        log["steps"].append({"step": "prepare", "reused": a.reuse_frozen, "hf_calls_this_job": 0})
+    elif step("prepare", [py, str(HERE / "rocm_qual_prepare.py"), "--config", a.config, "--exclude-frozen", a.exclude_frozen,
+                          "--out", str(frozen)], 12 * 60) != 0:
         return 2
     res = out / "result_qualification.json"
     rc_q = step("qualification", [py, str(HERE / "rocm_qual_run.py"), "--config", a.config, "--frozen", str(frozen), "--out", str(res)],

@@ -27,7 +27,7 @@ def load_manifest(path: str | Path) -> dict[str, Any]:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
-def check_environment(env: dict[str, str], manifest: dict[str, Any]) -> list[str]:
+def check_environment(env: dict[str, str], manifest: dict[str, Any], strict_first: bool = True) -> list[str]:
     """Pure check of the process environment against the manifest; returns violations."""
     bad = []
     if env.get("VLLM_USE_TRITON_FLASH_ATTN") != "1":
@@ -37,9 +37,14 @@ def check_environment(env: dict[str, str], manifest: dict[str, Any]) -> list[str
     if env.get("VLLM_USE_V1", "0") not in ("0", ""):
         bad.append("VLLM_USE_V1 must not request the V1 engine (qualified runtime is the V0 engine)")
     shim = manifest["shim_dir"]
-    first = env.get("PYTHONPATH", "").split(os.pathsep)[0]
-    if first != shim:
-        bad.append(f"PYTHONPATH must start with the Triton shim {shim!r} (starts with {first!r})")
+    entries = env.get("PYTHONPATH", "").split(os.pathsep)
+    if strict_first:
+        # launch-time rule. (Importing edge_specsim.target_client later prepends legacy/src to the env var, which is why
+        # the in-process check below uses strict_first=False and relies on sys.path order and the real triton path.)
+        if entries[0] != shim:
+            bad.append(f"PYTHONPATH must start with the Triton shim {shim!r} (starts with {entries[0]!r})")
+    elif shim not in entries:
+        bad.append(f"the Triton shim {shim!r} is not on PYTHONPATH")
     if env.get("ALLOW_DEFECTIVE_LEGACY_RUNTIME") == "1":
         bad.append("ALLOW_DEFECTIVE_LEGACY_RUNTIME=1 is set: refusing to run a canonical job on the legacy runtime")
     return bad
@@ -68,6 +73,14 @@ def check_imports(manifest: dict[str, Any]) -> dict[str, Any]:
         bad.append(f"triton resolved to {ev['triton_file']}, expected under {manifest['triton_realpath_prefix']}")
     if "pythonuserbase" in ev["triton_file"]:
         bad.append("triton was imported from the user-site (3.8.0) package")
+    shim = manifest["shim_dir"]
+    if shim not in sys.path:
+        bad.append("the Triton shim is not on sys.path of this process")
+    else:
+        user = [i for i, e in enumerate(sys.path) if "pythonuserbase" in e]
+        if user and sys.path.index(shim) > min(user):
+            bad.append("sys.path lists the user-site before the Triton shim")
+    ev["shim_on_sys_path_index"] = sys.path.index(shim) if shim in sys.path else None
     if bad:
         raise RuntimeGuardError("; ".join(bad))
     return ev
@@ -157,7 +170,7 @@ def enforce_runtime(target, rt_cfg: dict[str, Any], repo_root: Path) -> dict[str
     manifest = load_manifest(Path(repo_root) / rt_cfg.get("manifest", "runtime/tritonfa33/MANIFEST.json"))
     if rt_cfg.get("identity") != IDENTITY:
         raise RuntimeGuardError(f"runtime.identity must be {IDENTITY!r}")
-    bad = check_environment(dict(os.environ), manifest)
+    bad = check_environment(dict(os.environ), manifest, strict_first=False)
     if bad:
         raise RuntimeGuardError("; ".join(bad))
     imports = check_imports(manifest)
