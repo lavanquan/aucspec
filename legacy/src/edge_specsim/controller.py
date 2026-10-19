@@ -105,6 +105,10 @@ class OnlineController:
         self._server_slot_state: tuple[int, float, float] | None = None
         self._device_slot_state: dict[int, tuple[int, float, float]] = {}
         self._seen_server_batches: set[int] = set()
+        # D2: monotone history of server-state snapshots (finish_ms, Q_s, price, max_finish_ms, version) so a
+        # decision at virtual time t can read the state as of t, not the real-order latest.
+        self._server_history: list[tuple[float, float, float, float, int]] = []
+        self._server_history_monotone = True
         self.fixed_slo_ms = float(fixed_slo_ms)
         self.gelato_v = float(V) if gelato_v is None else float(gelato_v)
         self.gelato_draft_power_mw = float(gelato_draft_power_mw)
@@ -724,6 +728,8 @@ class OnlineController:
         if not self.use_virtual_queues:
             self.server_queue = 0.0
             self.server_price = 0.0
+            if batch_id not in self._seen_server_batches:
+                self._record_server_snapshot(verify_finish_ms)
             self._seen_server_batches.add(batch_id)
             return self.server_price
         if batch_id in self._seen_server_batches:
@@ -755,7 +761,40 @@ class OnlineController:
         slot_service_ms += gamma_batch_service_ms
         self.server_queue = max(0.0, slot_base_queue + slot_service_ms - slot_budget_ms)
         self._server_slot_state = (current_slot, slot_base_queue, slot_service_ms)
-        return self._refresh_server_price()
+        price = self._refresh_server_price()
+        self._record_server_snapshot(verify_finish_ms)
+        return price
+
+    def _record_server_snapshot(self, verify_finish_ms: float) -> None:
+        finish = float(verify_finish_ms)
+        if self._server_history and finish + 1e-9 < self._server_history[-1][0]:
+            # Legacy real-order observation (D2): the history is no longer a function of virtual time.
+            self._server_history_monotone = False
+        self._server_history.append(
+            (finish, float(self.server_queue), float(self.server_price),
+             float(self.server_state_max_finish_ms), len(self._server_history) + 1)
+        )
+
+    def server_state_at(self, t_ms: float) -> tuple[float, float, float, float, int]:
+        """D2: server state as of virtual time t -- the snapshot of the latest batch with finish <= t.
+        Returns (queue, price, max_finish_ms, visible_update_ts, version); (0,0,0,0,0) before any batch."""
+        import bisect
+
+        if not self._server_history_monotone:
+            raise ValueError("server-state history was published out of finish order (legacy real-order mode)")
+        finishes = [h[0] for h in self._server_history]
+        k = bisect.bisect_right(finishes, float(t_ms))
+        if k == 0:
+            return 0.0, 0.0, 0.0, 0.0, 0
+        finish, queue, price, max_finish, version = self._server_history[k - 1]
+        return queue, price, max_finish, finish, version
+
+    def load_server_state_view(self, t_ms: float) -> tuple[float, int]:
+        """Point the controller's server-state reads (Q_s, price, max_finish) at the snapshot as of t.
+        Must be followed synchronously (no await) by the decision/stamp that consumes it."""
+        queue, price, max_finish, visible_ts, version = self.server_state_at(t_ms)
+        self.server_queue, self.server_price, self.server_state_max_finish_ms = queue, price, max_finish
+        return visible_ts, version
 
     def observe_device_service(
         self,

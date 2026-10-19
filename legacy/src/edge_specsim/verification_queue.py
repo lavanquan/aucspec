@@ -29,6 +29,7 @@ class VerificationRequest:
     # (fcfs, weighted_utility, knapsack, ...) are byte-for-byte unchanged.
     server_queue_price: float = 0.0       # Q_s at submission time
     theta_f_ms_per_token: float = 0.0     # DPP compute-work price (ms/verifier-token)
+    request_id: int = 0                    # per-client submission counter (causality ledger)
 
     @property
     def verifier_token_cost(self) -> int:
@@ -74,6 +75,12 @@ class VerificationRequest:
         )
 
 
+def _arrival_order(item: "VerificationRequest") -> tuple[float, int, int]:
+    """Deterministic order for the waiting list: virtual arrival, then client id, then per-client request id.
+    (Exact timestamp ties previously fell back to real submission order.)"""
+    return (item.arrival_time, item.client_id, item.request_id)
+
+
 @dataclass(frozen=True)
 class VerificationBatchMetadata:
     batch_id: int
@@ -115,13 +122,13 @@ class VerificationQueue:
 
     def push(self, request: VerificationRequest) -> None:
         self.waiting.append(request)
-        self.waiting.sort(key=lambda item: item.arrival_time)
+        self.waiting.sort(key=_arrival_order)
 
     def extend(self, requests: list[VerificationRequest]) -> None:
         if not requests:
             return
         self.waiting.extend(requests)
-        self.waiting.sort(key=lambda item: item.arrival_time)
+        self.waiting.sort(key=_arrival_order)
 
     def pop_batch(
         self,
@@ -237,7 +244,7 @@ class VerificationQueue:
         self.waiting = [
             request for request in self.waiting if id(request) not in selected_ids
         ]
-        self.waiting.sort(key=lambda item: item.arrival_time)
+        self.waiting.sort(key=_arrival_order)
         return selected
 
     def has_request_past_cutoff(self, cutoff_ms: float) -> bool:

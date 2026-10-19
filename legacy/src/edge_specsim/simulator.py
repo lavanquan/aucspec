@@ -40,6 +40,7 @@ from .runtime_guard import serialisable as _serialise_runtime
 from .roofline_budget import RooflineBudgetModel
 from .target_client import VLLMCandidateVerifier
 from .verification_batcher import VerificationBatcher
+from .virtual_causality import EventLedger, VirtualCoordinator
 
 
 class EdgeSpecSimulator:
@@ -162,6 +163,15 @@ class EdgeSpecSimulator:
                 "results/target_profile_summary.json",
             )
             roofline_budget_model = RooflineBudgetModel.from_summary_json(roofline_summary_path)
+        # D1/D2 (docs/VIRTUAL_TIME_EVENT_GRAPH.md). causal_virtual_time=false keeps the historical real-order
+        # batching/state (results stay labelled as such); causality_ledger=true records the event ledger in
+        # either mode so the two can be compared.
+        self.causal_virtual_time = bool(sim.get("causal_virtual_time", False))
+        self.coordinator = (
+            VirtualCoordinator(self.batch_wait_ms, EventLedger())
+            if (self.causal_virtual_time or bool(sim.get("causality_ledger", False)))
+            else None
+        )
         self.verifier = VerificationBatcher(
             self.target,
             max_batch_size=int(batching.get("max_batch_size", 16)),
@@ -175,6 +185,9 @@ class EdgeSpecSimulator:
             service_time_model=str(
                 batching.get("service_time_model", "amortized_per_request")
             ),
+            coordinator=self.coordinator,
+            causal=self.causal_virtual_time,
+            on_batch_complete=self._on_batch_complete if self.causal_virtual_time else None,
         )
         proposal_distribution_payload = (
             "delta_proposal" if self.sampling_temperature <= 0.0 else "full_vocab_logprobs"
@@ -238,6 +251,18 @@ class EdgeSpecSimulator:
         samples = load_samples(self.cfg["dataset"])
         self.samples = list(samples)
         self.clients = self._make_clients(self.samples, num_clients=num_clients)
+        if self.coordinator is not None:
+            for client in self.clients:
+                self.coordinator.register_client(client.client_id, client.rtt_ms)
+
+    def _on_batch_complete(self, meta) -> None:
+        """D2: the verifier publishes server state to the controller in batch order (virtual-finish order)."""
+        self.controller.observe_server_batch(
+            batch_id=meta.batch_id,
+            verify_finish_ms=meta.verify_finish_ms,
+            theta_f_ms_per_token=meta.theta_f_ms_per_token,
+            verifier_token_cost=meta.batch_token_cost,
+        )
 
     @staticmethod
     def _prefix_hash(token_ids: list[int]) -> int:
@@ -630,6 +655,13 @@ class EdgeSpecSimulator:
         self._write_results()
 
     async def _run_client(self, client: ClientProfile) -> None:
+        try:
+            await self._run_client_inner(client)
+        finally:
+            if self.coordinator is not None:
+                self.coordinator.retire_client(client.client_id)
+
+    async def _run_client_inner(self, client: ClientProfile) -> None:
         while client.start_next_sample():
             assert client.current_sample is not None
             worker = self.workers[client.client_id % len(self.workers)]
@@ -650,6 +682,17 @@ class EdgeSpecSimulator:
     async def _run_round(self, client: ClientProfile, round_id: int) -> bool:
         assert client.current_sample is not None
         self.total_rounds += 1
+        decision_visible_update_ms = None
+        decision_state_version = None
+        if self.causal_virtual_time:
+            # D2: wait until no batch finishing at or before this decision's virtual time is unprocessed,
+            # then read the server state as of that time (no await between here and choose_gamma).
+            await self.coordinator.wait_decision(client.client_id, client.virtual_time_ms)
+            decision_visible_update_ms, decision_state_version = self.controller.load_server_state_view(
+                client.virtual_time_ms
+            )
+        elif self.coordinator is not None:
+            self.coordinator.begin_round(client.client_id, client.virtual_time_ms)
         context_token_ids = self.target.build_context_token_ids(
             client.current_sample.prompt, client.history_token_ids
         )
@@ -677,6 +720,14 @@ class EdgeSpecSimulator:
         decision_theta_f = self.controller.current_verifier_theta_f_ms_per_token
         decision_server_state_max_finish_ms = self.controller.server_state_max_finish_ms
         selected_gamma = self.controller.choose_gamma(client, self.total_rounds)
+        decision_server_queue = self.controller.server_queue
+        if self.coordinator is not None and not self.causal_virtual_time:
+            decision_visible_update_ms = self.controller.server_state_max_finish_ms  # latest in REAL order
+            decision_state_version = self.coordinator.state_version
+        if self.coordinator is not None:
+            self.coordinator.record_decision(
+                client.client_id, client.virtual_time_ms, decision_visible_update_ms or 0.0,
+                decision_state_version or 0, gamma=selected_gamma)
         gamma = min(selected_gamma, max(0, remaining - 1))
         client.gamma = gamma
         worker = self.workers[client.client_id % len(self.workers)]
@@ -760,9 +811,15 @@ class EdgeSpecSimulator:
         draft_finish_ms = draft_start_ms + draft_edge_latency_ms
         server_arrival_ms = draft_finish_ms + client.rtt_ms / 2.0 + upload_ms
         # Values stamped on the request (read once, here, exactly as before).
-        stamped_server_queue_price = self.controller.server_queue
-        stamped_theta_f = self.controller.current_verifier_theta_f_ms_per_token
-        stamped_server_state_max_finish_ms = self.controller.server_state_max_finish_ms
+        if self.causal_virtual_time:
+            # the price the device last heard (state as of its decision), not the real-order latest
+            stamped_server_queue_price = decision_server_queue
+            stamped_theta_f = decision_theta_f
+            stamped_server_state_max_finish_ms = decision_server_state_max_finish_ms
+        else:
+            stamped_server_queue_price = self.controller.server_queue
+            stamped_theta_f = self.controller.current_verifier_theta_f_ms_per_token
+            stamped_server_state_max_finish_ms = self.controller.server_state_max_finish_ms
         batch_metadata, verification = await self.verifier.submit(
             client_id=client.client_id,
             context_token_ids=context_token_ids,
@@ -851,12 +908,19 @@ class EdgeSpecSimulator:
             batch_start_ms=batch_metadata.batch_start_ms,
             verify_finish_ms=batch_metadata.verify_finish_ms,
         )
-        lambda_price = self.controller.observe_server_batch(
-            batch_id=batch_id,
-            verify_finish_ms=batch_metadata.verify_finish_ms,
-            theta_f_ms_per_token=batch_metadata.theta_f_ms_per_token,
-            verifier_token_cost=batch_metadata.batch_token_cost,
-        )
+        if self.causal_virtual_time:
+            # already published by the verifier (_on_batch_complete); read the snapshot of THIS batch
+            server_queue_after, lambda_price, _mf, _ts, _v = self.controller.server_state_at(
+                batch_metadata.verify_finish_ms
+            )
+        else:
+            lambda_price = self.controller.observe_server_batch(
+                batch_id=batch_id,
+                verify_finish_ms=batch_metadata.verify_finish_ms,
+                theta_f_ms_per_token=batch_metadata.theta_f_ms_per_token,
+                verifier_token_cost=batch_metadata.batch_token_cost,
+            )
+            server_queue_after = self.controller.server_queue
         round_latency_ms = virtual_timing["virtual_round_latency_ms"]
         edge_finish_ms = virtual_timing["uplink_start_ms"] + upload_ms
         tau_d_ms = self.controller._draft_time_ms_per_token(client)
@@ -908,8 +972,11 @@ class EdgeSpecSimulator:
                 if batch_metadata.batch_token_budget else 0.0
             ),
             "sum_capacity_value": batch_metadata.sum_capacity_value,
-            "server_queue_before": server_queue_before,
-            "server_queue_after": self.controller.server_queue,
+            "server_queue_before": decision_server_queue if self.causal_virtual_time else server_queue_before,
+            "server_queue_after": server_queue_after,
+            "causal_virtual_time": self.causal_virtual_time,
+            "decision_visible_update_ms": decision_visible_update_ms,
+            "decision_state_version": decision_state_version,
             "forced_service": batch_metadata.forced_service,
             "controller_policy": self.controller.policy,
             "controller_V": self.controller.V,
@@ -953,7 +1020,7 @@ class EdgeSpecSimulator:
             "alpha_failure_events": client.alpha_failure_events,
             "z_queue": client.z_queue,
             "device_queue": client.device_queue,
-            "server_queue": self.controller.server_queue,
+            "server_queue": server_queue_after if self.causal_virtual_time else self.controller.server_queue,
             "decision_virtual_ms": decision_virtual_ms,
             "decision_theta_f": decision_theta_f,
             "decision_server_state_max_finish_ms": decision_server_state_max_finish_ms,
@@ -1083,6 +1150,16 @@ class EdgeSpecSimulator:
         self._write_events_jsonl(events_jsonl, df)
         self._write_run_config_json(run_config_json, output_csv=output, artifacts_dir=artifacts_dir)
         self._write_summary_json(summary_json, df, output_csv=output, artifacts_dir=artifacts_dir)
+        if self.coordinator is not None:
+            violations = self.coordinator.ledger.check_causality()
+            with (artifacts_dir / "causality_ledger.jsonl").open("w", encoding="utf-8") as handle:
+                for rec in self.coordinator.ledger.to_records():
+                    handle.write(json.dumps(rec) + "\n")
+            with (artifacts_dir / "causality_check.json").open("w", encoding="utf-8") as handle:
+                json.dump({"causal_virtual_time": self.causal_virtual_time,
+                           "n_events": len(self.coordinator.ledger.events),
+                           "violations": violations[:200], "n_violations": len(violations)}, handle, indent=1)
+            print(f"causality ledger: {len(violations)} violation(s) (causal_virtual_time={self.causal_virtual_time})")
         print(f"Wrote {len(self.records)} records to {output}")
 
     @staticmethod

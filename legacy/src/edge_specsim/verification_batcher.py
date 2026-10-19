@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from .models import DraftResult, VerificationResult
 from .roofline_budget import RooflineBudgetModel
+from .virtual_causality import VirtualCoordinator
 from .verification_queue import (
     VerificationBatchMetadata,
     VerificationQueue,
@@ -37,7 +38,19 @@ class VerificationBatcher:
         roofline_budget_model: RooflineBudgetModel | None = None,
         target_replication_factor: int = 1,
         service_time_model: str = "amortized_per_request",
+        coordinator: VirtualCoordinator | None = None,
+        causal: bool = False,
+        on_batch_complete: Callable[[VerificationBatchMetadata], None] | None = None,
     ) -> None:
+        if causal and coordinator is None:
+            raise ValueError("causal batching requires a VirtualCoordinator")
+        if causal and roofline_budget_model is not None:
+            raise ValueError("causal virtual time is not supported with roofline_knee budgets (D3: the budget "
+                             "signal reads real-order queue state)")
+        self.coordinator = coordinator
+        self.causal = bool(causal)
+        self.on_batch_complete = on_batch_complete
+        self._request_counter: dict[int, int] = {}
         if service_time_model not in SERVICE_TIME_MODELS:
             raise ValueError(
                 f"unknown verifier service_time_model {service_time_model!r}; "
@@ -86,6 +99,10 @@ class VerificationBatcher:
         future: asyncio.Future[tuple[VerificationBatchMetadata, VerificationResult]] = (
             loop.create_future()
         )
+        request_id = self._request_counter.get(client_id, 0)
+        self._request_counter[client_id] = request_id + 1
+        if self.coordinator is not None:
+            self.coordinator.note_submit(client_id, request_id, server_arrival_ms)
         await self.queue.put(
             VerificationRequest(
                 client_id=client_id,
@@ -109,6 +126,7 @@ class VerificationBatcher:
                 # (default 0.0) for every legacy scheduler.
                 server_queue_price=server_queue_price,
                 theta_f_ms_per_token=theta_f_ms_per_token,
+                request_id=request_id,
             )
         )
         return await future
@@ -155,7 +173,67 @@ class VerificationBatcher:
             float(signal.theta_f_ms_per_token) / float(self.target_replication_factor),
         )
 
+    def _head_cutoff(self) -> float | None:
+        """Cutoff of the current head, after absorbing everything already submitted."""
+        self._absorb_submitted()
+        if not self.server_queue:
+            return None
+        return self.server_queue.waiting[0].arrival_time + self.batch_wait_ms
+
+    def _absorb_submitted(self) -> bool:
+        """Move submitted-but-undrained requests into the server queue; True if the close sentinel was seen."""
+        closed = False
+        while True:
+            try:
+                item = self.queue.get_nowait()
+            except asyncio.QueueEmpty:
+                return closed
+            if item is None:
+                self._close_seen = True
+                closed = True
+                continue
+            self.server_queue.push(item)
+
+    async def _loop_causal(self) -> None:
+        """D1: batches are formed only when no request with arrival <= cutoff can still appear."""
+        coord = self.coordinator
+        assert coord is not None
+        coord._head_cutoff_fn = self._head_cutoff
+        self._close_seen = False
+
+        def ready() -> bool:
+            cutoff = self._head_cutoff()
+            if cutoff is None:
+                return False
+            return coord.cutoff_satisfied(cutoff)
+
+        while True:
+            self._absorb_submitted()
+            if not self.server_queue:
+                if self._close_seen:
+                    return
+                item = await self.queue.get()
+                if item is None:
+                    self._close_seen = True
+                else:
+                    self.server_queue.push(item)
+                continue
+            if not self._close_seen:
+                await coord.wait_for_cutoff(ready)
+            effective_budget = self._effective_verify_token_budget()
+            batch = self.server_queue.pop_batch(
+                scheduler_name=self.scheduler_name,
+                max_batch_size=self.max_batch_size,
+                batch_wait_ms=self.batch_wait_ms,
+                verify_token_budget=effective_budget,
+                utility_lambda=self.utility_lambda,
+            )
+            await self._process(batch, effective_budget)
+
     async def _loop(self) -> None:
+        if self.causal:
+            await self._loop_causal()
+            return
         while True:
             item = await self.queue.get()
             if item is None:
@@ -234,6 +312,10 @@ class VerificationBatcher:
             ),
         )
 
+    @staticmethod
+    def _member_id(request: VerificationRequest) -> int:
+        return getattr(request, "request_id", 0)
+
     async def _process(
         self,
         batch: list[VerificationRequest],
@@ -276,6 +358,11 @@ class VerificationBatcher:
             batch_processed_tokens=batch_processed_tokens,
         )
         self.batch_counter += 1
+        members = [(request.client_id, self._member_id(request)) for request in batch]
+        if self.coordinator is not None:
+            self.coordinator.batch_formed(
+                batch_metadata.batch_id, batch[0].arrival_time + self.batch_wait_ms, members,
+                batch_metadata.batch_start_ms)
         payload = [
             (req.context_token_ids, req.draft, req.remaining_tokens)
             for req in batch
@@ -355,5 +442,11 @@ class VerificationBatcher:
             batch_processed_tokens=batch_processed_tokens,
         )
         self.server_available_at_ms = batch_metadata.verify_finish_ms
+        if self.coordinator is not None:
+            self.coordinator.batch_done(
+                batch_metadata.batch_id, members, batch_metadata.batch_start_ms, batch_metadata.verify_finish_ms)
+        if self.on_batch_complete is not None:
+            # D2: the verifier publishes its state to the controller in batch order, before any client wakes.
+            self.on_batch_complete(batch_metadata)
         for request, result in zip(batch, results):
             request.future.set_result((batch_metadata, result))
