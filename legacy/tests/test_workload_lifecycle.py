@@ -156,3 +156,13 @@ def test_invalid_is_not_infeasible_in_any_classifier():
     assert classify_feasibility_final([bad, good, good], 1.0, 2).status == "invalid"
     # a single invalid seed poisons the candidate: it is excluded from K by the caller, never averaged in
     assert classify_feasibility_final([good, good, good], 1.0, 2, n_boot=200).status != "invalid"
+
+
+def test_legacy_searches_abort_on_invalid_instead_of_reading_it_as_infeasible():
+    from edge_specsim.capacity import InvalidCandidateError, SearchDecision, monotone_scale_search, monotone_scale_search_final
+    with pytest.raises(InvalidCandidateError):
+        monotone_scale_search(lambda m: "feasible" if m < 3 else "invalid", hi_cap=16)
+    with pytest.raises(InvalidCandidateError):
+        monotone_scale_search_final(
+            lambda n: SearchDecision(n=n, status="feasible" if n < 3 else "invalid", min_lcb=0.0, min_ucb=0.0, seeds_used=5),
+            hi_cap=16)

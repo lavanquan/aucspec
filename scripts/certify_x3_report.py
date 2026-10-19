@@ -1,7 +1,7 @@
 """Decisions, boundary verdict, and report for the budget100 x=3.0 certification.
 
 No GPU. Reads <run_dir>/cache_parts/*.jsonl, applies the existing exact-SLO
-final classifier (classify_feasibility_final) to the shortest seed prefix
+certified Bonferroni Student-t classifier (classify_certified; C1 replaced the percentile-bootstrap one) to the shortest seed prefix
 k in [initial_seeds, max_seeds] that gives a decisive verdict, and writes the
 compact outputs. A candidate with any exhausted client is INVALID.
 """
@@ -20,7 +20,8 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "legacy" / "src"))
 
-from edge_specsim.capacity import CandidateCache, classify_feasibility_final  # noqa: E402
+from edge_specsim.capacity import CandidateCache  # noqa: E402
+from edge_specsim.capacity_certified import classify_certified  # noqa: E402
 
 RESULTS_ROOT = REPO_ROOT / "results" / "capacity_frontier"
 
@@ -33,7 +34,8 @@ def decide(by_seed: dict, x: float, n: int, initial: int, max_seeds: int, delta:
             break
         contiguous.append(s)
     out = {"n": n, "seeds_available": contiguous, "x": x}
-    exhausted = [s for s in contiguous if by_seed[s].extra.get("exhausted_clients")]
+    # C1: INVALID = lifecycle-exhausted workload (flag) or, for legacy cache parts, the old exhausted_clients list
+    exhausted = [s for s in contiguous if getattr(by_seed[s], "invalid", False) or by_seed[s].extra.get("exhausted_clients")]
     if exhausted:
         out.update(status="invalid_exhausted", seeds_used=[], invalid_seeds=exhausted)
         return out
@@ -41,8 +43,10 @@ def decide(by_seed: dict, x: float, n: int, initial: int, max_seeds: int, delta:
         out.update(status="incomplete", seeds_used=[])
         return out
     last = None
+    n_looks = max(1, max_seeds - initial + 1)        # sequential looks K = initial..max_seeds are alpha-spent
     for k in range(initial, len(contiguous) + 1):
-        last = classify_feasibility_final([by_seed[s] for s in contiguous[:k]], x, n, confidence_delta=delta)
+        last = classify_certified([by_seed[s] for s in contiguous[:k]], x, n, delta=delta, min_seeds=initial,
+                                  n_looks=n_looks)
         if last.status in ("feasible", "infeasible"):
             out.update(status=last.status, seeds_used=contiguous[:k], min_lcb=last.min_lcb, min_ucb=last.min_ucb)
             break
@@ -51,7 +55,7 @@ def decide(by_seed: dict, x: float, n: int, initial: int, max_seeds: int, delta:
             status="uncertain_at_max_seeds" if len(contiguous) >= max_seeds else "needs_more_seeds",
             seeds_used=contiguous, min_lcb=last.min_lcb, min_ucb=last.min_ucb,
         )
-    full = classify_feasibility_final([by_seed[s] for s in contiguous], x, n, confidence_delta=delta)
+    full = classify_certified([by_seed[s] for s in contiguous], x, n, delta=delta, min_seeds=initial, n_looks=n_looks)
     out["all_seeds_status"] = full.status
     out["all_seeds_lcb"], out["all_seeds_ucb"] = full.min_lcb, full.min_ucb
     out["all_seeds_n"] = len(contiguous)

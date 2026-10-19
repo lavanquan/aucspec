@@ -20,7 +20,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 import run_capacity_frontier as rcf  # noqa: E402
 from edge_specsim.capacity import CandidateCache  # noqa: E402
 
-POLICY = "capacity_dpp"
+POLICY = "capacity_dpp"   # default; a config may set controller.policy (e.g. fixed_gamma for the RQ1 pilot)
 
 
 def cmd_init(a) -> int:
@@ -44,7 +44,7 @@ def cmd_run(a) -> int:
     if head != ctx.git_sha:
         print(f"code revision changed since init: HEAD={head} run={ctx.git_sha}", file=sys.stderr)
         return 4
-    rcf._ACTIVE_POLICY = POLICY
+    rcf._ACTIVE_POLICY = str(ctx.base_cfg.get("controller", {}).get("policy", POLICY))
     cs = ctx.base_cfg["capacity_search"]
     x = float(cs["x_grid_final"][0])
     meas_s = float(cs["measurement_seconds_final"])
@@ -52,8 +52,8 @@ def cmd_run(a) -> int:
     cache = CandidateCache(part)
     m = rcf.run_one(ctx.base_cfg, a.n, x, a.seed, meas_s, ctx.config_hash, cache, ctx.raw_dir, False)
     exhausted = m.extra.get("exhausted_clients") or []
-    print(f"[done] n={a.n} seed={a.seed} min_rate={m.min_rate_tps:.4f} exhausted={len(exhausted)}", flush=True)
-    if exhausted:
+    print(f"[done] n={a.n} seed={a.seed} min_rate={m.min_rate_tps:.4f} exhausted={len(exhausted)} invalid={m.invalid}", flush=True)
+    if exhausted or m.invalid:
         print("INVALID: workload exhaustion; rerun after increasing workload supply", file=sys.stderr)
         return 3
     return 0

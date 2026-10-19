@@ -9,13 +9,16 @@ This file now has two paths:
                      into the OLD mutable results/capacity_frontier/ path.
                      Never produces headline ICA (Section 9.2).
 
-  --search/--resume FINAL mode. classify_feasibility_final (Bonferroni-
-                     bootstrap per-client confidence bounds against the
-                     EXACT x, Section 9.1), NStarResult (Section 10.1),
-                     optional x*(N) cross-check (Section 10.2), dual area
-                     bounds (Section 11), all written into an immutable
-                     results/capacity_frontier/<run_tag>/ directory
-                     (Section 12).
+  --search/--resume FINAL mode (C1: certified path). classify_certified
+                     (Bonferroni Student-t per-client bounds against the EXACT x,
+                     K >= K_min seeds, UNCERTAIN below it), certified_n_search /
+                     certified_x_search (only CERTIFIED points are endpoints; the
+                     upper bound is conditional on the monotonicity assumption M
+                     and withdrawn if the probes falsify it), INVALID (workload
+                     exhausted) propagated and never classified, area bounds with
+                     right/left staircase ends, dual N*(x)/x*(N) consistency.
+                     The percentile bootstrap is a descriptive sensitivity column
+                     only. Immutable results/capacity_frontier/<run_tag>/.
 
   --analyze-only     rebuild frontier/ICA/figures/RUN_REPORT.md from an
                      existing run directory's candidate cache, no GPU.
@@ -48,19 +51,27 @@ sys.path.insert(0, str(REPO_ROOT / "legacy" / "src"))
 from edge_specsim.capacity import (  # noqa: E402
     CandidateCache,
     CandidateMeasurement,
-    NStarResult,
     SearchDecision,
-    XStarResult,
-    area_from_nstar,
-    area_from_xstar,
     classify_feasibility,
-    classify_feasibility_final,
     ica,
     monotone_scale_search,
-    monotone_scale_search_final,
     step_area_bounds,
     tail_slope,
-    xstar_search,
+)
+from edge_specsim.capacity_certified import (  # noqa: E402
+    INVALID,
+    MIN_CERTIFICATION_SEEDS,
+    BoundaryResult,
+    XBoundaryResult,
+    area_from_boundaries,
+    area_from_x_boundaries,
+    bootstrap_sensitivity,
+    certified_n_search,
+    certified_x_search,
+    classify_certified,
+    dual_consistency,
+    summarize_probes,
+    summarize_x_probes,
 )
 from edge_specsim.workload_lifecycle import assess_from_dataframe  # noqa: E402
 from edge_specsim.metrics import (  # noqa: E402
@@ -135,7 +146,8 @@ def _population_config_fingerprint(base_cfg: dict) -> str:
     sim = base_cfg.get("simulation", {})
     payload = json.dumps(
         {
-            "seed": sim.get("seed"),
+            "population_seed": sim.get("population_seed"),
+            "seed": None if sim.get("population_seed") is not None else sim.get("seed"),   # run-seed never in identity
             "nested_population": sim.get("nested_population"),
             "population_n_max": sim.get("population_n_max"),
             "questions_per_client": sim.get("questions_per_client"),
@@ -344,89 +356,123 @@ def run_one(base_cfg: dict, n: int, x: float, seed: int, meas_s: float, cfg_hash
 # FINAL mode: exact-SLO classifier + NStarResult + x*(N)
 # =========================================================================
 
+def _look_budget(cs: dict) -> tuple[int, int, int]:
+    """(min_seeds, max_seeds, n_looks): sequential looks at K = min..max are alpha-spent (C1/M3)."""
+    min_seeds = int(cs.get("min_certification_seeds", MIN_CERTIFICATION_SEEDS))
+    max_seeds = max(min_seeds, int(cs.get("max_seeds", 7)))
+    return min_seeds, max_seeds, max_seeds - min_seeds + 1
+
+
 def _decision_from_measurements(meas: list[CandidateMeasurement], x: float, n: int, cs: dict) -> SearchDecision:
-    r = classify_feasibility_final(
-        meas, x, n_clients=n, confidence_delta=float(cs.get("confidence_delta", 0.05)),
+    """Certified Bonferroni Student-t decision (capacity_certified.classify_certified).  The percentile
+    bootstrap is only logged as a descriptive sensitivity comparison, never used for the decision."""
+    min_seeds, _max_seeds, n_looks = _look_budget(cs)
+    r = classify_certified(
+        meas, x, n_clients=n, delta=float(cs.get("confidence_delta", 0.05)),
+        sided=str(cs.get("interval_sidedness", "one")), min_seeds=min_seeds,
+        n_looks=n_looks if bool(cs.get("sequential_alpha_spending", True)) else 1,
+        n_probes=int(cs.get("n_probes_budget", 1)),
     )
-    status = "uncertain" if r.status == "heuristic_only" else r.status
-    return SearchDecision(n=n, status=status, min_lcb=r.min_lcb, min_ucb=r.min_ucb, seeds_used=r.seeds_used)
+    d = SearchDecision(n=n, status=r.status, min_lcb=r.min_lcb, min_ucb=r.min_ucb, seeds_used=r.seeds_used)
+    d.reason = r.reason  # type: ignore[attr-defined]
+    if r.status != INVALID and len(meas) >= 2:
+        d.bootstrap_sensitivity = bootstrap_sensitivity(  # type: ignore[attr-defined]
+            meas, x, n, delta=float(cs.get("confidence_delta", 0.05)), n_boot=500)["status"]
+    return d
 
 
 def feasibility_at_final(base_cfg: dict, n: int, x: float, meas_s: float, cfg_hash: str,
                           cache: CandidateCache, raw_dir: Path, cs: dict, force: bool,
                           near_boundary: bool = False) -> SearchDecision:
-    """Section 9.2: start with `initial_seeds`; escalate on uncertain up to
-    `max_seeds`. Near a boundary being locally certified, force at least
-    `min_final_seeds` regardless of the preliminary verdict."""
-    initial = int(cs.get("initial_seeds", 3))
-    max_seeds = int(cs.get("max_seeds", 7))
-    min_final = int(cs.get("min_final_seeds", 5)) if near_boundary else initial
-
-    seeds = list(range(1, max(initial, min_final if near_boundary else 0, 1) + 1))
-    meas = [run_one(base_cfg, n, x, s, meas_s, cfg_hash, cache, raw_dir, force) for s in seeds]
+    """Run `min_certification_seeds` run-seeds, escalate on UNCERTAIN up to `max_seeds`.  An INVALID run (workload
+    exhausted) stops the candidate at once and is returned as INVALID -- it is never classified, never averaged."""
+    min_seeds, max_seeds, _ = _look_budget(cs)
+    first = max(int(cs.get("initial_seeds", min_seeds)), min_seeds)
+    if near_boundary:
+        first = max(first, int(cs.get("min_final_seeds", min_seeds)))
+    seeds = list(range(1, first + 1))
+    meas: list[CandidateMeasurement] = []
+    for s_ in seeds:
+        m = run_one(base_cfg, n, x, s_, meas_s, cfg_hash, cache, raw_dir, force)
+        meas.append(m)
+        if m.invalid:
+            return _decision_from_measurements(meas, x, n, cs)
     decision = _decision_from_measurements(meas, x, n, cs)
     while decision.status == "uncertain" and len(seeds) < max_seeds:
-        s = len(seeds) + 1
-        seeds.append(s)
-        meas.append(run_one(base_cfg, n, x, s, meas_s, cfg_hash, cache, raw_dir, force))
+        s_ = len(seeds) + 1
+        seeds.append(s_)
+        m = run_one(base_cfg, n, x, s_, meas_s, cfg_hash, cache, raw_dir, force)
+        meas.append(m)
+        if m.invalid:
+            return _decision_from_measurements(meas, x, n, cs)
         decision = _decision_from_measurements(meas, x, n, cs)
     return decision
 
 
-def search_nstar_final(ctx: RunContext, policy: str, x: float, hi_hint: int | None, force: bool) -> NStarResult:
+def search_nstar_final(ctx: RunContext, policy: str, x: float, hi_hint: int | None, force: bool) -> BoundaryResult:
     global _ACTIVE_POLICY
     _ACTIVE_POLICY = policy
     cs = ctx.base_cfg["capacity_search"]
     meas_s = float(cs["measurement_seconds_final"])
     cache = CandidateCache(ctx.cache_path)
+    hi_cap = int(cs["n_search_cap"])
+    decisions: dict[int, SearchDecision] = {}
 
-    def feas(n: int) -> SearchDecision:
-        return feasibility_at_final(ctx.base_cfg, n, x, meas_s, ctx.config_hash, cache, ctx.raw_dir, cs, force)
+    def decide(n: int, near: bool = False) -> str:
+        d = feasibility_at_final(ctx.base_cfg, n, x, meas_s, ctx.config_hash, cache, ctx.raw_dir, cs, force,
+                                 near_boundary=near)
+        decisions[n] = d
+        return d.status
 
-    result = monotone_scale_search_final(
-        feas, lo_feasible=int(cs["n_lo_feasible"]), hi_cap=int(cs["n_search_cap"]),
-        hi_hint=hi_hint, x_requirement=x,
-    )
+    res = certified_n_search(decide, lo=int(cs["n_lo_feasible"]), hi_cap=hi_cap, hi_hint=hi_hint, x_requirement=x)
 
-    # Section 10.1 step 5: locally certify the boundary with {N*-1, N*, N*+1}
-    # using min_final_seeds, if the boundary is exact and not cap-limited.
-    if result.exact and not result.hit_search_cap:
-        n_star = result.last_confirmed_feasible_n
-        for n_check in (n_star - 1, n_star, n_star + 1):
-            if n_check < 1 or n_check > int(cs["n_search_cap"]):
+    if res.status in ("exact_conditional", "bracketed") and not res.hit_search_cap:
+        # Section 10.1 step 5: re-certify {N*-1, N*, N*+1} with min_final_seeds, plus M9 falsification probes of the
+        # monotonicity assumption (N*+2, N*+3 and one point at factor*N*).
+        n_star = res.lower_bound_n
+        extra = [n_star - 1, n_star, n_star + 1]
+        extra += [n_star + int(o) for o in cs.get("nonmonotone_probe_offsets", [2, 3])]
+        extra.append(int(round(n_star * float(cs.get("nonmonotone_probe_factor", 1.5)))))
+        probes = dict(res.probes)
+        for n_check in sorted({n for n in extra if 1 <= n <= hi_cap}):
+            if n_check in probes and probes[n_check] in ("feasible", "infeasible") and n_check not in (n_star - 1, n_star, n_star + 1):
                 continue
-            d = feasibility_at_final(ctx.base_cfg, n_check, x, meas_s, ctx.config_hash, cache, ctx.raw_dir,
-                                      cs, force, near_boundary=True)
-            result.trace.append(d)
-            if d.status == "uncertain" and n_check not in result.uncertain_n:
-                result.uncertain_n.append(n_check)
-    return result
+            probes[n_check] = decide(n_check, near=True)
+        res = summarize_probes(x, probes, hi_cap)
+    res.decisions = {n: {"seeds": d.seeds_used, "min_lcb": d.min_lcb, "min_ucb": d.min_ucb,  # type: ignore[attr-defined]
+                         "bootstrap_sensitivity": getattr(d, "bootstrap_sensitivity", None)}
+                     for n, d in decisions.items()}
+    return res
 
 
-def search_xstar_final(ctx: RunContext, policy: str, n: int, x_lo: float, x_hi: float, force: bool) -> XStarResult:
+def search_xstar_final(ctx: RunContext, policy: str, n: int, x_lo: float, x_hi: float, force: bool) -> XBoundaryResult:
     global _ACTIVE_POLICY
     _ACTIVE_POLICY = policy
     cs = ctx.base_cfg["capacity_search"]
     meas_s = float(cs["measurement_seconds_final"])
     cache = CandidateCache(ctx.cache_path)
 
-    def feas(x: float) -> SearchDecision:
-        return feasibility_at_final(ctx.base_cfg, n, x, meas_s, ctx.config_hash, cache, ctx.raw_dir, cs, force)
+    def decide(x: float) -> str:
+        return feasibility_at_final(ctx.base_cfg, n, x, meas_s, ctx.config_hash, cache, ctx.raw_dir, cs, force).status
 
-    return xstar_search(feas, n_active=n, x_lo=x_lo, x_hi=x_hi,
-                         x_tolerance_tps=float(cs.get("x_tolerance_tps", 0.10)))
+    return certified_x_search(decide, n_active=n, x_lo=x_lo, x_hi=x_hi,
+                              x_tolerance_tps=float(cs.get("x_tolerance_tps", 0.10)))
 
 
-def _nstar_row(policy: str, r: NStarResult, seeds_at_boundary: int) -> dict:
+def _nstar_row(policy: str, r: BoundaryResult) -> dict:
     return {
         "policy": policy, "x_requirement": r.x_requirement,
-        "last_confirmed_feasible_N": r.last_confirmed_feasible_n,
-        "first_confirmed_infeasible_N": r.first_confirmed_infeasible_n,
-        "N_lower": r.lower_bound_n, "N_upper": r.upper_bound_n,
-        "exact_boundary": r.exact, "hit_search_cap": r.hit_search_cap,
-        "boundary_certified": r.exact and not r.hit_search_cap,
-        "uncertain_n": ";".join(str(n) for n in r.uncertain_n),
-        "seeds_at_boundary": seeds_at_boundary,
+        "boundary_status": r.status.upper() if r.status == "invalid" else r.status,
+        # kept for the figure code / older readers: last certified-feasible N and conditional upper bound
+        "last_confirmed_feasible_N": r.lower_bound_n,
+        "N_lower": r.lower_bound_n,
+        "N_upper_conditional_monotone": r.upper_bound_monotone,
+        "N_upper_unconditional": r.upper_bound_unconditional,
+        "exact_conditional": r.exact_conditional, "hit_search_cap": r.hit_search_cap,
+        "gray_n": ";".join(map(str, r.gray_ns)), "invalid_n": ";".join(map(str, r.invalid_ns)),
+        "monotone_violations": ";".join(f"{a}>{b}" for a, b in r.monotone_violations),
+        "probes_json": json.dumps({str(k): v for k, v in sorted(r.probes.items())}),
+        "hi_cap": r.hi_cap,
     }
 
 
@@ -451,11 +497,14 @@ def run_search_final(run_tag: str | None, policies: list[str], axis: str, resume
             hi_hint = None
             for x in x_grid:
                 res = search_nstar_final(ctx, policy, x, hi_hint, force)
-                seeds_at_boundary = max((d.seeds_used for d in res.trace if d.n == res.last_confirmed_feasible_n), default=0)
-                rows.append(_nstar_row(policy, res, seeds_at_boundary))
-                hi_hint = max(1, res.lower_bound_n)
-                print(f"  -> [{policy}] N*({x}): last_feasible={res.last_confirmed_feasible_n} "
-                      f"exact={res.exact} cap={res.hit_search_cap}", flush=True)
+                rows.append(_nstar_row(policy, res))
+                if res.status == "invalid":
+                    print(f"  -> [{policy}] N*({x}): INVALID (workload exhausted at N={res.invalid_ns}); "
+                          f"this x is NOT classified and the search for it stops", flush=True)
+                else:
+                    hi_hint = max(1, res.lower_bound_n)
+                    print(f"  -> [{policy}] N*({x}): lower={res.lower_bound_n} upper_monotone={res.upper_bound_monotone} "
+                          f"status={res.status}", flush=True)
                 pd.DataFrame(rows).to_csv(ctx.run_dir / f"nstar_frontier_{policy}.csv", index=False)
         else:  # axis == "x"
             n_ref = int(cs["n_ref"])
@@ -463,18 +512,38 @@ def run_search_final(run_tag: str | None, policies: list[str], axis: str, resume
             for n in range(1, n_ref + 1):
                 res = search_xstar_final(ctx, policy, n, x_lo=float(cs["x_L"]), x_hi=float(cs["x_U"]), force=force)
                 rows.append({
-                    "policy": policy, "N": n,
-                    "x_lower_feasible": res.lower_feasible_x,
-                    "x_upper_infeasible": res.upper_infeasible_x,
-                    "x_estimate": res.estimate_x,
+                    "policy": policy, "N": n, "boundary_status": res.status,
+                    "x_lower_feasible": res.lower_feasible_x, "x_upper_infeasible": res.upper_infeasible_x,
                     "x_tolerance_tps": float(cs.get("x_tolerance_tps", 0.10)),
-                    "boundary_certified": res.exact_within_tolerance,
+                    "exact_within_tolerance": res.exact_within_tolerance,
+                    "gray_x": ";".join(map(str, res.gray_xs)), "invalid_x": ";".join(map(str, res.invalid_xs)),
+                    "probes_json": json.dumps({str(k): v for k, v in sorted(res.probes.items())}),
                 })
-                print(f"  -> [{policy}] x*({n}) = {res.estimate_x:.3f} (certified={res.exact_within_tolerance})",
+                print(f"  -> [{policy}] x*({n}): [{res.lower_feasible_x}, {res.upper_infeasible_x}] status={res.status}",
                       flush=True)
                 pd.DataFrame(rows).to_csv(ctx.run_dir / f"xstar_frontier_{policy}.csv", index=False)
 
     analyze_final(ctx.run_dir.name)
+
+
+def _load_n_results(path: str, hi_cap_default: int) -> tuple[str, list[BoundaryResult]]:
+    df = pd.read_csv(path)
+    policy = str(df["policy"].iloc[0])
+    out = []
+    for row in df.itertuples():
+        probes = {int(k): v for k, v in json.loads(row.probes_json).items()}
+        out.append(summarize_probes(float(row.x_requirement), probes, int(getattr(row, "hi_cap", hi_cap_default))))
+    return policy, out
+
+
+def _load_x_results(path: str) -> tuple[str, list[XBoundaryResult]]:
+    df = pd.read_csv(path)
+    policy = str(df["policy"].iloc[0])
+    out = []
+    for row in df.itertuples():
+        probes = {float(k): v for k, v in json.loads(row.probes_json).items()}
+        out.append(summarize_x_probes(int(row.N), probes, float(row.x_tolerance_tps)))
+    return policy, out
 
 
 def analyze_final(run_tag: str) -> None:
@@ -484,62 +553,58 @@ def analyze_final(run_tag: str) -> None:
 
     comparison_rows = []
     report_lines = [
-        f"# Capacity-Aware Framework -- Run Report\n",
+        f"# Capacity-Aware Framework -- Run Report (certified, C1)\n",
         f"run_tag: `{run_tag}`  \nconfig_hash: `{ctx.config_hash}`  \ngit_sha: `{ctx.git_sha}`\n",
     ]
+    x_by_policy = {}
+    for xpath in sorted(glob.glob(str(ctx.run_dir / "xstar_frontier_*.csv"))):
+        pol, xr = _load_x_results(xpath)
+        x_by_policy[pol] = xr
 
     for nstar_path in sorted(glob.glob(str(ctx.run_dir / "nstar_frontier_*.csv"))):
+        policy, results = _load_n_results(nstar_path, int(cs["n_search_cap"]))
         df = pd.read_csv(nstar_path)
-        policy = str(df["policy"].iloc[0])
-        results = [
-            NStarResult(
-                x_requirement=float(row.x_requirement),
-                last_confirmed_feasible_n=int(row.last_confirmed_feasible_N),
-                first_confirmed_infeasible_n=(None if pd.isna(row.first_confirmed_infeasible_N) else int(row.first_confirmed_infeasible_N)),
-                lower_bound_n=int(row.N_lower),
-                upper_bound_n=(None if pd.isna(row.N_upper) else int(row.N_upper)),
-                exact=bool(row.exact_boundary),
-                hit_search_cap=bool(row.hit_search_cap),
-            )
-            for row in df.itertuples()
-        ]
         try:
-            area = area_from_nstar(results, x_L=x_L, x_U=x_U, n_ref=n_ref)
+            area = area_from_boundaries(results, x_L=x_L, x_U=x_U, n_ref=n_ref)
         except ValueError as exc:
             print(f"[{policy}] area not computed: {exc}")
-            area = {"area_lower": None, "area_upper": None, "ica_lower": None, "ica_upper": None,
-                    "any_cap_limited": None, "any_interval_valued": None, "error": str(exc)}
-        out = {"policy": policy, "run_tag": run_tag, "x_L": x_L, "x_U": x_U, "n_ref": n_ref, **area}
+            area = {"status": "NOT_COMPUTED", "area_lower": None, "area_upper": None, "ica_lower": None,
+                    "ica_upper": None, "error": str(exc)}
+        dual = None
+        if policy in x_by_policy:
+            dual = dual_consistency(results, x_by_policy[policy], x_L=x_L, x_U=x_U, n_ref=n_ref)
+        out = {"policy": policy, "run_tag": run_tag, "x_L": x_L, "x_U": x_U, "n_ref": n_ref, **area,
+               "dual_consistency": dual}
         with open(ctx.run_dir / f"capacity_area_{policy}.json", "w", encoding="utf-8") as f:
-            json.dump(out, f, indent=2)
+            json.dump(out, f, indent=2, default=str)
         comparison_rows.append({
-            "policy": policy,
-            "ica_lower": area["ica_lower"], "ica_upper": area["ica_upper"],
-            "any_cap_limited": area["any_cap_limited"], "any_interval_valued": area["any_interval_valued"],
+            "policy": policy, "area_status": area["status"],
+            "ica_lower": area.get("ica_lower"), "ica_upper": area.get("ica_upper"),
+            "n_invalid_points": int(sum(r.status == "invalid" for r in results)),
+            "n_unresolved_upper": int(sum(r.upper_bound_n is None for r in results)),
+            "n_nonmonotone": int(sum(r.status == "nonmonotone_unresolved" for r in results)),
+            "dual_consistent": None if dual is None else dual["consistent"],
             "x_min": df["x_requirement"].min(), "x_max": df["x_requirement"].max(),
         })
-        n_exact = int(df["exact_boundary"].sum())
-        n_cap = int(df["hit_search_cap"].sum())
         report_lines.append(
-            f"\n## {policy}\n\nICA (lower, upper): {area['ica_lower']}, {area['ica_upper']}  \n"
-            f"points: {len(df)} (exact: {n_exact}, cap-limited: {n_cap})\n\n```\n"
-            + df.to_string(index=False) + "\n```"
+            f"\n## {policy}\n\nArea status: **{area['status']}**  ICA (lower, upper): {area.get('ica_lower')}, "
+            f"{area.get('ica_upper')}  \npoints: {len(df)}  (INVALID points make the area INVALID; "
+            f"unresolved upper bounds widen the upper integral to n_ref)\n\n```\n"
+            + df.drop(columns=["probes_json"]).to_string(index=False) + "\n```"
         )
-        print(f"[{policy}] ICA in [{area['ica_lower']}, {area['ica_upper']}] "
-              f"cap_limited={area['any_cap_limited']} interval_valued={area['any_interval_valued']}")
+        print(f"[{policy}] area status={area['status']} ICA in [{area.get('ica_lower')}, {area.get('ica_upper')}]")
 
     if comparison_rows:
-        cmp_df = pd.DataFrame(comparison_rows).sort_values("ica_lower", ascending=False)
+        cmp_df = pd.DataFrame(comparison_rows)
         cmp_df.to_csv(ctx.run_dir / "policy_comparison.csv", index=False)
-        print("\n=== policy comparison (final mode, by ICA lower bound) ===")
+        print("\n=== policy comparison (certified, by status then ICA lower) ===")
         print(cmp_df.to_string(index=False))
 
     report_lines.append(
-        "\n---\n\nThis run used the FINAL exact-SLO classifier "
-        "(classify_feasibility_final, Bonferroni-bootstrap confidence bounds) "
-        "and NStarResult search semantics. Cap-limited points are reported as "
-        "lower bounds, never as N*=N_cap. See CAPACITY_AWARE_FRAMEWORK_CODEX_"
-        "IMPLEMENTATION.md for the full contract.\n"
+        "\n---\n\nThis run used the certified path (capacity_certified): Bonferroni Student-t classifier with "
+        "K_min seeds and UNCERTAIN below it; UNCERTAIN/INVALID points are never bounds; upper bounds are "
+        "conditional on the monotonicity assumption M and withdrawn if the probes falsify it; INVALID (workload "
+        "exhausted) is propagated and never classified. The percentile bootstrap is a sensitivity column only.\n"
     )
     (ctx.run_dir / "RUN_REPORT.md").write_text("\n".join(report_lines), encoding="utf-8")
     print(f"\nwrote {ctx.run_dir / 'RUN_REPORT.md'}")
@@ -576,7 +641,9 @@ def _figures_final(ctx: RunContext) -> None:
 
     cmp_path = ctx.run_dir / "policy_comparison.csv"
     if cmp_path.exists():
-        cmp_df = pd.read_csv(cmp_path).sort_values("ica_lower", ascending=False)
+        cmp_df = pd.read_csv(cmp_path).dropna(subset=["ica_lower", "ica_upper"])
+        if cmp_df.empty:
+            return
         fig, ax = plt.subplots(figsize=(7, 4))
         x_pos = range(len(cmp_df))
         lo = cmp_df["ica_lower"].tolist()

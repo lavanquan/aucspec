@@ -20,6 +20,10 @@ from pathlib import Path
 from typing import Callable, Iterable, Sequence
 
 
+class InvalidCandidateError(RuntimeError):
+    """A candidate measurement is INVALID (workload exhausted). It must abort a search, never be read as infeasible."""
+
+
 # --------------------------------------------------------------------------- 11
 def sustained_rates(
     useful_tokens_by_client: dict[int, float],
@@ -317,6 +321,8 @@ def monotone_scale_search(
     def _ev(m: int) -> str:
         s = feasibility_fn(m)
         trace["evaluated"].append({"scale": m, "status": s})
+        if s == "invalid":
+            raise InvalidCandidateError(f"scale {m}: INVALID measurement (workload exhausted); not a boundary")
         return s
 
     # exponential bracketing up from a known-feasible lo
@@ -640,6 +646,8 @@ def monotone_scale_search_final(
     def _ev(n: int) -> SearchDecision:
         d = feasibility_fn(n)
         trace.append(d)
+        if d.status == "invalid":
+            raise InvalidCandidateError(f"N={n}: INVALID measurement (workload exhausted); not a boundary")
         if d.status == "uncertain":
             uncertain_n.append(n)
         return d
@@ -733,6 +741,8 @@ def xstar_search(
     def _ev(x: float) -> SearchDecision:
         d = feasibility_fn(x)
         trace.append(d)
+        if d.status == "invalid":
+            raise InvalidCandidateError(f"x={x}: INVALID measurement (workload exhausted); not a boundary")
         return d
 
     lo_d = _ev(x_lo)
