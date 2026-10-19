@@ -1,3 +1,4 @@
+# LEGACY / DEFECTIVE RUNTIME config: no `runtime:` section; refused by canonical_guard (naive-SDPA ROCm fallback).
 capacity_search:
   confidence_delta: 0.05
   initial_seeds: 5

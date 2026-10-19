@@ -3,6 +3,13 @@
 #SBATCH --account=pawsey1257-gpu
 #SBATCH --gres=gpu:8
 #SBATCH --time=2:00:00
+# >>> DEFECTIVE LEGACY RUNTIME GUARD (naive-SDPA ROCm fallback: batched verification is wrong for >= 3 sequences) >>>
+# Kept only for historical reproduction. New canonical work must use scripts/run_canonical_job.sh (V1-batchwall-tritonfa33).
+if [ "${ALLOW_DEFECTIVE_LEGACY_RUNTIME:-0}" != "1" ]; then
+  echo "REFUSING: this launcher selects the defective legacy runtime (VLLM_USE_TRITON_FLASH_ATTN=0). Set ALLOW_DEFECTIVE_LEGACY_RUNTIME=1 only to reproduce historical results." >&2
+  exit 64
+fi
+# <<< END GUARD
 # usage: sbatch --job-name=c3_N<N>_s<S> --output=<run_dir>/logs/n<N>_s<S>_%j.log scripts/run_x3_cert_job.sh <N> <SEED>
 set -x
 N="$1"

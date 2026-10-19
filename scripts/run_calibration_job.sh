@@ -4,6 +4,13 @@
 #SBATCH --gres=gpu:8
 #SBATCH --nodes=1
 #SBATCH --time=0:45:00
+# >>> DEFECTIVE LEGACY RUNTIME GUARD (naive-SDPA ROCm fallback: batched verification is wrong for >= 3 sequences) >>>
+# Kept only for historical reproduction. New canonical work must use scripts/run_canonical_job.sh (V1-batchwall-tritonfa33).
+if [ "${ALLOW_DEFECTIVE_LEGACY_RUNTIME:-0}" != "1" ]; then
+  echo "REFUSING: this launcher selects the defective legacy runtime (VLLM_USE_TRITON_FLASH_ATTN=0). Set ALLOW_DEFECTIVE_LEGACY_RUNTIME=1 only to reproduce historical results." >&2
+  exit 64
+fi
+# <<< END GUARD
 # usage: sbatch --job-name=verif_calib --output=/scratch/pawsey1257/quanla/calibration_raw/<tag>/slurm_%j.log \
 #        <worktree>/scripts/run_calibration_job.sh <WORKTREE> <CONFIG> <TAG>
 # One job, one node, 45 min. Raw JSONL is checkpointed (fsync per call) on /scratch.

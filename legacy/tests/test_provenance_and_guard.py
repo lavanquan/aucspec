@@ -130,7 +130,7 @@ def guard():
     sys.path.remove(str(REPO / "scripts"))
 
 
-GOOD = {"controller": {"verifier_price_mode": "zero"}, "verification_batching": {"service_time_model": "batch_wall", "scheduler": "capacity_knapsack",
+GOOD = {"runtime": {"identity": "V1-batchwall-tritonfa33", "require_triton_fa": True}, "controller": {"verifier_price_mode": "zero"}, "verification_batching": {"service_time_model": "batch_wall", "scheduler": "capacity_knapsack",
                                   "budget_mode": "fixed", "verify_token_budget": 100,
                                   "max_batch_size": 32, "batch_wait_ms": 3.0}}
 

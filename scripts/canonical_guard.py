@@ -31,6 +31,9 @@ class GuardError(RuntimeError):
     pass
 
 
+RUNTIME_IDENTITY = "V1-batchwall-tritonfa33"
+
+
 # ------------------------------------------------------------------ source
 def assert_clean_source(repo_root: Path | str = REPO_ROOT) -> dict:
     """Refuse a dirty tree: any tracked modification, or an untracked file
@@ -70,9 +73,27 @@ def validate_canonical_config(cfg: dict, semantics: str = "batch_wall") -> None:
         raise GuardError(f"service_time_model is {model!r} but this launch requires {semantics!r}")
     if batching["budget_mode"] != "fixed":
         raise GuardError("canonical contract uses budget_mode: fixed")
+    rt = cfg.get("runtime") or {}
+    if rt.get("identity") != RUNTIME_IDENTITY or rt.get("require_triton_fa") is not True:
+        raise GuardError(
+            f"config must declare runtime.identity: {RUNTIME_IDENTITY} and runtime.require_triton_fa: true "
+            "(configs without it target the defective legacy runtime)"
+        )
     mode = (cfg.get("controller") or {}).get("verifier_price_mode")
     if mode != "zero":
         raise GuardError(f"controller.verifier_price_mode must be explicitly 'zero' (got {mode!r}); calibrated pricing is not enabled")
+
+
+def assert_runtime_env(env=None, manifest_path=None) -> None:
+    """Process environment must select Triton FlashAttention with the Triton shim (never the legacy naive path)."""
+    import os
+
+    from edge_specsim import runtime_guard as rg
+
+    manifest = rg.load_manifest(manifest_path or (REPO_ROOT / "runtime" / "tritonfa33" / "MANIFEST.json"))
+    bad = rg.check_environment(dict(os.environ if env is None else env), manifest)
+    if bad:
+        raise GuardError("runtime environment refused: " + "; ".join(bad))
 
 
 # ------------------------------------------------------------------- quota

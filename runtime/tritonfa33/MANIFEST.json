@@ -1,0 +1,32 @@
+{
+ "dependency_files": {
+  "pandas": "/software/projects/pawsey1257/quanla/aucspec/.pythonuserbase-rocm-vllm/lib/python3.12/site-packages/pandas",
+  "yaml": "/usr/lib/python3/dist-packages/yaml"
+ },
+ "expected_attention_layers_qwen2_5_7b": 28,
+ "frozen_dependencies": {
+  "numpy": "1.26.4",
+  "pandas": "3.0.5",
+  "pyyaml": "6.0.1",
+  "transformers": "4.51.3"
+ },
+ "hip_version": "6.3.42134-a9a80e791",
+ "identity": "V1-batchwall-tritonfa33",
+ "python_version": "3.12.3",
+ "sha256": {
+  "torch/version.py": "fd6e14747199f4fb24b840cbb43c085529b044054ea15a78f3931e86a7c85e01",
+  "triton/__init__.py": "5b56946b337e7a5facc68e88ee1ca47e9823352c8be0592e312bd7f411aff04d",
+  "triton/compiler/compiler.py": "2e234c1d93a7cae949341b60b8567f825914128ed598e1d846c8bc19a9d65ad8",
+  "vllm/attention/backends/rocm_flash_attn.py": "7e39eaa94196d39dad05baec1cd1b7793b11ea523cf001e46b1974caea4f5768",
+  "vllm/attention/ops/triton_flash_attention.py": "3f252da1bbbeed91c83bc16ffacc29c79f0beabf4515dfb050fe0020bb9185b1"
+ },
+ "shim_dir": "/software/projects/pawsey1257/quanla/aucspec_runtime/tritonfa33/shim",
+ "shim_symlink": "/software/projects/pawsey1257/quanla/aucspec_runtime/tritonfa33/shim/triton",
+ "shim_symlink_target": "/usr/local/lib/python3.12/dist-packages/triton",
+ "torch_dir_prefix": "/usr/local/lib/python3.12/dist-packages/torch",
+ "torch_version": "2.7.1a0+gite2d141d",
+ "triton_realpath_prefix": "/usr/local/lib/python3.12/dist-packages/triton",
+ "triton_version": "3.3.1",
+ "vllm_dir": "/software/projects/pawsey1257/quanla/aucspec/vllm_rocm_build/vllm/vllm",
+ "vllm_version": "0.9.1+rocm633"
+}

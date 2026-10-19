@@ -35,6 +35,7 @@ from .network import (
 )
 from .metrics import summarize_round_csv
 from .provenance import collect_provenance, verifier_semantics_record
+from .runtime_guard import serialisable as _serialise_runtime
 from .roofline_budget import RooflineBudgetModel
 from .target_client import VLLMCandidateVerifier
 from .verification_batcher import VerificationBatcher
@@ -123,6 +124,15 @@ class EdgeSpecSimulator:
             sampling_temperature=self.sampling_temperature,
             seed=int(sim["seed"]),
         )
+        # Corrected-runtime guard (behaviour-neutral): proves from inside this process that every target attention
+        # layer runs Triton FlashAttention and records the runtime identity. Raises instead of falling back.
+        self.runtime_evidence = None
+        if (self.cfg.get("runtime") or {}).get("require_triton_fa"):
+            from . import runtime_guard
+
+            self.runtime_evidence = runtime_guard.enforce_runtime(
+                self.target, self.cfg["runtime"], Path(__file__).resolve().parents[3]
+            )
         self.workers = [
             DraftWorker(
                 i,
@@ -1099,6 +1109,7 @@ class EdgeSpecSimulator:
             "provenance": collect_provenance(
                 Path(__file__).resolve().parents[3], self.cfg
             ),
+            "runtime_identity": _serialise_runtime(getattr(self, "runtime_evidence", None)),
             "verifier_semantics": verifier_semantics_record(
                 self.target,
                 self.cfg.get("verification_batching", {}),
