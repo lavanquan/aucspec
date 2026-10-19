@@ -84,6 +84,7 @@ class ClientProfile:
     history_token_ids: list[int] = field(default_factory=list)
     generated_for_sample: int = 0
     draft_speed_multiplier: float = 1.0
+    samples_assigned: int = 0  # prompts assigned at start-up (M1 lifecycle accounting)
     alpha_recent_events: Deque[tuple[int, int, bool]] = field(default_factory=deque)
 
     def _normalized_learning_mode(self) -> str:

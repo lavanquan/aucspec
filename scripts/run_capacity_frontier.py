@@ -62,6 +62,7 @@ from edge_specsim.capacity import (  # noqa: E402
     tail_slope,
     xstar_search,
 )
+from edge_specsim.workload_lifecycle import assess_from_dataframe  # noqa: E402
 from edge_specsim.metrics import (  # noqa: E402
     compute_sustained_service_rates,
     summarize_sustained_service_rates,
@@ -73,7 +74,7 @@ PILOT_OUT_DIR = RESULTS_ROOT
 PILOT_RAW_DIR = PILOT_OUT_DIR / "raw"
 PILOT_CACHE_PATH = PILOT_OUT_DIR / "candidate_cache.jsonl"
 
-CANDIDATE_CACHE_SCHEMA_VERSION = 2
+CANDIDATE_CACHE_SCHEMA_VERSION = 3
 
 _ACTIVE_POLICY = "capacity_dpp"
 
@@ -224,33 +225,44 @@ def measure_candidate(rounds_csv: Path, n: int, x: float, seed: int, meas_s: flo
     df = pd.read_csv(rounds_csv, low_memory=False)
     win = df[df["in_measurement_window"].astype(bool)] if "in_measurement_window" in df.columns else df
     if win.empty:
+        # No round completed inside the window.  Whether that is a genuine zero rate (rounds longer than
+        # the window) or exhaustion is decided by the lifecycle assessment, not assumed.
+        assessment = assess_from_dataframe(
+            df, admitted_client_ids=list(range(n)),
+            measurement_start_ms=float(df["experiment_warmup_end_ms"].iloc[0]),
+            measurement_end_ms=(None if df["experiment_measurement_end_ms"].isna().all()
+                                else float(df["experiment_measurement_end_ms"].iloc[0])),
+        )
+        reason = ("workload exhausted before measurement_end for clients "
+                  f"{assessment.exhausted_clients}") if assessment.invalid else (
+                  "workload lifecycle unverifiable" if not assessment.verifiable else "")
         return CandidateMeasurement(
             scale=n, n_active=n, x_requirement=x, seed=seed, min_rate_tps=0.0,
             per_client_rates={i: 0.0 for i in range(n)},
+            invalid=bool(reason), invalid_reason=reason, workload=assessment.to_dict(),
         )
 
     rates_df = compute_sustained_service_rates(win, t_measurement_s=meas_s, admitted_client_ids=list(range(n)))
     summ = summarize_sustained_service_rates(rates_df)
     per_client = dict(zip(rates_df["client_id"].astype(int), rates_df["sustained_service_rate_tps"].astype(float)))
 
-    # Workload-exhaustion guard: if a client's own activity span inside the
-    # window is much shorter than meas_s, it ran out of assigned prompts
-    # (questions_per_client too small for this rate * meas_s) before the
-    # measurement interval ended. The fixed-denominator rate is then an
-    # UNDERESTIMATE of true sustained capacity, not a real throttling
-    # signal -- surfaced loudly here instead of silently producing a
-    # spuriously low (and possibly falsely "infeasible") rate.
-    exhausted_clients = []
-    if "client_receive_ms" in win.columns:
-        for cid, g in win.groupby("client_id"):
-            span_s = (g["client_receive_ms"].max() - g["client_receive_ms"].min()) / 1000.0
-            if span_s < 0.85 * meas_s:
-                exhausted_clients.append({"client_id": int(cid), "active_span_s": round(span_s, 1)})
-    if exhausted_clients:
-        print(f"  !! WORKLOAD EXHAUSTION at n={n} x={x} seed={seed}: "
-              f"{len(exhausted_clients)}/{n} client(s) ran out of prompts before the "
-              f"{meas_s}s window ended (increase questions_per_client): {exhausted_clients}",
-              flush=True)
+    # M1/M2: explicit per-client workload lifecycle in VIRTUAL time (edge slack between in-window receive
+    # events is NOT exhaustion).  Any exhausted client makes the whole run INVALID -- never INFEASIBLE.
+    assessment = assess_from_dataframe(
+        df,
+        admitted_client_ids=list(range(n)),
+        measurement_start_ms=float(df["experiment_warmup_end_ms"].iloc[0]),
+        measurement_end_ms=(None if df["experiment_measurement_end_ms"].isna().all()
+                            else float(df["experiment_measurement_end_ms"].iloc[0])),
+    )
+    invalid_reason = ""
+    if assessment.invalid:
+        invalid_reason = (f"workload exhausted before measurement_end for clients {assessment.exhausted_clients}")
+    elif not assessment.verifiable:
+        invalid_reason = (f"workload lifecycle unverifiable for clients {assessment.unknown_clients}")
+    if invalid_reason:
+        print(f"  !! INVALID run at n={n} x={x} seed={seed}: {invalid_reason}", flush=True)
+    exhausted_clients = assessment.exhausted_clients
 
     def _slope(col: str) -> float:
         if col not in win.columns:
@@ -291,6 +303,9 @@ def measure_candidate(rounds_csv: Path, n: int, x: float, seed: int, meas_s: flo
             "mean_gamma_rate_signal_mbps": float(win["gamma_rate_signal_mbps"].mean()) if "gamma_rate_signal_mbps" in win.columns else None,
             "exhausted_clients": exhausted_clients,
         },
+        invalid=bool(invalid_reason),
+        invalid_reason=invalid_reason,
+        workload=assessment.to_dict(),
     )
 
 

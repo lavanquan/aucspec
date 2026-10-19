@@ -106,6 +106,11 @@ class CandidateMeasurement:
     mean_batch_size: float = 0.0
     mean_fill_ratio: float = 0.0
     extra: dict = field(default_factory=dict)
+    # M1/M2: a run in which any admitted client exhausted its workload before measurement_end is INVALID.
+    # It is a separate outcome from INFEASIBLE and must never reach a classifier.
+    invalid: bool = False
+    invalid_reason: str = ""
+    workload: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -146,6 +151,12 @@ def classify_feasibility(
     """
     if not measurements:
         raise ValueError("need at least one measurement")
+    if any(getattr(m, "invalid", False) for m in measurements):
+        return FeasibilityResult(
+            status="invalid", min_rate_tps=float("nan"), rate_margin_tps=float("nan"),
+            max_z_slope=0.0, max_device_queue_slope=0.0, server_queue_slope=0.0,
+            seeds_used=len(measurements), reason="INVALID measurement (workload exhausted): not classified",
+        )
     rates = [float(m.min_rate_tps) for m in measurements]
     k = len(rates)
     mean_r = sum(rates) / k
@@ -210,8 +221,10 @@ def classify_feasibility(
 
 
 # --------------------------------------------------------------------------- 13
-CANDIDATE_CACHE_SCHEMA_VERSION = 2  # bump when CandidateMeasurement's fixed-window
+CANDIDATE_CACHE_SCHEMA_VERSION = 3  # bump when CandidateMeasurement's fixed-window / validity
                                      # semantics change; see reject-on-mismatch below.
+                                     # v3: explicit workload-lifecycle INVALID outcome (C1/M1-M2).
+                                     # v2 records were validated with the span heuristic and are rejected.
 
 
 class CandidateCache:
@@ -540,6 +553,12 @@ def classify_feasibility_final(
     never veto a rate-based verdict.
     """
     k = len(measurements)
+    if any(getattr(m, "invalid", False) for m in measurements):
+        return FinalFeasibilityResult(
+            status="invalid", per_client_lcb={}, per_client_ucb={},
+            min_lcb=float("nan"), min_ucb=float("nan"), seeds_used=k, confidence_delta=confidence_delta,
+            reason="INVALID measurement (workload exhausted): not classified",
+        )
     if k < 2:
         return FinalFeasibilityResult(
             status="heuristic_only",

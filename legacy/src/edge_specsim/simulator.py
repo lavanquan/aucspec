@@ -25,6 +25,7 @@ from .draft_timing import (
     resolve_effective_draft_latency_ms,
 )
 from .channel import current_snr_db, spectral_efficiency_from_snr_db
+from .population_seeds import MasterPopulation, draw_static_client
 from .models import ClientProfile, DraftResult
 from .network import (
     estimate_downlink_bytes,
@@ -438,8 +439,21 @@ class EdgeSpecSimulator:
         # of all sharing one global sample pool.
         assigned_names: list[str] = []
         assigned_cfgs: list[dict] = []
+        # M4: with `simulation.population_seed` the static client properties come from a deterministic master
+        # population (client i independent of N, run-seed and policy); `simulation.seed` is then only the
+        # run-seed. Without it the legacy global-RNG path below is unchanged (historical results).
+        population_seed = self.cfg["simulation"].get("population_seed")
+        static_clients = None
+        if population_seed is not None:
+            if not self._nested_population:
+                raise ValueError("simulation.population_seed requires simulation.nested_population: true")
+            static_clients = [draw_static_client(c, int(population_seed), i) for i in range(num_clients)]
         for i in range(num_clients):
-            name, cfg = self._sample_client_class(c)
+            if static_clients is not None:
+                name = static_clients[i].class_name
+                cfg = (c.get("client_classes") or {}).get(name, {})
+            else:
+                name, cfg = self._sample_client_class(c)
             assigned_names.append(name)
             assigned_cfgs.append(cfg)
 
@@ -461,7 +475,11 @@ class EdgeSpecSimulator:
                 shards[i] = _deque(samples[i * qpc : (i + 1) * qpc])
             fp_payload = _json.dumps(
                 {
-                    "seed": int(self.cfg["simulation"]["seed"]),
+                    "seed": int(self.cfg["simulation"]["seed"]) if static_clients is None else None,
+                    "population_seed": None if static_clients is None else int(population_seed),
+                    "static": None if static_clients is None else [
+                        {k: v for k, v in vars(sc).items()} for sc in static_clients
+                    ],
                     "n_max": self._nested_n_max,
                     "qpc": qpc,
                     "clients": [
@@ -507,8 +525,10 @@ class EdgeSpecSimulator:
             draft_device = self.workers[i % len(self.workers)].device
             client_class_name, class_cfg = assigned_names[i], assigned_cfgs[i]
             draft_slowdown = float(class_cfg.get("draft_slowdown", 1.0))
-            base_draft_tps = self._sample_range(
-                c, "draft_tokens_per_second_range", [20.0, 60.0]
+            sc = None if static_clients is None else static_clients[i]
+            base_draft_tps = (
+                sc.draft_tokens_per_second_base if sc is not None
+                else self._sample_range(c, "draft_tokens_per_second_range", [20.0, 60.0])
             )
             clients.append(
                 ClientProfile(
@@ -517,56 +537,56 @@ class EdgeSpecSimulator:
                     draft_model_id=str(self.cfg["models"]["draft"]),
                     draft_device_class=client_class_name,
                     draft_tokens_per_second=base_draft_tps / max(1e-6, draft_slowdown),
-                    draft_fixed_latency_ms=self._sample_range(
+                    draft_fixed_latency_ms=(sc.draft_fixed_latency_ms if sc is not None else self._sample_range(
                         class_cfg, "draft_fixed_latency_ms_range", c.get("draft_fixed_latency_ms_range", [5.0, 20.0])
-                    ),
-                    rtt_ms=self._sample_range(class_cfg, "rtt_ms", c["rtt_ms_range"]),
-                    uplink_mbps=self._sample_range(class_cfg, "uplink_mbps", c["uplink_mbps_range"]),
-                    downlink_mbps=self._sample_range(
+                    )),
+                    rtt_ms=(sc.rtt_ms if sc is not None else self._sample_range(class_cfg, "rtt_ms", c["rtt_ms_range"])),
+                    uplink_mbps=(sc.uplink_mbps if sc is not None else self._sample_range(class_cfg, "uplink_mbps", c["uplink_mbps_range"])),
+                    downlink_mbps=(sc.downlink_mbps if sc is not None else self._sample_range(
                         class_cfg,
                         "downlink_mbps",
                         c.get("downlink_mbps_range", c["uplink_mbps_range"]),
-                    ),
-                    packet_loss=self._sample_range(
+                    )),
+                    packet_loss=(sc.packet_loss if sc is not None else self._sample_range(
                         class_cfg, "packet_loss", c.get("packet_loss_range", [0.0, 0.0])
-                    ),
+                    )),
                     channel_model=str(
                         class_cfg.get(
                             "channel_model",
                             c.get("channel_model", "iid_block_fading"),
                         )
                     ).lower(),
-                    uplink_base_snr_db=self._sample_range(
+                    uplink_base_snr_db=(sc.uplink_base_snr_db if sc is not None else self._sample_range(
                         class_cfg,
                         "uplink_base_snr_db",
                         c.get("uplink_base_snr_db_range", [8.0, 18.0]),
-                    ),
-                    downlink_base_snr_db=self._sample_range(
+                    )),
+                    downlink_base_snr_db=(sc.downlink_base_snr_db if sc is not None else self._sample_range(
                         class_cfg,
                         "downlink_base_snr_db",
                         c.get("downlink_base_snr_db_range", [10.0, 20.0]),
-                    ),
-                    uplink_snr_jitter_db=self._sample_range(
+                    )),
+                    uplink_snr_jitter_db=(sc.uplink_snr_jitter_db if sc is not None else self._sample_range(
                         class_cfg,
                         "uplink_snr_jitter_db",
                         c.get("uplink_snr_jitter_db_range", [1.0, 4.0]),
-                    ),
-                    downlink_snr_jitter_db=self._sample_range(
+                    )),
+                    downlink_snr_jitter_db=(sc.downlink_snr_jitter_db if sc is not None else self._sample_range(
                         class_cfg,
                         "downlink_snr_jitter_db",
                         c.get("downlink_snr_jitter_db_range", [1.0, 4.0]),
-                    ),
-                    snr_period_ms=self._sample_range(
+                    )),
+                    snr_period_ms=(sc.snr_period_ms if sc is not None else self._sample_range(
                         class_cfg,
                         "snr_period_ms",
                         c.get("snr_period_ms_range", [500.0, 3000.0]),
-                    ),
-                    snr_block_duration_ms=self._sample_range(
+                    )),
+                    snr_block_duration_ms=(sc.snr_block_duration_ms if sc is not None else self._sample_range(
                         class_cfg,
                         "snr_block_duration_ms",
                         c.get("snr_block_duration_ms_range", [100.0, 100.0]),
-                    ),
-                    snr_phase_rad=random.uniform(0.0, 2.0 * math.pi),
+                    )),
+                    snr_phase_rad=(sc.snr_phase_rad if sc is not None else random.uniform(0.0, 2.0 * math.pi)),
                     channel_seed=int(self.cfg["simulation"]["seed"]),
                     wireless_weight=float(class_cfg.get("wireless_weight", 1.0)),
                     diagnostic_priority_multiplier=float(
@@ -596,6 +616,7 @@ class EdgeSpecSimulator:
                     alpha_min_value=float(self.learning_cfg.get("alpha_min", 1e-6)),
                     alpha_max_value=float(self.learning_cfg.get("alpha_max", 1.0 - 1e-6)),
                     draft_speed_multiplier=draft_slowdown,
+                    samples_assigned=len(shards[i]) if shards[i] is not None else 0,
                 )
             )
         return clients
@@ -802,6 +823,11 @@ class EdgeSpecSimulator:
             )
         client.generated_for_sample += useful
         client.generated_tokens += useful
+        # M1: explicit workload lifecycle (pending / active / finished) recorded per round.
+        sample_finished = bool(
+            verification.reached_eos or useful == 0 or client.remaining_tokens <= 0
+        )
+        samples_pending = len(client.prompt_queue)
         if gamma > 0:
             client.observe_acceptance_feedback(
                 proposed_tokens=gamma,
@@ -888,6 +914,12 @@ class EdgeSpecSimulator:
             "controller_policy": self.controller.policy,
             "controller_V": self.controller.V,
             "population_fingerprint": self.population_fingerprint,
+            "population_seed": self.cfg["simulation"].get("population_seed"),
+            "run_seed": int(self.cfg["simulation"]["seed"]),
+            "client_samples_assigned": client.samples_assigned,
+            "sample_finished": sample_finished,
+            "client_samples_pending": samples_pending,
+            "client_work_complete": bool(sample_finished and samples_pending == 0),
             "n_active": len(self.clients),
             "x_requirement": self.controller.min_tps,
             "control_slot_ms": self.controller.slot_ms,
