@@ -224,3 +224,31 @@ def test_fixed_gamma_pilot_policy_runs_through_the_real_round_code():
     s = run(build_sim(4, run_seed=1, causal=True, policy="fixed_gamma", early_stop_margin_s=0.5, qpc=4, max_new=24))
     assert s.coordinator.ledger.check_causality() == []
     assert {r["selected_gamma"] for r in s.records} == {2}
+
+
+def test_pilot_config_gives_identical_static_hardware_across_clients_n_and_run_seeds():
+    import yaml
+    from pathlib import Path
+    pilot = yaml.safe_load((Path(__file__).resolve().parents[2] / "configs" / "rq1_pilot_fixed_gamma2_tritonfa33.yaml").read_text())
+    saved = dict(CLIENTS_CFG)
+    CLIENTS_CFG.clear()
+    CLIENTS_CFG.update(pilot["clients"])
+    try:
+        sims = [build_sim(n, run_seed=rs, causal=False, population_seed=pilot["simulation"]["population_seed"])
+                for n, rs in ((2, 1), (8, 2), (16, 3))]
+    finally:
+        CLIENTS_CFG.clear()
+        CLIENTS_CFG.update(saved)
+    hw = ("rtt_ms", "uplink_mbps", "downlink_mbps", "packet_loss", "draft_tokens_per_second", "draft_fixed_latency_ms",
+          "draft_speed_multiplier", "uplink_base_snr_db", "downlink_base_snr_db", "uplink_snr_jitter_db",
+          "downlink_snr_jitter_db", "snr_period_ms", "snr_block_duration_ms", "wireless_weight",
+          "diagnostic_priority_multiplier", "channel_model", "draft_device_class")
+    ref = {f: getattr(sims[0].clients[0], f) for f in hw}
+    for sim in sims:
+        for c in sim.clients:
+            for f in hw:
+                assert getattr(c, f) == ref[f], (f, c.client_id)
+    assert ref["draft_speed_multiplier"] == 1.0
+    # explicitly NOT homogeneous: channel phase (stochastic fading) and the prompt block
+    assert len({c.snr_phase_rad for c in sims[2].clients}) == 16
+    assert len({tuple(s.sample_id for s in c.prompt_queue) for c in sims[2].clients}) == 16

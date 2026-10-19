@@ -71,32 +71,54 @@ def _agg(runs: list[dict], key: str) -> dict:
     return {"mean": statistics.fmean(v), "min": min(v), "max": max(v)}
 
 
-def rq1_verdict(runs_by_n: dict[int, list[dict]]) -> dict:
-    """Apply the pre-registered rules to runs grouped by N (INVALID runs are excluded and counted)."""
-    clean = {n: [r for r in rs if not r["invalid"]] for n, rs in runs_by_n.items()}
-    invalid = {n: sum(r["invalid"] for r in rs) for n, rs in runs_by_n.items() if any(r["invalid"] for r in rs)}
-    out: dict = {"invalid_runs_by_N": invalid, "per_N": {}}
-    for n, rs in sorted(clean.items()):
+REQUIRED_SEEDS = (1, 2, 3)      # pre-registered valid seed pairs needed for a substantive verdict
+
+
+def _by_seed(runs: list[dict], n: int) -> dict:
+    out: dict = {}
+    for r in runs:
+        if "seed" not in r:
+            raise ValueError(f"run at N={n} has no run-seed; seeds must be explicit")
+        if r["seed"] in out:
+            raise ValueError(f"duplicate run record for N={n}, seed={r['seed']}")
+        out[r["seed"]] = r
+    return out
+
+
+def rq1_verdict(runs_by_n: dict[int, list[dict]], required_seeds=REQUIRED_SEEDS) -> dict:
+    """Apply the pre-registered rules. N=8 and N=16 runs are paired by EXPLICIT run-seed (never positionally);
+    duplicates raise; missing/INVALID runs are listed. A substantive verdict needs a valid pair for EVERY required
+    seed; otherwise the numbers are kept as descriptive diagnostics under an INCONCLUSIVE(partial) verdict."""
+    by = {n: _by_seed(rs, n) for n, rs in runs_by_n.items()}
+    invalid = {n: sorted(s for s, r in d.items() if r["invalid"]) for n, d in by.items()}
+    invalid = {n: v for n, v in invalid.items() if v}
+    clean = {n: {s: r for s, r in d.items() if not r["invalid"]} for n, d in by.items()}
+    out: dict = {"invalid_seeds_by_N": invalid, "per_N": {}, "required_seeds": list(required_seeds)}
+    for n, d in sorted(clean.items()):
+        rs = list(d.values())
         if rs:
-            out["per_N"][n] = {"seeds": len(rs), "Y": _agg(rs, "Y"), "x_min": _agg(rs, "x_min"),
+            out["per_N"][n] = {"seeds": sorted(d), "Y": _agg(rs, "Y"), "x_min": _agg(rs, "x_min"),
                                "N_x_min": _agg(rs, "N_x_min"), "x_min_over_mean": _agg(rs, "x_min_over_mean"),
                                "utilisation": _agg(rs, "verifier_utilisation"), "batch_size": _agg(rs, "batch_size_mean")}
-    if N_A not in out["per_N"] or N_B not in out["per_N"]:
-        out["verdict"] = "INCONCLUSIVE: runs at N=8 and N=16 are required (missing or INVALID)"
+    a, b = clean.get(N_A, {}), clean.get(N_B, {})
+    pairs = sorted(set(a) & set(b))
+    missing = [s for s in required_seeds if s not in pairs]
+    per_seed = {s: {"Y_ratio": b[s]["Y"] / a[s]["Y"], "x_min_ratio": b[s]["x_min"] / a[s]["x_min"]} for s in pairs}
+    out["N8_to_N16"] = {"valid_pairs": pairs, "missing_or_invalid_required_seeds": missing, "per_seed": per_seed}
+    if not pairs:
+        out["verdict"] = "INCONCLUSIVE(partial): no valid N=8/N=16 seed pair"
         return out
-    a, b = out["per_N"][N_A], out["per_N"][N_B]
-    y_ratio = b["Y"]["mean"] / a["Y"]["mean"]
-    x_ratio = b["x_min"]["mean"] / a["x_min"]["mean"]
-    # seed-consistency: the per-seed ratios must satisfy the rule, not only the means
-    per_seed = []
-    for ra, rb in zip(clean[N_A], clean[N_B]):
-        per_seed.append((rb["Y"] / ra["Y"], rb["x_min"] / ra["x_min"]))
-    plateau = y_ratio <= 1 + PLATEAU_TOL and all(y <= 1 + PLATEAU_TOL + 0.05 for y, _ in per_seed)
-    floor_falls = x_ratio <= FLOOR_DROP and all(x <= FLOOR_DROP + 0.05 for _, x in per_seed)
-    fair = all(out["per_N"][n]["x_min_over_mean"]["mean"] >= MIN_FAIRNESS for n in (N_A, N_B))
-    out["N8_to_N16"] = {"Y_ratio": y_ratio, "x_min_ratio": x_ratio, "per_seed_(Y,x_min)": per_seed,
-                        "plateau": plateau, "floor_falls": floor_falls, "homogeneous_fair": fair}
-    if y_ratio >= UNSATURATED:
+    y_ratio = statistics.fmean(v["Y_ratio"] for v in per_seed.values())
+    x_ratio = statistics.fmean(v["x_min_ratio"] for v in per_seed.values())
+    plateau = y_ratio <= 1 + PLATEAU_TOL and all(v["Y_ratio"] <= 1 + PLATEAU_TOL + 0.05 for v in per_seed.values())
+    floor_falls = x_ratio <= FLOOR_DROP and all(v["x_min_ratio"] <= FLOOR_DROP + 0.05 for v in per_seed.values())
+    fair = all(statistics.fmean(r["x_min_over_mean"] for r in clean[n].values()) >= MIN_FAIRNESS for n in (N_A, N_B))
+    out["N8_to_N16"].update({"Y_ratio_mean": y_ratio, "x_min_ratio_mean": x_ratio, "plateau": plateau,
+                             "floor_falls": floor_falls, "homogeneous_fair": fair})
+    if missing:
+        out["verdict"] = (f"INCONCLUSIVE(partial): valid pairs for seeds {pairs}, required {list(required_seeds)} "
+                          f"(missing/INVALID {missing}); numbers are descriptive diagnostics only")
+    elif y_ratio >= UNSATURATED:
         out["verdict"] = "INCONCLUSIVE: goodput still rising between N=8 and N=16 (capacity not reached; extend N)"
     elif y_ratio < 1.0 - PLATEAU_TOL:
         out["verdict"] = "PATHOLOGY: goodput falls with N (diagnose contention/overhead before any capacity claim)"

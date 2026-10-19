@@ -30,6 +30,8 @@ def build() -> dict:
     c["downlink_snr_jitter_db_range"] = deg(2.0)
     c["snr_period_ms_range"] = deg(1000.0)
     c["packet_loss_range"] = deg(0.0)
+    c["draft_speed_multiplier_range"] = deg(1.0)       # A1: no per-device draft slowdown (base config had 0.7-1.5)
+    c["snr_block_duration_ms_range"] = deg(100.0)
     c["shared_wireless"] = {"downlink_allocator": "proportional", "uplink_allocator": "proportional",
                             "total_downlink_bandwidth_mhz": 80.0, "total_uplink_bandwidth_mhz": 40.0}
     # one simple fixed policy: fixed depth gamma=2, FCFS batching, no learning in the loop

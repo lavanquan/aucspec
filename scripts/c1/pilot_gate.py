@@ -13,6 +13,11 @@ import analyze_rq1_pilot as an  # noqa: E402
 MAX_REAL_OVER_VIRTUAL = 3.0
 
 
+def csv_path(scratch_root, tag: str, n: int, seed: int, policy: str = "fixed_gamma", x: float = 3.0) -> Path:
+    """Where run_capacity_frontier.run_one writes the rounds CSV: <scratch>/<tag>/raw/<policy>_n<N>_x<x>_s<seed>.csv"""
+    return Path(scratch_root) / tag / "raw" / f"{policy}_n{n}_x{float(x)}_s{seed}.csv"
+
+
 def gate(csv: Path, n: int, ledger: Path | None) -> tuple[bool, list[str]]:
     df = pd.read_csv(csv, low_memory=False)
     m = an.run_metrics(df, n)
@@ -33,6 +38,9 @@ def gate(csv: Path, n: int, ledger: Path | None) -> tuple[bool, list[str]]:
 
 
 if __name__ == "__main__":
+    if sys.argv[1] == "--path":                       # --path <scratch_root> <tag> <n> <seed>
+        print(csv_path(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5])))
+        sys.exit(0)
     csv, n = Path(sys.argv[1]), int(sys.argv[2])
     ledger = Path(str(csv).replace(".csv", "_artifacts")) / "causality_check.json"
     ok, why = gate(csv, n, ledger)

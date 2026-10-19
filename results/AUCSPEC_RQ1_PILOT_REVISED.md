@@ -122,3 +122,14 @@ Order of magnitude of what this does **not** buy: one certified N\*(x) point nee
 ## 10. Not done / not claimed
 No calibration, no pricing, no controller comparison, no frontier, no ICA, no claim about the manuscript's RQ2–RQ5. Nothing here changes
 the status of the unsupported claims listed in the C0 audit and the C1 report.
+
+## 11. C1.1 amendments (decisions of the reviewer, 2026-10-20)
+* `isolated_profile` approved for this descriptive pilot. Only the **first seed job** is authorized; later seed jobs need a new decision.
+* Total cap 3.2 node-h is a **hard limit** (`scripts/c1/budget_guard.py`: actual spent + the next job's maximum must fit; at most the
+  authorized number of jobs). Job walltime is **64 min** (3 × 64 min = 3.2 node-h exactly). Projected actual use of one job: ~31 min
+  (causal factor 1) to ~48 min (factor 2); a factor-3 job would be cut at 64 min, and the job script refuses to start a run that cannot finish.
+* Hardware profile is homogeneous **including** `draft_speed_multiplier_range: [1,1]` (the base config had 0.7–1.5) and a fixed SNR block duration. Explicitly
+  **not** homogeneous: the stochastic channel (per-client SNR phase, fading), and the per-client prompts/acceptance process. The pilot must not be
+  described as a perfectly homogeneous system, only as one with identical static hardware parameters.
+* Verdicts pair N=8 and N=16 **by run-seed**; duplicates raise; a substantive verdict needs a valid pair for every pre-registered seed (1, 2, 3).
+  With one seed the verdict is always `INCONCLUSIVE(partial)` and the numbers are descriptive diagnostics.

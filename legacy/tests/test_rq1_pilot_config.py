@@ -51,3 +51,21 @@ def test_population_is_homogeneous_and_independent_of_run_seed():
               "uplink_base_snr_db", "snr_period_ms", "packet_loss"):
         assert len({getattr(c, f) for c in pop.clients}) == 1, f
     assert pop.fingerprint(8) == MasterPopulation(PILOT["clients"], PILOT["simulation"]["population_seed"], 8).fingerprint(8)
+
+
+def test_runtime_h_manifest_matches_the_frozen_identity_record():
+    import hashlib
+    import json
+    ident = json.loads((ROOT / "results" / "runtime_identity" / "V1-batchwall-tritonfa33.json").read_text())
+    man = ROOT / PILOT["runtime"]["manifest"]
+    assert hashlib.sha256(man.read_bytes()).hexdigest() == ident["qualified_execution"]["manifest_sha256"] or \
+        hashlib.sha256(man.read_bytes().replace(b"\r\n", b"\n")).hexdigest() == ident["qualified_execution"]["manifest_sha256"]
+    assert PILOT["runtime"]["identity"] == ident["identity"] and PILOT["runtime"]["require_triton_fa"] is True
+
+
+def test_live_pilot_switches_are_on():
+    s = PILOT["simulation"]
+    assert s["causal_virtual_time"] is True and s["causality_ledger"] is True
+    assert s["draft_execution_mode"] == "isolated_profile" and s["draft_profile"]["per_token_ms"] == 22.2
+    assert PILOT["clients"]["draft_speed_multiplier_range"] == [1.0, 1.0]
+    assert PILOT["controller"]["verifier_price_mode"] == "zero"
