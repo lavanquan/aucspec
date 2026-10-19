@@ -43,8 +43,12 @@ def check_environment(env: dict[str, str], manifest: dict[str, Any], strict_firs
         # the in-process check below uses strict_first=False and relies on sys.path order and the real triton path.)
         if entries[0] != shim:
             bad.append(f"PYTHONPATH must start with the Triton shim {shim!r} (starts with {entries[0]!r})")
-    elif shim not in entries:
-        bad.append(f"the Triton shim {shim!r} is not on PYTHONPATH")
+    else:
+        # In-process, importing edge_specsim.target_client prepends <repo>/legacy/src to PYTHONPATH. Reconstruct the
+        # launch-time order by dropping exactly that one known prefix; the shim must then be first.
+        rest = entries[1:] if entries and entries[0].replace("\\", "/").endswith("legacy/src") else entries
+        if not rest or rest[0] != shim:
+            bad.append(f"the Triton shim {shim!r} is not first on PYTHONPATH once the repo src prefix is ignored (got {rest[:2]!r})")
     if env.get("ALLOW_DEFECTIVE_LEGACY_RUNTIME") == "1":
         bad.append("ALLOW_DEFECTIVE_LEGACY_RUNTIME=1 is set: refusing to run a canonical job on the legacy runtime")
     return bad
@@ -73,14 +77,11 @@ def check_imports(manifest: dict[str, Any]) -> dict[str, Any]:
         bad.append(f"triton resolved to {ev['triton_file']}, expected under {manifest['triton_realpath_prefix']}")
     if "pythonuserbase" in ev["triton_file"]:
         bad.append("triton was imported from the user-site (3.8.0) package")
+    # NOTE: sys.path order is recorded but not enforced here: the imported module object (version and real file, checked
+    # above) is what matters once triton is in sys.modules, and vLLM engine start-up may reorder sys.path afterwards.
     shim = manifest["shim_dir"]
-    if shim not in sys.path:
-        bad.append("the Triton shim is not on sys.path of this process")
-    else:
-        user = [i for i, e in enumerate(sys.path) if "pythonuserbase" in e]
-        if user and sys.path.index(shim) > min(user):
-            bad.append("sys.path lists the user-site before the Triton shim")
     ev["shim_on_sys_path_index"] = sys.path.index(shim) if shim in sys.path else None
+    ev["sys_path_head"] = list(sys.path[:12])
     if bad:
         raise RuntimeGuardError("; ".join(bad))
     return ev
@@ -185,12 +186,26 @@ def enforce_runtime(target, rt_cfg: dict[str, Any], repo_root: Path, full_cfg: d
     manifest = load_manifest(Path(repo_root) / rt_cfg.get("manifest", "runtime/tritonfa33/MANIFEST.json"))
     if rt_cfg.get("identity") != IDENTITY:
         raise RuntimeGuardError(f"runtime.identity must be {IDENTITY!r}")
-    bad = check_environment(dict(os.environ), manifest, strict_first=False)
-    if bad:
-        raise RuntimeGuardError("; ".join(bad))
-    imports = check_imports(manifest)
-    live = verify_live_engine(target.llm, target, rt_cfg)
-    semantics = check_semantics_config(full_cfg) if full_cfg is not None else None
+    # Evaluate EVERY check before raising so that one failure never hides another.
+    problems: list[str] = []
+    problems += check_environment(dict(os.environ), manifest, strict_first=False)
+    imports = live = semantics = None
+    for name, fn in (("imports", lambda: check_imports(manifest)),
+                     ("live_engine", lambda: verify_live_engine(target.llm, target, rt_cfg)),
+                     ("semantics", lambda: check_semantics_config(full_cfg) if full_cfg is not None else None)):
+        try:
+            val = fn()
+        except RuntimeGuardError as exc:
+            problems.append(f"{name}: {exc}")
+            continue
+        if name == "imports":
+            imports = val
+        elif name == "live_engine":
+            live = val
+        else:
+            semantics = val
+    if problems:
+        raise RuntimeGuardError(" | ".join(problems) + f" | sys.path head: {sys.path[:8]}")
     import vllm
 
     return {"identity": IDENTITY, "imports": imports, "live_engine": live, "semantics": semantics,

@@ -1,0 +1,6 @@
+start                              shim_idx=1 user_idx=[5] len=12 PYTHONPATH0=cspec/../aucspec_runtime/tritonfa33/shim
+after torch                        shim_idx=1 user_idx=[5] len=12 PYTHONPATH0=cspec/../aucspec_runtime/tritonfa33/shim
+after triton 3.3.1                 shim_idx=1 user_idx=[5] len=12 PYTHONPATH0=cspec/../aucspec_runtime/tritonfa33/shim
+after transformers                 shim_idx=1 user_idx=[5] len=12 PYTHONPATH0=cspec/../aucspec_runtime/tritonfa33/shim
+after repo inserts                 shim_idx=3 user_idx=[7] len=14 PYTHONPATH0=cspec/../aucspec_runtime/tritonfa33/shim
+after canonical_guard              shim_idx=4 user_idx=[8] len=15 PYTHONPATH0=cspec/../aucspec_runtime/tritonfa33/shim

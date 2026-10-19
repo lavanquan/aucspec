@@ -1,0 +1,15 @@
+{
+ "ok": true,
+ "problems": [],
+ "imports": {
+  "python_executable": "/usr/bin/python3",
+  "torch_version": "2.7.1a0+gite2d141d",
+  "torch_file": "/usr/local/lib/python3.12/dist-packages/torch/__init__.py",
+  "triton_version": "3.3.1",
+  "triton_file": "/usr/local/lib/python3.12/dist-packages/triton/__init__.py",
+  "triton_import_path": "/software/projects/pawsey1257/quanla/aucspec_runtime/tritonfa33/shim/triton/__init__.py",
+  "hip_version": "6.3.42134-a9a80e791",
+  "shim_on_sys_path_index": 2
+ },
+ "manifest": "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_batchwall/runtime/tritonfa33/MANIFEST.json"
+}

@@ -1,0 +1,30 @@
+{
+ "steps": [
+  {
+   "step": "preflight",
+   "rc": 0,
+   "wall_s": 5.67427921295166,
+   "elapsed_s": 5.674319505691528
+  },
+  {
+   "step": "qualification",
+   "rc": 1,
+   "wall_s": 96.295401096344,
+   "elapsed_s": 101.98245191574097
+  }
+ ],
+ "verdict": null,
+ "frozen_integrity": {
+  "ok": true,
+  "problems": [],
+  "n_problems": 0,
+  "sha256": "b59718762095c13c20fc196acc52e3b86038680a0785ae6f53390c680ae6cffc",
+  "counts": {
+   "dev": 64,
+   "heldout": 32
+  }
+ },
+ "exit_code": 10,
+ "why": "qualification process failed (rc=1) or output missing",
+ "total_wall_s": 101.98513293266296
+}

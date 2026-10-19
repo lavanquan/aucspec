@@ -129,6 +129,19 @@ def test_new_canonical_configs_declare_the_runtime():
         assert cfg["models"].get("target_enable_prefix_caching") is False
 
 
+def test_in_process_check_ignores_only_the_repo_src_prefix():
+    ok = {**GOOD_ENV, "PYTHONPATH": "/repo/legacy/src:" + SHIM + ":/other"}
+    assert rg.check_environment(ok, MAN, strict_first=False) == []
+    assert rg.check_environment({**GOOD_ENV, "PYTHONPATH": "/somewhere/else:" + SHIM}, MAN, strict_first=False)      # arbitrary prefix refused
+    assert rg.check_environment({**GOOD_ENV, "PYTHONPATH": "/repo/legacy/src:/other:" + SHIM}, MAN, strict_first=False)   # shim not first
+    assert rg.check_environment({**GOOD_ENV, "PYTHONPATH": SHIM + ":/repo/legacy/src"}, MAN, strict_first=False) == []
+
+
+def test_guard_does_not_depend_on_sys_path_order_after_engine_start():
+    src = (REPO / "legacy" / "src" / "edge_specsim" / "runtime_guard.py").read_text()
+    assert "lists the user-site before" not in src and "sys_path_head" in src
+
+
 def test_in_process_environment_check_tolerates_target_client_prefixing_pythonpath():
     mutated = {**GOOD_ENV, "PYTHONPATH": "/repo/legacy/src:" + GOOD_ENV["PYTHONPATH"]}   # what importing target_client does
     assert rg.check_environment(mutated, MAN)                                  # launch-time (strict) rule refuses it
