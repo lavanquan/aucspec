@@ -1,0 +1,72 @@
+{
+ "inputs": {
+  "gamma": 2,
+  "tau_iso_ms": 22.2,
+  "rtt_ms": 50.0,
+  "batch_wait_ms": 150.0,
+  "verify_b1_ms": 78.5,
+  "warmup_s": 30.0,
+  "window_s": 120.0,
+  "margin_s": 10.0,
+  "r_measured": {
+   "1": 0.54,
+   "8": 1.0
+  },
+  "r_assumed": {
+   "2": 0.8,
+   "4": 0.9,
+   "12": 1.3,
+   "16": 1.6
+  },
+  "startup_s": 130.0
+ },
+ "workload": {
+  "T_cycle_min_s": 0.3329,
+  "x_max_hard_bound_tps": 9.01,
+  "T_stop_s": 160.0,
+  "tokens_needed_per_client": 1586.1,
+  "questions_needed_by_length": {
+   "cap_96 (no EOS; observed 88/88 samples)": 17,
+   "L=64": 25,
+   "L=48": 34,
+   "L=32": 50,
+   "L=24": 67
+  },
+  "chosen_questions_per_client": 64,
+  "min_mean_tokens_per_question_tolerated": 24.8,
+  "prompts_required_at_N16": 1024,
+  "prompts_available": 1319,
+  "prompts_ok": true
+ },
+ "cost": {
+  "full_6N_3seeds": {
+   "coord_factor_1.0": {
+    "seconds_per_seed_sweep": 1882,
+    "node_hours": 1.57
+   },
+   "coord_factor_2.0": {
+    "seconds_per_seed_sweep": 2865,
+    "node_hours": 2.39
+   },
+   "coord_factor_3.0": {
+    "seconds_per_seed_sweep": 3847,
+    "node_hours": 3.21
+   }
+  },
+  "reduced_4N_2seeds": {
+   "coord_factor_1.0": {
+    "seconds_per_seed_sweep": 1246,
+    "node_hours": 0.69
+   },
+   "coord_factor_2.0": {
+    "seconds_per_seed_sweep": 1893,
+    "node_hours": 1.05
+   },
+   "coord_factor_3.0": {
+    "seconds_per_seed_sweep": 2539,
+    "node_hours": 1.41
+   }
+  }
+ },
+ "without_early_stop_virtual_seconds_per_run_at_N8": 2560
+}

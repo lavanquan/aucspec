@@ -1,0 +1,167 @@
+# RQ1 minimal pilot config (C1): derived from canonical_batchwall_tritonfa33_v1.yaml by
+# scripts/c1/make_rq1_pilot_config.py.  NOT submitted; descriptive pilot, no certified boundaries.
+capacity_search:
+  confidence_delta: 0.05
+  initial_seeds: 5
+  max_measurement_seconds: 480
+  max_seeds: 12
+  measurement_seconds_final: 120.0
+  measurement_seconds_pilot: 90
+  min_final_seeds: 5
+  n_lo_feasible: 1
+  n_ref: 30
+  n_search_cap: 30
+  queue_slope_tolerance: 0.02
+  rate_tolerance_fraction: 0.05
+  warmup_seconds: 30.0
+  x_L: 2.0
+  x_U: 6.0
+  x_grid_final:
+  - 3.0
+  x_grid_pilot:
+  - 2.0
+  - 4.0
+  - 6.0
+  x_tolerance_tps: 0.1
+clients:
+  channel_model: iid_block_fading
+  downlink_base_snr_db_range:
+  - 16.0
+  - 16.0
+  downlink_mbps_range:
+  - 40.0
+  - 40.0
+  downlink_snr_jitter_db_range:
+  - 2.0
+  - 2.0
+  draft_fixed_latency_ms_range:
+  - 10.0
+  - 10.0
+  draft_speed_multiplier_range:
+  - 0.7
+  - 1.5
+  draft_tokens_per_second_range:
+  - 40.0
+  - 40.0
+  packet_loss_range:
+  - 0.0
+  - 0.0
+  rtt_ms_range:
+  - 50.0
+  - 50.0
+  shared_wireless:
+    downlink_allocator: proportional
+    total_downlink_bandwidth_mhz: 80.0
+    total_uplink_bandwidth_mhz: 40.0
+    uplink_allocator: proportional
+  snr_block_duration_ms_range:
+  - 100.0
+  - 100.0
+  snr_period_ms_range:
+  - 1000.0
+  - 1000.0
+  uplink_base_snr_db_range:
+  - 14.0
+  - 14.0
+  uplink_mbps_range:
+  - 20.0
+  - 20.0
+  uplink_snr_jitter_db_range:
+  - 2.0
+  - 2.0
+control:
+  slot_ms: 100.0
+controller:
+  V: 50.0
+  draft_latency_weight: 0.0
+  exploration_epsilon: 0.0
+  exploration_gamma: 1
+  fixed_gamma: 2
+  gamma_choices:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  learning:
+    alpha_max: 0.999999
+    alpha_min: 1.0e-06
+    alpha_prior_failure: 1.0
+    alpha_prior_success: 1.0
+    confidence_delta: 0.05
+    discount: 0.98
+    mode: bernstein_censored
+    ucb_coefficient: 1.5
+    window_size: 64
+  min_exploration_rounds: 0
+  min_interactivity_tps: 2.0
+  policy: fixed_gamma
+  server_price_scale: 0.02
+  uplink_latency_weight: 0.0
+  use_virtual_queues: true
+  verifier_price_lambda: 1.0
+  verifier_price_mode: zero
+dataset:
+  max_new_tokens: 96
+  name: gsm8k
+  num_questions: 1024
+  seed: 42
+  shuffle: true
+  shuffle_buffer: 1000
+  split: test
+decoding:
+  mode: greedy
+  temperature: 0.0
+experiment:
+  early_stop_margin_seconds: 10.0
+  measurement_seconds: 120.0
+  seeds:
+  - 1
+  warmup_seconds: 30.0
+models:
+  draft: Qwen/Qwen2.5-1.5B-Instruct
+  draft_devices:
+  - cuda:1
+  - cuda:2
+  - cuda:3
+  - cuda:4
+  - cuda:5
+  - cuda:6
+  - cuda:7
+  target: Qwen/Qwen2.5-7B-Instruct
+  target_dtype: auto
+  target_enable_prefix_caching: false
+  target_enforce_eager: false
+  target_gpu_memory_utilization: 0.7
+  target_max_model_len: 4096
+runtime:
+  identity: V1-batchwall-tritonfa33
+  manifest: runtime/tritonfa33/MANIFEST.json
+  require_triton_fa: true
+simulation:
+  causal_virtual_time: true
+  causality_ledger: true
+  controller_v: 50.0
+  draft_execution_mode: isolated_profile
+  draft_profile:
+    overhead_ms: 0.0
+    per_token_ms: 22.2
+  gamma_max: 4
+  min_interactivity_tps: 2.0
+  nested_population: true
+  num_clients: 8
+  output_csv: results/capacity_frontier/PLACEHOLDER/raw/PLACEHOLDER.csv
+  population_n_max: 16
+  population_seed: 20261020
+  questions_per_client: 64
+  seed: 1
+  server_price_scale: 0.02
+verification_batching:
+  batch_wait_ms: 150.0
+  budget_mode: fixed
+  max_batch_size: 32
+  scheduler: fcfs
+  service_time_model: batch_wall
+  target_replication_factor: 1
+  utility_lambda: 0.25
+  verify_token_budget: 100
