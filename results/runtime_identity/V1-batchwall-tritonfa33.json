@@ -1,0 +1,57 @@
+{
+  "identity": "V1-batchwall-tritonfa33",
+  "status": "correctness-qualified (frozen as the scientific runtime for the AUCspec capacity programme)",
+  "frozen_on": "2026-10-20",
+  "qualified_execution": {
+    "git_sha": "b7a1f66fca5facb4af8dcc6f6100ec1096ab924d",
+    "qualification_job": "Slurm 51144179 (node nid003000, 398 vLLM calls, 0 new HF calls)",
+    "report_commit": "d330e88",
+    "report": "results/CANONICAL_CORRECT_VERIFIER_QUALIFICATION.md",
+    "frozen_inputs_sha256": "b59718762095c13c20fc196acc52e3b86038680a0785ae6f53390c680ae6cffc",
+    "manifest": "runtime/tritonfa33/MANIFEST.json",
+    "manifest_sha256": "564571978a95c23c11136bf7bc66822357cd0b13eca2110c32348412f549bfed"
+  },
+  "models": {
+    "target": "Qwen/Qwen2.5-7B-Instruct (bf16, vLLM, device cuda:0 / one MI250X GCD)",
+    "draft": "Qwen/Qwen2.5-1.5B-Instruct (HF, devices cuda:1..7, draft_execution_mode shared_gpu_emulation)",
+    "target_max_model_len": 4096,
+    "target_gpu_memory_utilization": 0.7,
+    "prefix_caching": false,
+    "enforce_eager": false
+  },
+  "software": {
+    "vllm": "0.9.1+rocm633 (editable, unmodified): /software/projects/pawsey1257/quanla/aucspec/vllm_rocm_build/vllm/vllm",
+    "torch": "2.7.1a0+gite2d141d (/usr/local/lib/python3.12/dist-packages/torch)",
+    "triton": "3.3.1 (/usr/local/lib/python3.12/dist-packages/triton, imported through the recorded shim /software/projects/pawsey1257/quanla/aucspec_runtime/tritonfa33/shim)",
+    "hip": "6.3.42134-a9a80e791",
+    "rocm": "6.3.3-74",
+    "gpu": "AMD Instinct MI250X",
+    "engine": "vLLM V0 LLMEngine, UniProcExecutor",
+    "attention": "ROCmFlashAttention backend, Triton FlashAttention implementation in 28/28 layers, 0 naive-SDPA layers",
+    "env": {"VLLM_USE_TRITON_FLASH_ATTN": "1", "PYTHONPATH": "shim first", "VLLM_ATTENTION_BACKEND": "unset", "VLLM_USE_V1": "unset"}
+  },
+  "semantics": {
+    "verifier": "V1 greedy: max_logprobs=1, tie-break first_max_in_vllm_logprob_dict_order (the V2 tie-break is NOT part of this identity)",
+    "service_time_model": "batch_wall (the single virtual verifier is occupied for the full measured batch wall time)",
+    "verifier_price_mode": "zero (fixed-budget mode hands the controller theta_f = 0.0; the server queue Q_s is updated but not priced)",
+    "budget_mode": "fixed, verify_token_budget 100, max_batch_size 32, batch_wait_ms 150",
+    "controller_policy_under_test": "unchanged"
+  },
+  "evidence_tiers": {
+    "A_correctness_qualified": [
+      "dev (64 contexts) and held-out (32 contexts) agreement with the independent HF fp32 reference and with B=1 for B up to 32, gamma 0..4, three batch orders, correct and corrupted proposals, batched decode (283 + 96 gated checks, all passed)",
+      "live evidence: Triton 3.3.1, Triton FA in all layers, 11,508 kernel invocations in the executing process"
+    ],
+    "B_valid_integration_and_timing_diagnostics": [
+      "wiring smoke through canonical_launch.py (job 51144179): 470 batches, 97 with B>2, zero overlapping batches, occupancy equals modeled service, modeled/wall = 1.000, round-latency decomposition residual ~1e-11 ms, acceptance and workload accounting consistent, provenance correct",
+      "these are wiring/invariant checks, not performance results"
+    ],
+    "C_invalid_or_non_citable": [
+      "all throughput/rate numbers from the 20 s window of tfa33_wiring_smoke_r4_20261019 (about 11 rounds per client in the window; edge noise of about one round; recorded verdict INVALID is kept exactly as recorded, although the exhaustion guard that produced it mis-measures exhaustion, see the readiness audit)"
+    ],
+    "D_legacy_defective_backend": [
+      "every result produced with VLLM_USE_TRITON_FLASH_ATTN=0 (naive SDPA fallback, wrong attention for three or more sequences per prefill step): Gate B-D, budget-100 N*(x) sweep, x=3.0 certification (N* in [10,11]), canonical smokes at 04d0bda, V1-control, the verifier calibration (b5a3def), the greedy audit data, the B4/B5 diagnostics except as defect evidence",
+      "preserved unchanged; labelled batched-verifier-defective; never mixed with tier A/B results"
+    ]
+  }
+}

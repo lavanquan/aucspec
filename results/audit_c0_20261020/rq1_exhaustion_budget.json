@@ -1,0 +1,42 @@
+{
+ "t_cycle_min_s": 0.495,
+ "rows": [
+  {
+   "N": 1,
+   "x_max_tps": 5.47,
+   "tokens_needed": 1231.8,
+   "questions_per_client_needed": 13
+  },
+  {
+   "N": 2,
+   "x_max_tps": 5.47,
+   "tokens_needed": 1231.8,
+   "questions_per_client_needed": 13
+  },
+  {
+   "N": 4,
+   "x_max_tps": 5.47,
+   "tokens_needed": 1231.8,
+   "questions_per_client_needed": 13
+  },
+  {
+   "N": 8,
+   "x_max_tps": 3.75,
+   "tokens_needed": 843.8,
+   "questions_per_client_needed": 9
+  },
+  {
+   "N": 12,
+   "x_max_tps": 2.5,
+   "tokens_needed": 562.5,
+   "questions_per_client_needed": 6
+  },
+  {
+   "N": 16,
+   "x_max_tps": 1.88,
+   "tokens_needed": 421.9,
+   "questions_per_client_needed": 5
+  }
+ ],
+ "questions_per_client_required": 13
+}

@@ -1,0 +1,20 @@
+{
+ "rows": 826,
+ "n_batches": 470,
+ "missed_arrivals": {
+  "requests": 292,
+  "batches_affected": 147,
+  "fraction_of_batches": 0.3127659574468085,
+  "mean_early_by_ms": 161.7708241244755
+ },
+ "batches_whose_earliest_arrival_is_later_than_a_following_batch": 51,
+ "controller_state_causality": {
+  "decisions": 826,
+  "state_includes_future_batch(finish>decision_time)": 55,
+  "fraction": 0.06658595641646489,
+  "future_by_ms_mean_when_violated": 211.65045096459718,
+  "future_by_ms_p95": 617.5710670941899,
+  "stamped_state_future_fraction": 0.47336561743341404
+ },
+ "note": "server-queue price is zero in verifier_price_mode=zero, so this causality gap does not currently change any decision"
+}

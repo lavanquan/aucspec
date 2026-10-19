@@ -1,0 +1,156 @@
+{
+ "setup": {
+  "N": 10,
+  "x": 3.0,
+  "sigma": 0.3,
+  "delta": 0.05,
+  "trials": 600,
+  "n_boot": 2000
+ },
+ "rows": [
+  {
+   "K": 3,
+   "d_below_x": 0.0,
+   "P_feasible_bootstrap": 0.12333333333333334,
+   "P_feasible_t": 0.0016666666666666668,
+   "per_client_coverage_bootstrap": 0.7616666666666667,
+   "per_client_coverage_t": 0.9983333333333333,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 3,
+   "d_below_x": 0.1,
+   "P_feasible_bootstrap": 0.055,
+   "P_feasible_t": 0.0,
+   "per_client_coverage_bootstrap": 0.7516666666666667,
+   "per_client_coverage_t": 0.9966666666666667,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 3,
+   "d_below_x": 0.3,
+   "P_feasible_bootstrap": 0.008333333333333333,
+   "P_feasible_t": 0.0,
+   "per_client_coverage_bootstrap": 0.765,
+   "per_client_coverage_t": 0.995,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 3,
+   "d_below_x": 0.6,
+   "P_feasible_bootstrap": 0.0,
+   "P_feasible_t": 0.0,
+   "per_client_coverage_bootstrap": 0.75,
+   "per_client_coverage_t": 0.9933333333333333,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 5,
+   "d_below_x": 0.0,
+   "P_feasible_bootstrap": 0.04666666666666667,
+   "P_feasible_t": 0.0016666666666666668,
+   "per_client_coverage_bootstrap": 0.9116666666666666,
+   "per_client_coverage_t": 0.9983333333333333,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 5,
+   "d_below_x": 0.1,
+   "P_feasible_bootstrap": 0.013333333333333334,
+   "P_feasible_t": 0.0,
+   "per_client_coverage_bootstrap": 0.91,
+   "per_client_coverage_t": 0.9933333333333333,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 5,
+   "d_below_x": 0.3,
+   "P_feasible_bootstrap": 0.0,
+   "P_feasible_t": 0.0,
+   "per_client_coverage_bootstrap": 0.9,
+   "per_client_coverage_t": 0.9933333333333333,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 5,
+   "d_below_x": 0.6,
+   "P_feasible_bootstrap": 0.0,
+   "P_feasible_t": 0.0,
+   "per_client_coverage_bootstrap": 0.91,
+   "per_client_coverage_t": 0.9933333333333333,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 7,
+   "d_below_x": 0.0,
+   "P_feasible_bootstrap": 0.018333333333333333,
+   "P_feasible_t": 0.0016666666666666668,
+   "per_client_coverage_bootstrap": 0.9566666666666667,
+   "per_client_coverage_t": 0.9983333333333333,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 7,
+   "d_below_x": 0.1,
+   "P_feasible_bootstrap": 0.0033333333333333335,
+   "P_feasible_t": 0.0,
+   "per_client_coverage_bootstrap": 0.96,
+   "per_client_coverage_t": 0.9933333333333333,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 7,
+   "d_below_x": 0.3,
+   "P_feasible_bootstrap": 0.0,
+   "P_feasible_t": 0.0,
+   "per_client_coverage_bootstrap": 0.945,
+   "per_client_coverage_t": 0.9966666666666667,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 7,
+   "d_below_x": 0.6,
+   "P_feasible_bootstrap": 0.0,
+   "P_feasible_t": 0.0,
+   "per_client_coverage_bootstrap": 0.94,
+   "per_client_coverage_t": 0.9966666666666667,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 12,
+   "d_below_x": 0.0,
+   "P_feasible_bootstrap": 0.015,
+   "P_feasible_t": 0.0,
+   "per_client_coverage_bootstrap": 0.97,
+   "per_client_coverage_t": 0.9966666666666667,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 12,
+   "d_below_x": 0.1,
+   "P_feasible_bootstrap": 0.0016666666666666668,
+   "P_feasible_t": 0.0,
+   "per_client_coverage_bootstrap": 0.97,
+   "per_client_coverage_t": 0.9883333333333333,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 12,
+   "d_below_x": 0.3,
+   "P_feasible_bootstrap": 0.0,
+   "P_feasible_t": 0.0,
+   "per_client_coverage_bootstrap": 0.9766666666666667,
+   "per_client_coverage_t": 0.9966666666666667,
+   "nominal_per_client_coverage": 0.995
+  },
+  {
+   "K": 12,
+   "d_below_x": 0.6,
+   "P_feasible_bootstrap": 0.0,
+   "P_feasible_t": 0.0,
+   "per_client_coverage_bootstrap": 0.9766666666666667,
+   "per_client_coverage_t": 0.9916666666666667,
+   "nominal_per_client_coverage": 0.995
+  }
+ ]
+}

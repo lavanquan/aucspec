@@ -1,0 +1,3 @@
+# Erratum to the B6 smoke interpretation (recorded results unchanged)
+
+The B6 report stated that 5 of 8 smoke clients "finished all six questions after 15.8–16.5 virtual seconds". Incorrect: the clients ran 107–128 virtual seconds. 15.8–16.5 s is the span between the first and last *in-window* receive times, short of the 17 s guard threshold only because rounds last ≈ 1.8 s (edge slack in a 20 s window). The INVALID verdict is therefore a guard false positive; the recorded verdict and numbers stay as recorded, the 20 s window rates remain non-citable (tier C), and the invariant checks (tier B) are unaffected. Fix: audit item M1.

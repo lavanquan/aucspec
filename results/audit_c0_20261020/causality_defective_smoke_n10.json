@@ -1,0 +1,11 @@
+{
+ "rows": 14276,
+ "n_batches": 7460,
+ "missed_arrivals": {
+  "requests": 3001,
+  "batches_affected": 1891,
+  "fraction_of_batches": 0.25348525469168903,
+  "mean_early_by_ms": 184.73753794315593
+ },
+ "batches_whose_earliest_arrival_is_later_than_a_following_batch": 783
+}

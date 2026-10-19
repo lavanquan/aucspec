@@ -1,0 +1,58 @@
+{
+ "rows": 826,
+ "policy": [
+  "capacity_dpp"
+ ],
+ "z_queue": {
+  "mean": 67.9024213075047,
+  "max": 112.5999999999973,
+  "frac_positive": 0.9903147699757869
+ },
+ "device_queue": {
+  "mean": 18.8077617526525,
+  "max": 85.65852621221794,
+  "frac_positive": 0.39951573849878935
+ },
+ "server_queue": {
+  "mean": 493.7050261071626,
+  "max": 799.4604111649096,
+  "frac_positive": 0.927360774818402
+ },
+ "lambda_price": {
+  "mean": 493.7050261071626,
+  "max": 799.4604111649096,
+  "frac_positive": 0.927360774818402
+ },
+ "selected_gamma_counts": {
+  "0": 328,
+  "4": 498
+ },
+ "gamma_counts": {
+  "0": 336,
+  "1": 10,
+  "2": 9,
+  "3": 14,
+  "4": 457
+ },
+ "theta_f_stamped_nonzero_frac": 0.0,
+ "mean_selected_gamma_when_device_queue>0": 4.0,
+ "mean_selected_gamma_when_device_queue==0": 1.3548387096774193,
+ "mean_selected_gamma_by_z_queue_tercile": {
+  "low": 3.072463768115942,
+  "mid": 2.1236363636363635,
+  "high": 2.036363636363636
+ },
+ "corr_selected_gamma_vs_alpha_hat": -0.027074207722087396,
+ "controller_forced_exploration_frac": 0.0,
+ "forced_service_frac_batches": 0.0,
+ "batch_size_mean": 1.7574468085106383,
+ "batch_token_cost_vs_budget_max_fill": 0.3,
+ "batch_hit_max_batch_size_32_frac": 0.0,
+ "gamma_rate_signal_age_min": -1.0,
+ "uplink_allocator": [
+  "proportional",
+  "square-root"
+ ],
+ "uplink_rate_mbps_cv_across_clients": 0.33393789031814197,
+ "x_requirement": 3.0
+}
