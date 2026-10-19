@@ -1,0 +1,75 @@
+{
+ "V1(k=1)_vs_k2_dict_accepted_equal_B1_g1": {
+  "n": 8,
+  "equal_rate": 1.0
+ },
+ "V1(k=1)_vs_k2_dict_accepted_equal_B1_g2": {
+  "n": 8,
+  "equal_rate": 1.0
+ },
+ "V1(k=1)_vs_k2_dict_accepted_equal_B1_g4": {
+  "n": 8,
+  "equal_rate": 1.0
+ },
+ "V1(k=1)_vs_k2_dict_accepted_equal_B4_g1": {
+  "n": 32,
+  "equal_rate": 1.0
+ },
+ "V1(k=1)_vs_k2_dict_accepted_equal_B4_g2": {
+  "n": 32,
+  "equal_rate": 1.0
+ },
+ "V1(k=1)_vs_k2_dict_accepted_equal_B4_g4": {
+  "n": 32,
+  "equal_rate": 1.0
+ },
+ "V1(k=1)_vs_k2_dict_accepted_equal_B16_g1": {
+  "n": 32,
+  "equal_rate": 1.0
+ },
+ "V1(k=1)_vs_k2_dict_accepted_equal_B16_g2": {
+  "n": 32,
+  "equal_rate": 1.0
+ },
+ "V1(k=1)_vs_k2_dict_accepted_equal_B16_g4": {
+  "n": 32,
+  "equal_rate": 1.0
+ },
+ "fp32_true_greedy_accept_rate_of_the_B60_decode_proposals": {
+  "g1_full": 0.65625,
+  "g2_full": 0.59375,
+  "g4_full": 0.40625
+ },
+ "V1_g4_accepted_equals_fp32_truth_B1": 1.0,
+ "V1_g4_accepted_equals_fp32_truth_B4": 0.84375,
+ "V1_g4_accepted_equals_fp32_truth_B16": 0.65625,
+ "sampler_next_token_equals_fp32_argmax_B1_g1": 0.96875,
+ "sampler_next_token_equals_fp32_argmax_B1_g2": 1.0,
+ "sampler_next_token_equals_fp32_argmax_B4_g1": 0.75,
+ "sampler_next_token_equals_fp32_argmax_B4_g2": 0.75,
+ "sampler_next_token_equals_fp32_argmax_B16_g1": 0.53125,
+ "sampler_next_token_equals_fp32_argmax_B16_g2": 0.40625,
+ "prefill_B1_g4_argmax_equals_fp32": 0.9921875,
+ "decode_B1_vs_B60": [
+  {
+   "slot": 0,
+   "same_as_B60": false,
+   "history_same": false
+  },
+  {
+   "slot": 7,
+   "same_as_B60": false,
+   "history_same": false
+  },
+  {
+   "slot": 8,
+   "same_as_B60": false,
+   "history_same": false
+  },
+  {
+   "slot": 11,
+   "same_as_B60": false,
+   "history_same": false
+  }
+ ]
+}

@@ -1,0 +1,65 @@
+{
+ "bw_n1": {
+  "n_batches": 1466,
+  "residual_mean_ms": 1.8979361782463593,
+  "residual_median_ms": 1.4846746864112532,
+  "residual_quantiles_5_25_75_95": [
+   -1.6076535699702532,
+   -0.20866598298914596,
+   3.6694490738604024,
+   6.918751486552646
+  ],
+  "residual_by_time_third_mean_ms": [
+   1.7224093578351707,
+   2.3487933359915254,
+   1.6220416394014523
+  ],
+  "corr_residual_vs_virtual_time": -0.045418510520367134,
+  "corr_residual_vs_batch_size": NaN,
+  "n_active_values": [
+   1
+  ]
+ },
+ "bw_n10": {
+  "n_batches": 7460,
+  "residual_mean_ms": 86.50745842762375,
+  "residual_median_ms": 89.03483689714199,
+  "residual_quantiles_5_25_75_95": [
+   25.42859724729706,
+   65.54699174717221,
+   109.88612973301088,
+   136.3515907519195
+  ],
+  "residual_by_time_third_mean_ms": [
+   90.04503133520875,
+   93.443066174778,
+   76.03006490858255
+  ],
+  "corr_residual_vs_virtual_time": -0.2173594191312254,
+  "corr_residual_vs_batch_size": 0.04595852283771851,
+  "n_active_values": [
+   10
+  ]
+ },
+ "v1_n10": {
+  "n_batches": 7460,
+  "residual_mean_ms": 91.9933226802488,
+  "residual_median_ms": 95.09624187850189,
+  "residual_quantiles_5_25_75_95": [
+   23.09657586110992,
+   71.10847557121795,
+   116.56571874206386,
+   143.077424889535
+  ],
+  "residual_by_time_third_mean_ms": [
+   96.80431978590761,
+   98.53628992671001,
+   80.63479116628156
+  ],
+  "corr_residual_vs_virtual_time": -0.2241374925143428,
+  "corr_residual_vs_batch_size": 0.08584385182249951,
+  "n_active_values": [
+   10
+  ]
+ }
+}
