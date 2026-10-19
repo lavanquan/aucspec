@@ -1,0 +1,13 @@
+function body identical to installed vLLM source: True
+  B per-sequence max |error| (slots)
+  1 wrong slots []   max errors [0.0]
+  2 wrong slots []   max errors [0.0, 0.0]
+  3 wrong slots [2]   max errors [0.0, 0.0, 3.523]
+  4 wrong slots [2]   max errors [0.0, 0.0, 3.207, 0.0]
+ 16 wrong slots [2, 4, 5, 7, 8, 9, 11, 12, 13, 14]   max errors [0.0, 0.0, 2.612, 0.0, 2.453, 3.022, 0.0, 3.04, 2.559, 2.51, 0.0, 2.611, 2.81, 2.642, 2.927, 0.0]
+with per-sequence lengths as argument: all slots match the reference
+---VERSIONS---
+torch 2.7.1a0+gite2d141d
+triton (with user base) 3.8.0 /software/projects/pawsey1257/quanla/aucspec/.pythonuserbase-rocm-vllm/lib/python3.12/site-packages/triton/__init__.py
+triton (system only) 3.3.1 /usr/local/lib/python3.12/dist-packages/triton/__init__.py
+flash_attn None

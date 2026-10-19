@@ -1,0 +1,28 @@
+/software/projects/pawsey1257/quanla/aucspec/.pythonuserbase-rocm-vllm/lib/python3.12/site-packages/transformers/utils/hub.py:105: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+INFO 10-19 14:34:53 [__init__.py:244] Automatically detected platform rocm.
+INFO 10-19 14:35:19 [config.py:823] This model supports multiple tasks: {'classify', 'reward', 'generate', 'score', 'embed'}. Defaulting to 'generate'.
+INFO 10-19 14:35:20 [arg_utils.py:1653] rocm is experimental on VLLM_USE_V1=1. Falling back to V0 Engine.
+INFO 10-19 14:35:20 [config.py:1980] Disabled the custom all-reduce kernel because it is not supported on current platform.
+INFO 10-19 14:35:20 [llm_engine.py:230] Initializing a V0 LLM engine (v0.9.1) with config: model='Qwen/Qwen2.5-7B-Instruct', speculative_config=None, tokenizer='Qwen/Qwen2.5-7B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config={}, tokenizer_revision=Non
+INFO 10-19 14:35:22 [rocm.py:226] Using ROCmFlashAttention backend.
+[W1019 14:35:22.802808013 HIPAllocatorConfig.h:29] Warning: expandable_segments not supported on this platform (function operator())
+INFO 10-19 14:35:22 [parallel_state.py:1065] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+INFO 10-19 14:35:22 [model_runner.py:1171] Starting to load model Qwen/Qwen2.5-7B-Instruct...
+WARNING 10-19 14:35:22 [rocm.py:331] Model architecture 'Qwen2ForCausalLM' is partially supported by ROCm: Sliding window attention (SWA) is not yet supported in Triton flash attention. For half-precision SWA support, please use CK flash attention by setting `VLLM_USE_TRITON_FLASH_ATTN=0`
+/usr/local/lib/python3.12/dist-packages/torch/utils/_device.py:104: UserWarning: expandable_segments not supported on this platform (Triggered internally at /tmp/build/pytorch/c10/hip/HIPAllocatorConfig.h:29.)
+  return func(*args, **kwargs)
+INFO 10-19 14:35:23 [weight_utils.py:292] Using model weights format ['*.safetensors']
+Loading safetensors checkpoint shards:   0% Completed | 0/4 [00:00<?, ?it/s]
+Loading safetensors checkpoint shards:  25% Completed | 1/4 [00:01<00:04,  1.50s/it]
+Loading safetensors checkpoint shards:  50% Completed | 2/4 [00:03<00:03,  1.64s/it]
+Loading safetensors checkpoint shards:  75% Completed | 3/4 [00:04<00:01,  1.62s/it]
+Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:06<00:00,  1.67s/it]
+Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:06<00:00,  1.64s/it]
+
+INFO 10-19 14:35:31 [default_loader.py:272] Loading weights took 6.81 seconds
+INFO 10-19 14:35:31 [model_runner.py:1203] Model loading took 14.5059 GiB and 8.329366 seconds
+/software/projects/pawsey1257/quanla/aucspec/.pythonuserbase-rocm-vllm/lib/python3.12/site-packages/triton/language/core.py:2625: UserWarning: tl.make_block_ptr is deprecated. Use TensorDescriptor or tl.make_tensor_descriptor instead.
+  warn("tl.make_block_ptr is deprecated. Use TensorDescriptor or tl.make_tensor_descriptor instead.")
+{"name": "B_triton1", "status": "failed", "calls": 0}
+[rank0]:[W1019 14:35:34.342332072 ProcessGroupNCCL.cpp:1479] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())

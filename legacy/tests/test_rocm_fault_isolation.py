@@ -98,3 +98,15 @@ def test_orchestrator_score_and_scripts_compile():
 
     ok = {"status": "ok", "dev": {"gate_inputs": {"B16_ident_vs_fp32_gap>=0.5": 0.5, "B4_ident_vs_fp32_gap>=0.5": 0.9}}}
     assert orch.score(ok) == pytest.approx(0.7) and orch.score({"status": "failed"}) == -1.0
+
+
+def test_candidate_patch_converts_cumulative_offsets_only():
+    import rocm_sdpa_runtime_patch as p
+
+    assert p.cumulative_to_lengths([0, 162, 324, 486]) == [162, 162, 162]
+    assert p.cumulative_to_lengths([0, 162]) == [162]
+    assert p.cumulative_to_lengths([162, 100]) == [162, 100]  # already lengths: untouched
+    cum = [0]
+    for _ in range(16):
+        cum.append(cum[-1] + 162)
+    assert p.cumulative_to_lengths(cum) == [162] * 16  # what the (unchanged) loop needs to partition the batch

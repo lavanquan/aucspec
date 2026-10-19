@@ -1,0 +1,1123 @@
+{
+ "orchestration": {
+  "total_calls_used": 194,
+  "elapsed_s": 461.34814977645874,
+  "not_tested": {
+   "VLLM_ATTENTION_BACKEND alternatives (TORCH_SDPA, XFORMERS, FLASH_ATTN)": "vLLM 0.9.1 rocm.py maps every non-ROCM_FLASH request to ROCmFlashAttention with only an info line, so these would silently fall back to the same kernel; not tested as separate configurations",
+   "AITER backends": "not installed/enabled in this build (VLLM_ROCM_USE_AITER=False)"
+  }
+ },
+ "configs": {
+  "A_triton0": {
+   "status": "ok",
+   "error": null,
+   "spec": null,
+   "versions": {
+    "vllm": "0.9.1",
+    "torch": "2.7.1a0+gite2d141d",
+    "hip": "6.3.42134-a9a80e791"
+   },
+   "engine": {
+    "engine_class": "vllm.engine.llm_engine.LLMEngine",
+    "attn_backend_class": "ABCMeta",
+    "attention_impls_first": [
+     {
+      "impl": "ROCmFlashAttentionImpl",
+      "use_naive_attn": true,
+      "use_triton_flash_attn": false,
+      "sliding_window": "(-1, -1)"
+     }
+    ],
+    "attention_impl_count": 28,
+    "chunked_prefill": false,
+    "max_num_batched_tokens": 4096,
+    "max_num_seqs": 256,
+    "dtype": "torch.bfloat16",
+    "enforce_eager": false,
+    "prefix_caching": false
+   },
+   "env": {
+    "HSA_FORCE_FINE_GRAIN_PCIE": "1",
+    "NCCL_SOCKET_IFNAME": "hsn",
+    "PYTORCH_HIP_ALLOC_CONF": "expandable_segments:True",
+    "PYTORCH_ROCM_ARCH": "gfx90a",
+    "ROCM_PATH": "/opt/rocm",
+    "VLLM_NO_USAGE_STATS": "1",
+    "VLLM_USE_TRITON_FLASH_ATTN": "0"
+   },
+   "init_s": 53.631590127944946,
+   "calls": 46,
+   "wall_s": null,
+   "latency_ms": {
+    "warmup": {
+     "n": 2,
+     "mean": 404.6241244650446,
+     "max": 670.1983349630609
+    },
+    "prefill_B1": {
+     "n": 12,
+     "mean": 77.73354318730223,
+     "max": 78.29476904589683
+    },
+    "prefill_B4": {
+     "n": 16,
+     "mean": 193.5301944395178,
+     "max": 193.965457030572
+    },
+    "prefill_B16": {
+     "n": 4,
+     "mean": 703.3345415256917,
+     "max": 704.1279900586233
+    },
+    "decode_B16": {
+     "n": 4,
+     "mean": 704.9312497547362,
+     "max": 884.2122569913045
+    },
+    "decode_B4": {
+     "n": 4,
+     "mean": 218.6109869799111,
+     "max": 219.4718939717859
+    },
+    "decode_B1": {
+     "n": 4,
+     "mean": 115.02352100796998,
+     "max": 115.2096230071038
+    }
+   },
+   "dev": {
+    "prefill": {
+     "B1": {
+      "fp32_all": {
+       "n": 48,
+       "rate": 1.0
+      },
+      "fp32_gap>=0.5": {
+       "n": 46,
+       "rate": 1.0
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 1.19207106763497e-06,
+       "p90": 0.01663424074649814,
+       "max": 0.04339337348937988
+      }
+     },
+     "B4_ident": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.796875
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.8048780487804879
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 0.0004910838324576616,
+       "p90": 6.058327144412487,
+       "max": 21.7501220703125
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.75,
+       "max_abs_proposal_logprob_diff": 21.7501220703125,
+       "median_abs_proposal_logprob_diff": 3.7505815271288157e-06
+      }
+     },
+     "B16_ident": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.4453125
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.43902439024390244
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 1.8526087142530514,
+       "p90": 10.624051439762116,
+       "max": 22.171968460083008
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.4375,
+       "max_abs_proposal_logprob_diff": 22.171968460083008,
+       "median_abs_proposal_logprob_diff": 2.0190591216087626
+      }
+     },
+     "B16_perm": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.453125
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.4634146341463415
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 2.2222177983148867,
+       "p90": 9.189264456182718,
+       "max": 14.126277923583984
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.4166666666666667,
+       "max_abs_proposal_logprob_diff": 13.895881295837171,
+       "median_abs_proposal_logprob_diff": 2.45272159576416
+      }
+     },
+     "B4_perm": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.8125
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.8048780487804879
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 0.00036502175498753786,
+       "p90": 5.704615432024002,
+       "max": 14.063760757446289
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.8958333333333334,
+       "max_abs_proposal_logprob_diff": 13.355428665876389,
+       "median_abs_proposal_logprob_diff": 2.715690243348945e-06
+      }
+     }
+    },
+    "decode": {
+     "B16_ident": {
+      "n": 32,
+      "first_token_equals_fp32": 0.40625,
+      "four_tokens_equal_fp32": 0.375,
+      "decode_first_token_equals_prefill_argmax_same_context": 0.71875
+     },
+     "B16_perm": {
+      "n": 32,
+      "first_token_equals_fp32": 0.5,
+      "four_tokens_equal_fp32": 0.34375,
+      "decode_first_token_equals_prefill_argmax_same_context": 0.625
+     },
+     "B4_ident": {
+      "n": 16,
+      "first_token_equals_fp32": 0.75,
+      "four_tokens_equal_fp32": 0.75,
+      "decode_first_token_equals_prefill_argmax_same_context": 0.8125
+     },
+     "B1": {
+      "n": 4,
+      "first_token_equals_fp32": 1.0,
+      "four_tokens_equal_fp32": 1.0
+     }
+    },
+    "slot_vs_input_B16": {
+     "n": 32,
+     "both_correct": 4,
+     "both_wrong": 12,
+     "wrong_only_in_order_a": 8,
+     "wrong_only_in_order_b": 8,
+     "input_specific_fraction": 0.42857142857142855,
+     "contexts_whose_slot_did_not_change": 2,
+     "wrong_rate_by_group_position_ident": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 1.0,
+      "3": 0.0,
+      "4": 1.0,
+      "5": 1.0,
+      "6": 0.0,
+      "7": 1.0,
+      "8": 1.0,
+      "9": 1.0,
+      "10": 0.0,
+      "11": 1.0,
+      "12": 1.0,
+      "13": 1.0,
+      "14": 1.0,
+      "15": 0.0
+     },
+     "wrong_rate_by_group_position_perm": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 1.0,
+      "3": 0.0,
+      "4": 1.0,
+      "5": 1.0,
+      "6": 0.0,
+      "7": 1.0,
+      "8": 1.0,
+      "9": 1.0,
+      "10": 0.0,
+      "11": 1.0,
+      "12": 1.0,
+      "13": 1.0,
+      "14": 1.0,
+      "15": 0.0
+     }
+    },
+    "gate_inputs": {
+     "B4_ident_vs_fp32_gap>=0.5": 0.8048780487804879,
+     "B16_ident_vs_fp32_gap>=0.5": 0.43902439024390244,
+     "B16_perm_vs_fp32_gap>=0.5": 0.4634146341463415,
+     "B4_ident_vs_B1_all_positions": 0.75,
+     "B16_ident_vs_B1_all_positions": 0.4375
+    }
+   },
+   "dev_gate_pass": false,
+   "heldout_gate_pass": null
+  },
+  "B_triton1": {
+   "status": "failed",
+   "error": "CompilationError('def attn_fwd(\\n    Q,\\n    K,\\n    V,\\n    bias,\\n    sm_scale,\\n    q_scale,\\n    k_scale,\\n    v_scale,\\n    p_scale,\\n    p_descale,\\n    o_descale,\\n    L,\\n    Out,\\n    stride_qz: tl.int64,\\n    stride_qh: tl.int64,\\n    stride_qm: tl.int64,\\n    stride_qk: tl.int64,\\n    stride_kz: tl.int64,\\n    stride_kh: tl.int64,\\n    stride_kn: tl.int64,\\n    stride_kk: tl.int64,\\n    stride_vz: tl.int64,\\n    stride_vh: tl.int64,\\n    stride_vk: tl.int64,\\n    stride_vn: tl.int64,\\n    stride_oz: tl.int64,\\n    stride_oh: tl.int64,\\n    stride_om: tl.int64,\\n    stride_on: tl.int64,\\n    stride_bz: tl.int64,\\n    stride_bh: tl.int64,\\n    stride_bm: tl.int64,\\n    stride_bn: tl.int64,\\n    cu_seqlens_q,\\n    cu_seqlens_k,\\n    dropout_p,\\n    philox_seed,\\n    philox_offset_base,\\n    encoded_softmax,\\n    HQ: tl.constexpr,\\n    HK: tl.constexpr,\\n    ACTUAL_BLOCK_DMODEL: tl.constexpr,\\n    MAX_SEQLENS_Q: tl.constexpr,\\n    MAX_SEQLENS_K: tl.constexpr,\\n    VARLEN: tl.constexpr,\\n    IS_CAUSAL: tl.constexpr,\\n    BLOCK_M: tl.constexpr,\\n    BLOCK_DMODEL: tl.constexpr,\\n    USE_FP8: tl.constexpr,\\n    USE_FP8_OUT: tl.constexpr,\\n    BLOCK_N: tl.constexpr,\\n    PRE_LOAD_V: tl.constexpr,\\n    BIAS_TYPE: tl.constexpr,\\n    ENABLE_DROPOUT: tl.constexpr,\\n    RETURN_ENCODED_SOFTMAX: tl.constexpr,\\n    FP8_MIN: tl.constexpr = float8_info.min,\\n    FP8_MAX: tl.constexpr = float8_info.max,\\n):\\n    start_m = tl.program_id(0)\\n    off_h_q = tl.program_id(1)\\n    off_z = tl.program_id(2)\\n    offs_m = start_m * BLOCK_M + tl.arange(0, BLOCK_M)\\n    offs_n = tl.arange(0, BLOCK_N)\\n    if VARLEN:\\n        cu_seqlens_q_start = tl.load(cu_seqlens_q + off_z)\\n        cu_seqlens_q_end = tl.load(cu_seqlens_q + off_z + 1)\\n        seqlen_q = cu_seqlens_q_end - cu_seqlens_q_start\\n        # We have a one-size-fits-all grid in id(0). Some seqlens might be too\\n        # small for all start_m so for those we return early.\\n        if start_m * BLOCK_M > seqlen_q:\\n            return\\n        cu_seqlens_k_start = tl.load(cu_seqlens_k + off_z)\\n        cu_seqlens_k_end = tl.load(cu_seqlens_k + off_z + 1)\\n        seqlen_k = cu_seqlens_k_end - cu_seqlens_k_start\\n    else:\\n        cu_seqlens_q_start = 0\\n        cu_seqlens_k_start = 0\\n        seqlen_q = MAX_SEQLENS_Q\\n        seqlen_k = MAX_SEQLENS_K\\n\\n    # Now we compute whether we need to exit early due to causal masking.\\n    # This is because for seqlen_q > seqlen_k, M rows of the attn scores\\n    # are completely masked, resulting in 0s written to the output, and\\n    # inf written to LSE. We don\\'t need to do any GEMMs in this case.\\n    # This block of code determines what N is, and if this WG is operating\\n    # on those M rows.\\n    n_blocks = cdiv_fn(seqlen_k, BLOCK_N)\\n    if IS_CAUSAL:\\n        # If seqlen_q == seqlen_k, the attn scores are a square matrix.\\n        # If seqlen_q != seqlen_k, attn scores are rectangular which means\\n        # the causal mask boundary is bottom right aligned, and ends at either\\n        # the top edge (seqlen_q < seqlen_k) or left edge.\\n        # This captures the decrease in n_blocks if we have a rectangular attn\\n        # matrix\\n        n_blocks_seqlen = cdiv_fn(\\n            (start_m + 1) * BLOCK_M + seqlen_k - seqlen_q, BLOCK_N)\\n        # This is what adjusts the block_max for the current WG, only\\n        # if IS_CAUSAL. Otherwise we want to always iterate through all n_blocks\\n        n_blocks = min(n_blocks, n_blocks_seqlen)\\n        # If we have no blocks after adjusting for seqlen deltas, this WG is\\n        # part of the blocks that are all 0. We exit early.\\n        if n_blocks <= 0:\\n            o_offset = (off_z * stride_oz + cu_seqlens_q_start * stride_om +\\n                        off_h_q * stride_oh)\\n            O_block_ptr = tl.make_block_ptr(\\n                base=Out + o_offset,\\n                shape=(seqlen_q, BLOCK_DMODEL),\\n                strides=(stride_om, stride_on),\\n                offsets=(start_m * BLOCK_M, 0),\\n                block_shape=(BLOCK_M, BLOCK_DMODEL),\\n                order=(1, 0),\\n            )\\n            acc = tl.zeros([BLOCK_M, BLOCK_DMODEL], dtype=Out.type.element_ty)\\n            # We still need to write 0s to the result\\n            # tl.store(O_block_ptr,\\n            # acc.to(Out.type.element_ty), boundary_check=(0,1))\\n            # l_ptrs = L + off_z * HQ * MAX_SEQLENS_Q + off_h_q * MAX_SEQLENS_Q\\n            #          + offs_m\\n            # We store inf to LSE, not -inf because in the bwd pass,\\n            # we subtract this\\n            # from qk which makes it -inf, such that exp(qk - inf) = 0\\n            # for these masked blocks.\\n            # l = tl.full([BLOCK_M], value=float(\"inf\"), dtype=tl.float32)\\n            # tl.store(l_ptrs, l)\\n            # TODO: Should dropout and return encoded softmax be handled here?\\n            return\\n\\n    # If MQA / GQA, set the K and V head offsets appropriately.\\n    GROUP_SIZE: tl.constexpr = HQ // HK\\n    off_h_k = off_h_q // GROUP_SIZE if GROUP_SIZE != 1 else off_h_q\\n\\n    n_extra_tokens = 0\\n    if seqlen_k < BLOCK_N:\\n        n_extra_tokens = BLOCK_N - seqlen_k\\n    elif seqlen_k % BLOCK_N:\\n        n_extra_tokens = seqlen_k % BLOCK_N\\n    padded_head = ACTUAL_BLOCK_DMODEL != BLOCK_DMODEL\\n\\n    # Compute pointers for all the tensors used in this kernel.\\n    q_offset = (off_z * stride_qz + off_h_q * stride_qh +\\n                cu_seqlens_q_start * stride_qm)\\n    Q_block_ptr = tl.make_block_ptr(\\n        base=Q + q_offset,\\n        shape=(seqlen_q, ACTUAL_BLOCK_DMODEL),\\n        strides=(stride_qm, stride_qk),\\n        offsets=(start_m * BLOCK_M, 0),\\n        block_shape=(BLOCK_M, BLOCK_DMODEL),\\n        order=(1, 0),\\n    )\\n    k_offset = (off_z * stride_kz + off_h_k * stride_kh +\\n                cu_seqlens_k_start * stride_kn)\\n    K_block_ptr = tl.make_block_ptr(\\n        base=K + k_offset,\\n        shape=(ACTUAL_BLOCK_DMODEL, seqlen_k),\\n        strides=(stride_kk, stride_kn),\\n        offsets=(0, 0),\\n        block_shape=(BLOCK_DMODEL, BLOCK_N),\\n        order=(0, 1),\\n    )\\n    v_offset = (off_z * stride_vz + off_h_k * stride_vh +\\n                cu_seqlens_k_start * stride_vk)\\n    V_block_ptr = tl.make_block_ptr(\\n        base=V + v_offset,\\n        shape=(seqlen_k, ACTUAL_BLOCK_DMODEL),\\n        strides=(stride_vk, stride_vn),\\n        offsets=(0, 0),\\n        block_shape=(BLOCK_N, BLOCK_DMODEL),\\n        order=(1, 0),\\n    )\\n    if BIAS_TYPE != 0:\\n        bias_ptr = tl.make_block_ptr(\\n            base=bias + off_h_q * stride_bh,\\n            shape=(seqlen_q, seqlen_k),\\n            strides=(stride_bm, stride_bn),\\n            offsets=(start_m * BLOCK_M, 0),\\n            block_shape=(BLOCK_M, BLOCK_N),\\n            order=(1, 0),\\n        )\\n    else:\\n        bias_ptr = None\\n    if ENABLE_DROPOUT:\\n        batch_philox_offset = philox_offset_base \\\\\\n                              + (off_z * HQ + off_h_q) \\\\\\n                              * seqlen_q * seqlen_k\\n    else:\\n        batch_philox_offset = 0\\n    # We can ask to return the dropout mask without actually doing any dropout.\\n    # In this case, we return an invalid pointer so indicate the mask is not i\\n    # valid.\\n    # TODO: Fix encoded softmax. It currently uses just h_q in the base offset.\\n    if RETURN_ENCODED_SOFTMAX:\\n        encoded_softmax_block_ptr = tl.make_block_ptr(\\n            base=encoded_softmax + off_h_q * seqlen_q * seqlen_k,\\n            shape=(seqlen_q, seqlen_k),\\n            strides=(seqlen_k, 1),\\n            offsets=(start_m * BLOCK_M, 0),\\n            block_shape=(BLOCK_M, BLOCK_N),\\n            order=(1, 0),\\n        )\\n    else:\\n        encoded_softmax_block_ptr = 0\\n    # initialize pointer to m and l\\n    m_i = tl.full([BLOCK_M], float(\"-inf\"), dtype=tl.float32)\\n    l_i = tl.full([BLOCK_M], 1.0, dtype=tl.float32)\\n    acc = tl.zeros([BLOCK_M, BLOCK_DMODEL], dtype=tl.float32)\\n    # scale sm_scale by log_2(e) and use 2^x in the loop as we do not\\n    # have native e^x support in HW.\\n    qk_scale = sm_scale * 1.44269504089\\n    # Q is loaded once at the beginning and shared by all N blocks.\\n    q = load_fn(Q_block_ptr, True, padded_head, \"zero\")\\n    if not USE_FP8:\\n        q = (q * qk_scale).to(Q_block_ptr.type.element_ty)\\n        acc_scale = 1.0\\n    else:\\n        qk_scale *= q_scale * k_scale\\n        acc_scale = p_scale * v_scale\\n\\n    # Here we compute how many full and masked blocks we have.\\n    padded_block_k = n_extra_tokens != 0\\n    is_modulo_mn = not padded_block_k and (seqlen_q % BLOCK_M == 0)\\n    if IS_CAUSAL:\\n        # There are always at least BLOCK_M // BLOCK_N masked blocks.\\n        # Additionally there might be one more due to dissimilar seqlens.\\n        masked_blocks = BLOCK_M // BLOCK_N + (not is_modulo_mn)\\n    else:\\n        # Padding on Q does not need to be masked in the FA loop.\\n        masked_blocks = padded_block_k\\n    # if IS_CAUSAL, not is_modulo_mn does not always result in an additional\\n    # block. In this case we might exceed n_blocks so pick the min.\\n    masked_blocks = min(masked_blocks, n_blocks)\\n    n_full_blocks = n_blocks - masked_blocks\\n    block_min = 0\\n    block_max = n_blocks * BLOCK_N\\n    # Compute for full blocks. Here we set causal to false regardless of its\\n    # value because there is no masking. Similarly we do not need padding.\\n    if n_full_blocks > 0:\\n        block_max = (n_blocks - masked_blocks) * BLOCK_N\\n        acc, l_i, m_i = _attn_fwd_inner(\\n            acc,\\n            l_i,\\n            m_i,\\n            q,\\n            K_block_ptr,\\n            V_block_ptr,\\n            start_m,\\n            seqlen_k,\\n            dropout_p,\\n            philox_seed,\\n            batch_philox_offset,\\n            encoded_softmax_block_ptr,\\n            # _, _, offs_n_causal, masked_blocks, n_extra_tokens, _\\n            block_min,\\n            block_max,\\n            0,\\n            0,\\n            0,\\n            bias_ptr,\\n            # IS_CAUSAL, ....\\n            False,\\n            BLOCK_M,\\n            BLOCK_DMODEL,\\n            BLOCK_N,\\n            offs_m,\\n            offs_n,\\n            # _, MASK_STEPS, ...\\n            PRE_LOAD_V,\\n            False,\\n            ENABLE_DROPOUT,\\n            RETURN_ENCODED_SOFTMAX,\\n            padded_head,\\n            USE_FP8,\\n            qk_scale,\\n            p_descale,\\n        )\\n        block_min = block_max\\n        block_max = n_blocks * BLOCK_N\\n\\n    tl.debug_barrier()\\n    # Remaining blocks, if any, are full / not masked.\\n    if masked_blocks > 0:\\n        offs_n_causal = offs_n + (seqlen_q - seqlen_k) if IS_CAUSAL else 0\\n        K_block_ptr = tl.advance(K_block_ptr, (0, n_full_blocks * BLOCK_N))\\n        V_block_ptr = tl.advance(V_block_ptr, (n_full_blocks * BLOCK_N, 0))\\n        if bias_ptr is not None:\\n            bias_ptr = tl.advance(bias_ptr, (0, n_full_blocks * BLOCK_N))\\n        if RETURN_ENCODED_SOFTMAX:\\n            encoded_softmax_block_ptr = tl.advance(encoded_softmax_block_ptr,\\n                                                   (0, n_full_blocks))\\n        acc, l_i, m_i = _attn_fwd_inner(\\n            acc,\\n            l_i,\\n            m_i,\\n            q,\\n            K_block_ptr,\\n            V_block_ptr,\\n            start_m,\\n            seqlen_k,\\n            dropout_p,\\n            philox_seed,\\n            batch_philox_offset,\\n            encoded_softmax_block_ptr,\\n            block_min,\\n            block_max,\\n            offs_n_causal,\\n            masked_blocks,\\n            n_extra_tokens,\\n            bias_ptr,\\n            IS_CAUSAL,\\n            BLOCK_M,\\n            BLOCK_DMODEL,\\n            BLOCK_N,\\n            offs_m,\\n            offs_n,\\n            # _, MASK_STEPS, ...\\n            PRE_LOAD_V,\\n            True,\\n            ENABLE_DROPOUT,\\n            RETURN_ENCODED_SOFTMAX,\\n            padded_head,\\n            USE_FP8,\\n            qk_scale,\\n            p_descale,\\n        )\\n    # epilogue\\n\\n    if USE_FP8:\\n        acc *= acc_scale\\n    acc = acc / l_i[:, None]\\n    if ENABLE_DROPOUT:\\n        acc = acc / (1 - dropout_p)\\n    # If seqlen_q > seqlen_k but the delta is not a multiple of BLOCK_M,\\n    # then we have one block with a row of all NaNs which come from computing\\n    # softmax over a row of all -infs (-inf - inf = NaN). We check for that here\\n    # and store 0s where there are NaNs as these rows should\\'ve been zeroed out.\\n    end_m_idx = (start_m + 1) * BLOCK_M\\n    start_m_idx = start_m * BLOCK_M\\n    causal_start_idx = seqlen_q - seqlen_k\\n    if USE_FP8_OUT:\\n        acc *= o_descale\\n        acc = tl.clamp(acc, FP8_MIN, FP8_MAX)\\n    acc = acc.to(Out.type.element_ty)\\n    if IS_CAUSAL:  # noqa: SIM102\\n        if causal_start_idx > start_m_idx and causal_start_idx < end_m_idx:\\n            out_mask_boundary = tl.full((BLOCK_DMODEL, ),\\n                                        causal_start_idx,\\n                                        dtype=tl.int32)\\n            mask_m_offsets = start_m_idx + tl.arange(0, BLOCK_M)\\n            out_ptrs_mask = (mask_m_offsets[:, None]\\n                             >= out_mask_boundary[None, :])\\n            z = tl.zeros((1, ), tl.float32)\\n            acc = tl.where(out_ptrs_mask, acc, z.to(acc.type.element_ty))\\n    # write back LSE\\n    # l_ptrs = L + off_z * HQ * MAX_SEQLENS_Q + off_h_q * MAX_SEQLENS_Q + offs_m\\n    # If seqlen_q not multiple of BLOCK_M, we need to mask out the last\\n    # few rows. This is only true for the last M block. For others,\\n    # overflow_size will be -ve\\n    # overflow_size = end_m_idx - seqlen_q\\n    # if overflow_size > 0:\\n    #    boundary = tl.full((BLOCK_M,), BLOCK_M - overflow_size, dtype=tl.int32)\\n    #    # This is a > check because mask being 0 blocks the store.\\n    #    l_ptrs_mask = boundary > tl.arange(0, BLOCK_M)\\n    #    tl.store(l_ptrs, m_i + tl.math.log2(l_i), mask=l_ptrs_mask)\\n    # else:\\n    #    tl.store(l_ptrs, m_i + tl.math.log2(l_i))\\n\\n    # write back O\\n    o_offset = (off_z * stride_oz + cu_seqlens_q_start * stride_om +\\n                off_h_q * stride_oh)\\n    O_block_ptr = tl.make_block_ptr(\\n        base=Out + o_offset,\\n        shape=(seqlen_q, ACTUAL_BLOCK_DMODEL),\\n        strides=(stride_om, stride_on),\\n        offsets=(start_m * BLOCK_M, 0),\\n        block_shape=(BLOCK_M, BLOCK_DMODEL),\\n        order=(1, 0),\\n    )\\n    # Need boundary check on this to make sure the padding from the\\n    # Q and KV tensors in both dims are not part of what we store back.\\n    # TODO: Do the boundary check optionally.\\n    tl.store(O_block_ptr, acc, boundary_check=(0, 1))\\n', <ast.Attribute object at 0x151ea4025490>, 'AttributeError(\"\\'_aggregate_type\\' object has no attribute \\'element_ty\\'\")')",
+   "spec": null,
+   "versions": {
+    "vllm": "0.9.1",
+    "torch": "2.7.1a0+gite2d141d",
+    "hip": "6.3.42134-a9a80e791"
+   },
+   "engine": null,
+   "env": {
+    "HSA_FORCE_FINE_GRAIN_PCIE": "1",
+    "NCCL_SOCKET_IFNAME": "hsn",
+    "PYTORCH_HIP_ALLOC_CONF": "expandable_segments:True",
+    "PYTORCH_ROCM_ARCH": "gfx90a",
+    "ROCM_PATH": "/opt/rocm",
+    "VLLM_NO_USAGE_STATS": "1",
+    "VLLM_USE_TRITON_FLASH_ATTN": "1"
+   },
+   "init_s": null,
+   "calls": 0,
+   "wall_s": null,
+   "latency_ms": null
+  },
+  "C_eager": {
+   "status": "ok",
+   "error": null,
+   "spec": null,
+   "versions": {
+    "vllm": "0.9.1",
+    "torch": "2.7.1a0+gite2d141d",
+    "hip": "6.3.42134-a9a80e791"
+   },
+   "engine": {
+    "engine_class": "vllm.engine.llm_engine.LLMEngine",
+    "attn_backend_class": "ABCMeta",
+    "attention_impls_first": [
+     {
+      "impl": "ROCmFlashAttentionImpl",
+      "use_naive_attn": true,
+      "use_triton_flash_attn": false,
+      "sliding_window": "(-1, -1)"
+     }
+    ],
+    "attention_impl_count": 28,
+    "chunked_prefill": false,
+    "max_num_batched_tokens": 4096,
+    "max_num_seqs": 256,
+    "dtype": "torch.bfloat16",
+    "enforce_eager": true,
+    "prefix_caching": false
+   },
+   "env": {
+    "HSA_FORCE_FINE_GRAIN_PCIE": "1",
+    "NCCL_SOCKET_IFNAME": "hsn",
+    "PYTORCH_HIP_ALLOC_CONF": "expandable_segments:True",
+    "PYTORCH_ROCM_ARCH": "gfx90a",
+    "ROCM_PATH": "/opt/rocm",
+    "VLLM_NO_USAGE_STATS": "1",
+    "VLLM_USE_TRITON_FLASH_ATTN": "0"
+   },
+   "init_s": 34.78119945526123,
+   "calls": 46,
+   "wall_s": null,
+   "latency_ms": {
+    "warmup": {
+     "n": 2,
+     "mean": 415.5254835495725,
+     "max": 637.8433110658079
+    },
+    "prefill_B1": {
+     "n": 12,
+     "mean": 61.48523299877221,
+     "max": 61.706951004453
+    },
+    "prefill_B4": {
+     "n": 16,
+     "mean": 172.93155475636013,
+     "max": 173.80666499957442
+    },
+    "prefill_B16": {
+     "n": 4,
+     "mean": 669.3997612164821,
+     "max": 670.6939099822193
+    },
+    "decode_B16": {
+     "n": 4,
+     "mean": 613.0324144905899,
+     "max": 613.236129982397
+    },
+    "decode_B4": {
+     "n": 4,
+     "mean": 199.0968332393095,
+     "max": 199.22268704976887
+    },
+    "decode_B1": {
+     "n": 4,
+     "mean": 99.85027552465908,
+     "max": 99.91877106949687
+    }
+   },
+   "dev": {
+    "prefill": {
+     "B1": {
+      "fp32_all": {
+       "n": 48,
+       "rate": 1.0
+      },
+      "fp32_gap>=0.5": {
+       "n": 46,
+       "rate": 1.0
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 1.19207106763497e-06,
+       "p90": 0.01663424074649814,
+       "max": 0.04339337348937988
+      }
+     },
+     "B4_ident": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.796875
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.8048780487804879
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 0.0004910838324576616,
+       "p90": 6.058327144412487,
+       "max": 21.7501220703125
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.75,
+       "max_abs_proposal_logprob_diff": 21.7501220703125,
+       "median_abs_proposal_logprob_diff": 3.7505815271288157e-06
+      }
+     },
+     "B16_ident": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.4453125
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.43902439024390244
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 1.8526087142530514,
+       "p90": 10.624051439762116,
+       "max": 22.171968460083008
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.4375,
+       "max_abs_proposal_logprob_diff": 22.171968460083008,
+       "median_abs_proposal_logprob_diff": 2.0190591216087626
+      }
+     },
+     "B16_perm": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.453125
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.4634146341463415
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 2.2222177983148867,
+       "p90": 9.189264456182718,
+       "max": 14.126277923583984
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.4166666666666667,
+       "max_abs_proposal_logprob_diff": 13.895881295837171,
+       "median_abs_proposal_logprob_diff": 2.45272159576416
+      }
+     },
+     "B4_perm": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.8125
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.8048780487804879
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 0.00036502175498753786,
+       "p90": 5.704615432024002,
+       "max": 14.063760757446289
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.8958333333333334,
+       "max_abs_proposal_logprob_diff": 13.355428665876389,
+       "median_abs_proposal_logprob_diff": 2.715690243348945e-06
+      }
+     }
+    },
+    "decode": {
+     "B16_ident": {
+      "n": 32,
+      "first_token_equals_fp32": 0.40625,
+      "four_tokens_equal_fp32": 0.375,
+      "decode_first_token_equals_prefill_argmax_same_context": 0.71875
+     },
+     "B16_perm": {
+      "n": 32,
+      "first_token_equals_fp32": 0.5,
+      "four_tokens_equal_fp32": 0.34375,
+      "decode_first_token_equals_prefill_argmax_same_context": 0.625
+     },
+     "B4_ident": {
+      "n": 16,
+      "first_token_equals_fp32": 0.75,
+      "four_tokens_equal_fp32": 0.75,
+      "decode_first_token_equals_prefill_argmax_same_context": 0.8125
+     },
+     "B1": {
+      "n": 4,
+      "first_token_equals_fp32": 1.0,
+      "four_tokens_equal_fp32": 1.0
+     }
+    },
+    "slot_vs_input_B16": {
+     "n": 32,
+     "both_correct": 4,
+     "both_wrong": 12,
+     "wrong_only_in_order_a": 8,
+     "wrong_only_in_order_b": 8,
+     "input_specific_fraction": 0.42857142857142855,
+     "contexts_whose_slot_did_not_change": 2,
+     "wrong_rate_by_group_position_ident": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 1.0,
+      "3": 0.0,
+      "4": 1.0,
+      "5": 1.0,
+      "6": 0.0,
+      "7": 1.0,
+      "8": 1.0,
+      "9": 1.0,
+      "10": 0.0,
+      "11": 1.0,
+      "12": 1.0,
+      "13": 1.0,
+      "14": 1.0,
+      "15": 0.0
+     },
+     "wrong_rate_by_group_position_perm": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 1.0,
+      "3": 0.0,
+      "4": 1.0,
+      "5": 1.0,
+      "6": 0.0,
+      "7": 1.0,
+      "8": 1.0,
+      "9": 1.0,
+      "10": 0.0,
+      "11": 1.0,
+      "12": 1.0,
+      "13": 1.0,
+      "14": 1.0,
+      "15": 0.0
+     }
+    },
+    "gate_inputs": {
+     "B4_ident_vs_fp32_gap>=0.5": 0.8048780487804879,
+     "B16_ident_vs_fp32_gap>=0.5": 0.43902439024390244,
+     "B16_perm_vs_fp32_gap>=0.5": 0.4634146341463415,
+     "B4_ident_vs_B1_all_positions": 0.75,
+     "B16_ident_vs_B1_all_positions": 0.4375
+    }
+   },
+   "dev_gate_pass": false,
+   "heldout_gate_pass": null
+  },
+  "D_no_custom_paged_attn": {
+   "status": "ok",
+   "error": null,
+   "spec": null,
+   "versions": {
+    "vllm": "0.9.1",
+    "torch": "2.7.1a0+gite2d141d",
+    "hip": "6.3.42134-a9a80e791"
+   },
+   "engine": {
+    "engine_class": "vllm.engine.llm_engine.LLMEngine",
+    "attn_backend_class": "ABCMeta",
+    "attention_impls_first": [
+     {
+      "impl": "ROCmFlashAttentionImpl",
+      "use_naive_attn": true,
+      "use_triton_flash_attn": false,
+      "sliding_window": "(-1, -1)"
+     }
+    ],
+    "attention_impl_count": 28,
+    "chunked_prefill": false,
+    "max_num_batched_tokens": 4096,
+    "max_num_seqs": 256,
+    "dtype": "torch.bfloat16",
+    "enforce_eager": false,
+    "prefix_caching": false
+   },
+   "env": {
+    "HSA_FORCE_FINE_GRAIN_PCIE": "1",
+    "NCCL_SOCKET_IFNAME": "hsn",
+    "PYTORCH_HIP_ALLOC_CONF": "expandable_segments:True",
+    "PYTORCH_ROCM_ARCH": "gfx90a",
+    "ROCM_PATH": "/opt/rocm",
+    "VLLM_NO_USAGE_STATS": "1",
+    "VLLM_ROCM_CUSTOM_PAGED_ATTN": "0",
+    "VLLM_USE_TRITON_FLASH_ATTN": "0"
+   },
+   "init_s": 50.59220337867737,
+   "calls": 46,
+   "wall_s": null,
+   "latency_ms": {
+    "warmup": {
+     "n": 2,
+     "mean": 406.33075998630375,
+     "max": 670.5777309834957
+    },
+    "prefill_B1": {
+     "n": 12,
+     "mean": 78.34420748986304,
+     "max": 78.84700095746666
+    },
+    "prefill_B4": {
+     "n": 16,
+     "mean": 193.2851016827044,
+     "max": 194.10302606411278
+    },
+    "prefill_B16": {
+     "n": 4,
+     "mean": 700.421229499625,
+     "max": 702.401538961567
+    },
+    "decode_B16": {
+     "n": 4,
+     "mean": 706.2206402188167,
+     "max": 888.5922349290922
+    },
+    "decode_B4": {
+     "n": 4,
+     "mean": 220.3573329898063,
+     "max": 221.33955301251262
+    },
+    "decode_B1": {
+     "n": 4,
+     "mean": 117.7975999598857,
+     "max": 117.94137198012322
+    }
+   },
+   "dev": {
+    "prefill": {
+     "B1": {
+      "fp32_all": {
+       "n": 48,
+       "rate": 1.0
+      },
+      "fp32_gap>=0.5": {
+       "n": 46,
+       "rate": 1.0
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 1.19207106763497e-06,
+       "p90": 0.01663424074649814,
+       "max": 0.04339337348937988
+      }
+     },
+     "B4_ident": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.796875
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.8048780487804879
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 0.0004910838324576616,
+       "p90": 6.058327144412487,
+       "max": 21.7501220703125
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.75,
+       "max_abs_proposal_logprob_diff": 21.7501220703125,
+       "median_abs_proposal_logprob_diff": 3.7505815271288157e-06
+      }
+     },
+     "B16_ident": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.4453125
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.43902439024390244
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 1.8526087142530514,
+       "p90": 10.624051439762116,
+       "max": 22.171968460083008
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.4375,
+       "max_abs_proposal_logprob_diff": 22.171968460083008,
+       "median_abs_proposal_logprob_diff": 2.0190591216087626
+      }
+     },
+     "B16_perm": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.453125
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.4634146341463415
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 2.2222177983148867,
+       "p90": 9.189264456182718,
+       "max": 14.126277923583984
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.4166666666666667,
+       "max_abs_proposal_logprob_diff": 13.895881295837171,
+       "median_abs_proposal_logprob_diff": 2.45272159576416
+      }
+     },
+     "B4_perm": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.8125
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.8048780487804879
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 0.00036502175498753786,
+       "p90": 5.704615432024002,
+       "max": 14.063760757446289
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.8958333333333334,
+       "max_abs_proposal_logprob_diff": 13.355428665876389,
+       "median_abs_proposal_logprob_diff": 2.715690243348945e-06
+      }
+     }
+    },
+    "decode": {
+     "B16_ident": {
+      "n": 32,
+      "first_token_equals_fp32": 0.40625,
+      "four_tokens_equal_fp32": 0.375,
+      "decode_first_token_equals_prefill_argmax_same_context": 0.71875
+     },
+     "B16_perm": {
+      "n": 32,
+      "first_token_equals_fp32": 0.5,
+      "four_tokens_equal_fp32": 0.375,
+      "decode_first_token_equals_prefill_argmax_same_context": 0.625
+     },
+     "B4_ident": {
+      "n": 16,
+      "first_token_equals_fp32": 0.75,
+      "four_tokens_equal_fp32": 0.75,
+      "decode_first_token_equals_prefill_argmax_same_context": 0.8125
+     },
+     "B1": {
+      "n": 4,
+      "first_token_equals_fp32": 1.0,
+      "four_tokens_equal_fp32": 1.0
+     }
+    },
+    "slot_vs_input_B16": {
+     "n": 32,
+     "both_correct": 4,
+     "both_wrong": 12,
+     "wrong_only_in_order_a": 8,
+     "wrong_only_in_order_b": 8,
+     "input_specific_fraction": 0.42857142857142855,
+     "contexts_whose_slot_did_not_change": 2,
+     "wrong_rate_by_group_position_ident": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 1.0,
+      "3": 0.0,
+      "4": 1.0,
+      "5": 1.0,
+      "6": 0.0,
+      "7": 1.0,
+      "8": 1.0,
+      "9": 1.0,
+      "10": 0.0,
+      "11": 1.0,
+      "12": 1.0,
+      "13": 1.0,
+      "14": 1.0,
+      "15": 0.0
+     },
+     "wrong_rate_by_group_position_perm": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 1.0,
+      "3": 0.0,
+      "4": 1.0,
+      "5": 1.0,
+      "6": 0.0,
+      "7": 1.0,
+      "8": 1.0,
+      "9": 1.0,
+      "10": 0.0,
+      "11": 1.0,
+      "12": 1.0,
+      "13": 1.0,
+      "14": 1.0,
+      "15": 0.0
+     }
+    },
+    "gate_inputs": {
+     "B4_ident_vs_fp32_gap>=0.5": 0.8048780487804879,
+     "B16_ident_vs_fp32_gap>=0.5": 0.43902439024390244,
+     "B16_perm_vs_fp32_gap>=0.5": 0.4634146341463415,
+     "B4_ident_vs_B1_all_positions": 0.75,
+     "B16_ident_vs_B1_all_positions": 0.4375
+    }
+   },
+   "dev_gate_pass": false,
+   "heldout_gate_pass": null
+  },
+  "E_fp16": {
+   "status": "ok",
+   "error": null,
+   "spec": null,
+   "versions": {
+    "vllm": "0.9.1",
+    "torch": "2.7.1a0+gite2d141d",
+    "hip": "6.3.42134-a9a80e791"
+   },
+   "engine": {
+    "engine_class": "vllm.engine.llm_engine.LLMEngine",
+    "attn_backend_class": "ABCMeta",
+    "attention_impls_first": [
+     {
+      "impl": "ROCmFlashAttentionImpl",
+      "use_naive_attn": true,
+      "use_triton_flash_attn": false,
+      "sliding_window": "(-1, -1)"
+     }
+    ],
+    "attention_impl_count": 28,
+    "chunked_prefill": false,
+    "max_num_batched_tokens": 4096,
+    "max_num_seqs": 256,
+    "dtype": "torch.float16",
+    "enforce_eager": false,
+    "prefix_caching": false
+   },
+   "env": {
+    "HSA_FORCE_FINE_GRAIN_PCIE": "1",
+    "NCCL_SOCKET_IFNAME": "hsn",
+    "PYTORCH_HIP_ALLOC_CONF": "expandable_segments:True",
+    "PYTORCH_ROCM_ARCH": "gfx90a",
+    "ROCM_PATH": "/opt/rocm",
+    "VLLM_NO_USAGE_STATS": "1",
+    "VLLM_USE_TRITON_FLASH_ATTN": "0"
+   },
+   "init_s": 47.33603310585022,
+   "calls": 46,
+   "wall_s": null,
+   "latency_ms": {
+    "warmup": {
+     "n": 2,
+     "mean": 402.80189644545317,
+     "max": 666.3209849502891
+    },
+    "prefill_B1": {
+     "n": 12,
+     "mean": 76.52875232937124,
+     "max": 77.26260204799473
+    },
+    "prefill_B4": {
+     "n": 16,
+     "mean": 190.78125386295142,
+     "max": 191.59549695905298
+    },
+    "prefill_B16": {
+     "n": 4,
+     "mean": 692.6428267615847,
+     "max": 694.2888590274379
+    },
+    "decode_B16": {
+     "n": 4,
+     "mean": 701.8146369955502,
+     "max": 880.3692249348387
+    },
+    "decode_B4": {
+     "n": 4,
+     "mean": 210.51630351576023,
+     "max": 210.69928398355842
+    },
+    "decode_B1": {
+     "n": 4,
+     "mean": 115.28437375091016,
+     "max": 116.11123906914145
+    }
+   },
+   "dev": {
+    "prefill": {
+     "B1": {
+      "fp32_all": {
+       "n": 48,
+       "rate": 1.0
+      },
+      "fp32_gap>=0.5": {
+       "n": 46,
+       "rate": 1.0
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 3.5761740946327336e-07,
+       "p90": 0.001692649722099305,
+       "max": 0.0070656538009643555
+      }
+     },
+     "B4_ident": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.7890625
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.7967479674796748
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 4.07614279538393e-05,
+       "p90": 6.23665160536766,
+       "max": 22.424104690551758
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.75,
+       "max_abs_proposal_logprob_diff": 22.424104690551758,
+       "median_abs_proposal_logprob_diff": 5.168913048692048e-06
+      }
+     },
+     "B16_ident": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.4921875
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.4878048780487805
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 1.6037969383469317,
+       "p90": 10.182728235702962,
+       "max": 22.426067352294922
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.5,
+       "max_abs_proposal_logprob_diff": 22.426067352294922,
+       "median_abs_proposal_logprob_diff": 1.52974851813633
+      }
+     },
+     "B16_perm": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.4375
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.44715447154471544
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 2.110856354240923,
+       "p90": 10.04389280155301,
+       "max": 15.693289519022073
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.4166666666666667,
+       "max_abs_proposal_logprob_diff": 15.693289042203105,
+       "median_abs_proposal_logprob_diff": 3.07967384974512
+      }
+     },
+     "B4_perm": {
+      "fp32_all": {
+       "n": 128,
+       "rate": 0.8125
+      },
+      "fp32_gap>=0.5": {
+       "n": 123,
+       "rate": 0.8048780487804879
+      },
+      "abs_proposal_logprob_err_vs_fp32": {
+       "median": 0.00016346736811101437,
+       "p90": 5.888306790590306,
+       "max": 13.121855974197558
+      },
+      "vs_B1": {
+       "n_positions": 48,
+       "argmax_equal": 0.875,
+       "max_abs_proposal_logprob_diff": 12.205201856791973,
+       "median_abs_proposal_logprob_diff": 2.3841391794121591e-07
+      }
+     }
+    },
+    "decode": {
+     "B16_ident": {
+      "n": 32,
+      "first_token_equals_fp32": 0.4375,
+      "four_tokens_equal_fp32": 0.375,
+      "decode_first_token_equals_prefill_argmax_same_context": 0.84375
+     },
+     "B16_perm": {
+      "n": 32,
+      "first_token_equals_fp32": 0.5,
+      "four_tokens_equal_fp32": 0.375,
+      "decode_first_token_equals_prefill_argmax_same_context": 0.59375
+     },
+     "B4_ident": {
+      "n": 16,
+      "first_token_equals_fp32": 0.75,
+      "four_tokens_equal_fp32": 0.75,
+      "decode_first_token_equals_prefill_argmax_same_context": 0.9375
+     },
+     "B1": {
+      "n": 4,
+      "first_token_equals_fp32": 1.0,
+      "four_tokens_equal_fp32": 1.0
+     }
+    },
+    "slot_vs_input_B16": {
+     "n": 32,
+     "both_correct": 4,
+     "both_wrong": 12,
+     "wrong_only_in_order_a": 8,
+     "wrong_only_in_order_b": 8,
+     "input_specific_fraction": 0.42857142857142855,
+     "contexts_whose_slot_did_not_change": 2,
+     "wrong_rate_by_group_position_ident": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 1.0,
+      "3": 0.0,
+      "4": 1.0,
+      "5": 1.0,
+      "6": 0.0,
+      "7": 1.0,
+      "8": 1.0,
+      "9": 1.0,
+      "10": 0.0,
+      "11": 1.0,
+      "12": 1.0,
+      "13": 1.0,
+      "14": 1.0,
+      "15": 0.0
+     },
+     "wrong_rate_by_group_position_perm": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 1.0,
+      "3": 0.0,
+      "4": 1.0,
+      "5": 1.0,
+      "6": 0.0,
+      "7": 1.0,
+      "8": 1.0,
+      "9": 1.0,
+      "10": 0.0,
+      "11": 1.0,
+      "12": 1.0,
+      "13": 1.0,
+      "14": 1.0,
+      "15": 0.0
+     }
+    },
+    "gate_inputs": {
+     "B4_ident_vs_fp32_gap>=0.5": 0.7967479674796748,
+     "B16_ident_vs_fp32_gap>=0.5": 0.4878048780487805,
+     "B16_perm_vs_fp32_gap>=0.5": 0.44715447154471544,
+     "B4_ident_vs_B1_all_positions": 0.75,
+     "B16_ident_vs_B1_all_positions": 0.5
+    }
+   },
+   "dev_gate_pass": false,
+   "heldout_gate_pass": null
+  },
+  "F_v1_engine": {
+   "status": "failed",
+   "error": "BackendCompilerFailed('backend=\\'<vllm.compilation.backends.VllmBackend object at 0x14d8150ca2a0>\\' raised:\\nImportError: cannot import name \\'triton_key\\' from \\'triton.compiler.compiler\\' (/software/projects/pawsey1257/quanla/aucspec/.pythonuserbase-rocm-vllm/lib/python3.12/site-packages/triton/compiler/compiler.py)\\n\\nSet TORCHDYNAMO_VERBOSE=1 for the internal stack trace (please do this especially if you\\'re reporting a bug to PyTorch). For even more developer context, set TORCH_LOGS=\"+dynamo\"\\n')",
+   "spec": null,
+   "versions": {
+    "vllm": "0.9.1",
+    "torch": "2.7.1a0+gite2d141d",
+    "hip": "6.3.42134-a9a80e791"
+   },
+   "engine": null,
+   "env": {
+    "HSA_FORCE_FINE_GRAIN_PCIE": "1",
+    "NCCL_SOCKET_IFNAME": "hsn",
+    "PYTORCH_HIP_ALLOC_CONF": "expandable_segments:True",
+    "PYTORCH_ROCM_ARCH": "gfx90a",
+    "ROCM_PATH": "/opt/rocm",
+    "VLLM_ENABLE_V1_MULTIPROCESSING": "0",
+    "VLLM_NO_USAGE_STATS": "1",
+    "VLLM_USE_TRITON_FLASH_ATTN": "0",
+    "VLLM_USE_V1": "1"
+   },
+   "init_s": null,
+   "calls": 0,
+   "wall_s": null,
+   "latency_ms": null
+  }
+ },
+ "naive_sdpa_prediction_equal_lengths": {
+  "B3": [
+   2
+  ],
+  "B4": [
+   2
+  ],
+  "B16": [
+   2,
+   4,
+   5,
+   7,
+   8,
+   9,
+   11,
+   12,
+   13,
+   14
+  ]
+ }
+}

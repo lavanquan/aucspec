@@ -1,0 +1,7 @@
+/software/projects/pawsey1257/quanla/aucspec/.pythonuserbase-rocm-vllm/lib/python3.12/site-packages/transformers/utils/hub.py:105: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+Sliding Window Attention is enabled but not implemented for `eager`; unexpected results may be encountered.
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:02<00:07,  2.37s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:04<00:04,  2.34s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:07<00:02,  2.59s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:09<00:00,  2.44s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:09<00:00,  2.45s/it]
+/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py:1341: UserWarning: expandable_segments not supported on this platform (Triggered internally at /tmp/build/pytorch/c10/hip/HIPAllocatorConfig.h:29.)
+  return t.to(
+{"hf_forward_calls": 10, "inconsistent_positions": 0, "load_s": 27.2142071723938}
