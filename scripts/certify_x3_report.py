@@ -117,7 +117,7 @@ def load(run_dir: Path) -> tuple[dict, dict]:
     cfg = yaml.safe_load((run_dir / "config.yaml").read_text(encoding="utf-8"))
     per_n: dict[int, dict] = {}
     for part in sorted((run_dir / "cache_parts").glob("n*_s*.jsonl")):
-        c = CandidateCache(part)
+        c = CandidateCache(part, read_legacy=True)   # historical runs stay readable (labelled, never re-validated)
         for m in c._mem.values():
             per_n.setdefault(m.n_active, {})[m.seed] = m
     return cfg, per_n

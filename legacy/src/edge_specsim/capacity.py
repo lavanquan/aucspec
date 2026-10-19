@@ -241,19 +241,29 @@ class CandidateCache:
     candidate is simply re-run.
     """
 
-    def __init__(self, path: str | Path) -> None:
+    def __init__(self, path: str | Path, *, read_legacy: bool = False) -> None:
+        """`read_legacy=True` (READ-ONLY analysis of historical runs) also loads schema-2 records, labelled
+        `workload.basis = "legacy_span_heuristic_unverified"`: their exhaustion guard was the removed span heuristic,
+        so they are readable but are never treated as lifecycle-validated, and must not be fed to new searches."""
         self.path = Path(path)
         self._mem: dict[tuple, CandidateMeasurement] = {}
         self.rejected_legacy_records = 0
+        self.legacy_records_read = 0
         if self.path.exists():
             for line in self.path.read_text().splitlines():
                 line = line.strip()
                 if not line:
                     continue
                 rec = json.loads(line)
-                if rec.get("schema_version") != CANDIDATE_CACHE_SCHEMA_VERSION:
-                    self.rejected_legacy_records += 1
-                    continue
+                schema = rec.get("schema_version")
+                if schema != CANDIDATE_CACHE_SCHEMA_VERSION:
+                    if not (read_legacy and schema == 2):
+                        self.rejected_legacy_records += 1
+                        continue
+                    self.legacy_records_read += 1
+                    rec = dict(rec)
+                    rec["measurement"] = {**rec["measurement"],
+                                          "workload": {"basis": "legacy_span_heuristic_unverified", "schema_version": 2}}
                 meas_dict = dict(rec["measurement"])
                 # JSON object keys are always strings; per_client_rates is
                 # keyed by integer client id everywhere else in this codebase

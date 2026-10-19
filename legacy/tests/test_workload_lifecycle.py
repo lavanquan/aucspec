@@ -166,3 +166,20 @@ def test_legacy_searches_abort_on_invalid_instead_of_reading_it_as_infeasible():
         monotone_scale_search_final(
             lambda n: SearchDecision(n=n, status="feasible" if n < 3 else "invalid", min_lcb=0.0, min_ucb=0.0, seeds_used=5),
             hi_cap=16)
+
+
+def test_historical_schema2_cache_is_readable_but_labelled_and_never_used_by_default(tmp_path):
+    import json
+    from edge_specsim.capacity import CANDIDATE_CACHE_SCHEMA_VERSION, CandidateCache, CandidateMeasurement
+    path = tmp_path / "old.jsonl"
+    m = CandidateMeasurement(scale=2, n_active=2, x_requirement=3.0, seed=1, min_rate_tps=2.5, per_client_rates={0: 2.5, 1: 2.6})
+    from dataclasses import asdict
+    rec = {"schema_version": 2, "x": 3.0, "scale": 2, "policy": "capacity_dpp", "seed": 1, "config_hash": "h",
+           "measurement": {k: v for k, v in asdict(m).items() if k not in ("invalid", "invalid_reason", "workload")}}
+    path.write_text(json.dumps(rec) + chr(10))
+    default = CandidateCache(path)
+    assert default.get(3.0, 2, "capacity_dpp", 1, "h") is None and default.rejected_legacy_records == 1
+    reader = CandidateCache(path, read_legacy=True)
+    got = reader.get(3.0, 2, "capacity_dpp", 1, "h")
+    assert got is not None and got.workload["basis"] == "legacy_span_heuristic_unverified" and reader.legacy_records_read == 1
+    assert CANDIDATE_CACHE_SCHEMA_VERSION == 3
