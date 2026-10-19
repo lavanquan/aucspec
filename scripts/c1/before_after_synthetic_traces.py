@@ -92,6 +92,15 @@ OUT["causality"] = {
     } for mode in ("legacy_real_order", "causal")
 }
 
+# targeted D2 scenario: client 1 decides at virtual t=5 but its real evaluation follows a batch finishing at ~100 ms
+d2_specs = [Spec(0, 20.0, [10.0, 10.0], [0.0]), Spec(1, 20.0, [10.0, 10.0], [0.0])]
+d2 = {}
+for mode in ("legacy_real_order", "causal"):
+    res = asyncio.run(run_scenario(d2_specs, causal=(mode == "causal"), pre_decision_real_delay_s={1: 0.1}))
+    d2[mode] = {"d2_violations": [v for v in res["violations"] if v.startswith("D2")],
+                "max_visible_minus_decision_ts": max(d["visible_ts"] - d["t"] for d in res["decisions"])}
+OUT["causality_d2_targeted"] = d2
+
 # ---- (d) boundary logic ---------------------------------------------------------------------------------------------
 tab = {1: FEASIBLE, 2: FEASIBLE, 3: FEASIBLE, 4: UNCERTAIN, 5: UNCERTAIN, 6: UNCERTAIN}
 dec = lambda n: tab.get(n, INFEASIBLE)

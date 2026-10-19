@@ -131,7 +131,7 @@
    "scenarios_with_d1_violation": 29,
    "scenarios_with_d2_violation": 0,
    "scenarios_matching_virtual_reference": 1,
-   "total_d1_violations": 250
+   "total_d1_violations": 231
   },
   "causal": {
    "scenarios": 30,
@@ -139,6 +139,19 @@
    "scenarios_with_d2_violation": 0,
    "scenarios_matching_virtual_reference": 30,
    "total_d1_violations": 0
+  }
+ },
+ "causality_d2_targeted": {
+  "legacy_real_order": {
+   "d2_violations": [
+    "D2 seq 9: decision at 0.000 saw state update at 200.000",
+    "D2 seq 9: decision at 0.000 saw state version 2, expected 0 batches finished by then"
+   ],
+   "max_visible_minus_decision_ts": 200.0
+  },
+  "causal": {
+   "d2_violations": [],
+   "max_visible_minus_decision_ts": 0.0
   }
  },
  "boundary_uncertain_midpoint": {

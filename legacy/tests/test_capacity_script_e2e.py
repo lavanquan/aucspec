@@ -18,6 +18,7 @@ def drv(tmp_path, monkeypatch):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     monkeypatch.setattr(mod, "RESULTS_ROOT", tmp_path / "capacity_frontier")
+    monkeypatch.setattr(mod, "_environment_info", lambda: {})   # the real one imports vllm (hangs without a GPU)
     return mod
 
 
