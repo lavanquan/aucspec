@@ -1,0 +1,189 @@
+{
+ "exhaustion_b6_smoke": {
+  "before_span_heuristic_flags_exhausted": [
+   {
+    "client": 1,
+    "in_window_span_s": 16.55
+   },
+   {
+    "client": 3,
+    "in_window_span_s": 15.96
+   },
+   {
+    "client": 4,
+    "in_window_span_s": 15.81
+   },
+   {
+    "client": 5,
+    "in_window_span_s": 16.31
+   },
+   {
+    "client": 6,
+    "in_window_span_s": 16.31
+   }
+  ],
+  "before_verdict": "INVALID (5+ of 8 clients 'exhausted')",
+  "after_lifecycle": [
+   {
+    "client": 0,
+    "status": "active",
+    "last_event_virtual_s": 127.8,
+    "in_flight_at_end": true
+   },
+   {
+    "client": 1,
+    "status": "active",
+    "last_event_virtual_s": 125.8,
+    "in_flight_at_end": true
+   },
+   {
+    "client": 2,
+    "status": "active",
+    "last_event_virtual_s": 125.9,
+    "in_flight_at_end": true
+   },
+   {
+    "client": 3,
+    "status": "active",
+    "last_event_virtual_s": 106.6,
+    "in_flight_at_end": true
+   },
+   {
+    "client": 4,
+    "status": "active",
+    "last_event_virtual_s": 107.0,
+    "in_flight_at_end": true
+   },
+   {
+    "client": 5,
+    "status": "active",
+    "last_event_virtual_s": 128.2,
+    "in_flight_at_end": true
+   },
+   {
+    "client": 6,
+    "status": "active",
+    "last_event_virtual_s": 123.9,
+    "in_flight_at_end": true
+   },
+   {
+    "client": 7,
+    "status": "active",
+    "last_event_virtual_s": 127.9,
+    "in_flight_at_end": true
+   }
+  ],
+  "after_verdict": "valid (no client exhausted)"
+ },
+ "population": {
+  "before_client0_per_run_seed": [
+   {
+    "seed": 1,
+    "client0_rtt_ms": 79.92,
+    "client0_draft_tps": 25.37
+   },
+   {
+    "seed": 2,
+    "client0_rtt_ms": 19.81,
+    "client0_draft_tps": 58.24
+   },
+   {
+    "seed": 3,
+    "client0_rtt_ms": 46.45,
+    "client0_draft_tps": 29.52
+   },
+   {
+    "seed": 4,
+    "client0_rtt_ms": 48.66,
+    "client0_draft_tps": 29.44
+   },
+   {
+    "seed": 5,
+    "client0_rtt_ms": 82.59,
+    "client0_draft_tps": 44.92
+   }
+  ],
+  "after_client0_per_run_seed": [
+   {
+    "run_seed": 1,
+    "client0_rtt_ms": 51.72,
+    "client0_draft_tps": 40.68,
+    "fingerprint_N8": "31ee440b58926d6b"
+   },
+   {
+    "run_seed": 2,
+    "client0_rtt_ms": 51.72,
+    "client0_draft_tps": 40.68,
+    "fingerprint_N8": "31ee440b58926d6b"
+   },
+   {
+    "run_seed": 3,
+    "client0_rtt_ms": 51.72,
+    "client0_draft_tps": 40.68,
+    "fingerprint_N8": "31ee440b58926d6b"
+   }
+  ],
+  "after_prefix_fingerprints_equal_across_N": true
+ },
+ "causality": {
+  "legacy_real_order": {
+   "scenarios": 30,
+   "scenarios_with_d1_violation": 29,
+   "scenarios_with_d2_violation": 0,
+   "scenarios_matching_virtual_reference": 1,
+   "total_d1_violations": 250
+  },
+  "causal": {
+   "scenarios": 30,
+   "scenarios_with_d1_violation": 0,
+   "scenarios_with_d2_violation": 0,
+   "scenarios_matching_virtual_reference": 30,
+   "total_d1_violations": 0
+  }
+ },
+ "boundary_uncertain_midpoint": {
+  "truth": "feasible up to N=6 is consistent with the data (N=4..6 gray); first certified infeasible N=7",
+  "before": {
+   "lower": 3,
+   "upper_bound_n": 4,
+   "claimed_exact": false,
+   "note": "upper bound = the UNCERTAIN N=4 (would exclude N=5,6 which may be feasible)"
+  },
+  "after": {
+   "lower": 3,
+   "upper_conditional_monotone": 6,
+   "status": "bracketed",
+   "gray": [
+    4,
+    5,
+    6
+   ]
+  }
+ },
+ "boundary_nonmonotone_counterexample": {
+  "lower_bound_unconditional": 6,
+  "upper_bound_monotone": null,
+  "violations": [
+   [
+    6,
+    4
+   ]
+  ],
+  "status": "nonmonotone_unresolved"
+ },
+ "ica_staircase": {
+  "true_area": 54.62297500027479,
+  "before": {
+   "area_lower": 76.0,
+   "area_upper": 76.0,
+   "lower_bound_valid": false
+  },
+  "after": {
+   "area_lower": 48.0,
+   "area_upper": 76.0,
+   "lower_bound_valid": true,
+   "upper_bound_valid": true,
+   "discretisation_gap": 28.0
+  }
+ }
+}
