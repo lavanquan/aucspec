@@ -1,0 +1,28 @@
+{
+ "events": [
+  {
+   "name": "G_runtime_patch",
+   "rc": 0,
+   "status": "ok",
+   "calls": 124,
+   "wall_s": 116.98182797431946,
+   "error": null,
+   "dev_pass": true,
+   "heldout_pass": true,
+   "elapsed_s": 116.98211359977722
+  },
+  {
+   "name": "H_triton331",
+   "rc": 0,
+   "status": "ok",
+   "calls": 70,
+   "wall_s": 103.40586924552917,
+   "error": null,
+   "dev_pass": true,
+   "heldout_pass": true,
+   "elapsed_s": 220.39161944389343
+  }
+ ],
+ "total_calls_used": 194,
+ "elapsed_s": 220.39379048347473
+}

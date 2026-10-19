@@ -1,0 +1,30 @@
+INFO 10-19 15:07:28 [config.py:1980] Disabled the custom all-reduce kernel because it is not supported on current platform.
+INFO 10-19 15:07:28 [llm_engine.py:230] Initializing a V0 LLM engine (v0.9.1) with config: model='Qwen/Qwen2.5-7B-Instruct', speculative_config=None, tokenizer='Qwen/Qwen2.5-7B-Instruct', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config={}, tokenizer_revision=Non
+INFO 10-19 15:07:30 [rocm.py:226] Using ROCmFlashAttention backend.
+[W1019 15:07:30.255025135 HIPAllocatorConfig.h:29] Warning: expandable_segments not supported on this platform (function operator())
+INFO 10-19 15:07:30 [parallel_state.py:1065] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0, EP rank 0
+INFO 10-19 15:07:30 [model_runner.py:1171] Starting to load model Qwen/Qwen2.5-7B-Instruct...
+WARNING 10-19 15:07:30 [rocm.py:331] Model architecture 'Qwen2ForCausalLM' is partially supported by ROCm: Sliding window attention (SWA) is not yet supported in Triton flash attention. For half-precision SWA support, please use CK flash attention by setting `VLLM_USE_TRITON_FLASH_ATTN=0`
+/usr/local/lib/python3.12/dist-packages/torch/utils/_device.py:104: UserWarning: expandable_segments not supported on this platform (Triggered internally at /tmp/build/pytorch/c10/hip/HIPAllocatorConfig.h:29.)
+  return func(*args, **kwargs)
+INFO 10-19 15:07:31 [weight_utils.py:292] Using model weights format ['*.safetensors']
+Loading safetensors checkpoint shards:   0% Completed | 0/4 [00:00<?, ?it/s]
+Loading safetensors checkpoint shards:  25% Completed | 1/4 [00:03<00:11,  3.88s/it]
+Loading safetensors checkpoint shards:  50% Completed | 2/4 [00:07<00:07,  3.88s/it]
+Loading safetensors checkpoint shards:  75% Completed | 3/4 [00:11<00:03,  3.85s/it]
+Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:16<00:00,  4.25s/it]
+Loading safetensors checkpoint shards: 100% Completed | 4/4 [00:16<00:00,  4.11s/it]
+
+INFO 10-19 15:07:49 [default_loader.py:272] Loading weights took 16.68 seconds
+INFO 10-19 15:07:49 [model_runner.py:1203] Model loading took 14.5059 GiB and 18.464975 seconds
+INFO 10-19 15:07:53 [worker.py:294] Memory profiling takes 3.96 seconds
+INFO 10-19 15:07:53 [worker.py:294] the current vLLM instance can use total_gpu_memory (63.98GiB) x gpu_memory_utilization (0.70) = 44.79GiB
+INFO 10-19 15:07:53 [worker.py:294] model weights take 14.51GiB; non_torch_memory takes 0.35GiB; PyTorch activation peak memory takes 1.41GiB; the rest of the memory reserved for KV Cache is 28.53GiB.
+INFO 10-19 15:07:53 [executor_base.py:113] # rocm blocks: 33385, # CPU blocks: 4681
+INFO 10-19 15:07:53 [executor_base.py:118] Maximum concurrency for 4096 tokens per request: 130.41x
+INFO 10-19 15:07:55 [model_runner.py:1513] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI. If out-of-memory error occurs during cudagraph capture, con
+Capturing CUDA graph shapes:   0%|          | 0/35 [00:00<?, ?it/s]Capturing CUDA graph shapes:   3%|▎         | 1/35 [00:00<00:21,  1.59it/s]Capturing CUDA graph shapes:   6%|▌         | 2/35 [00:01<00:18,  1.83it/s]Capturing CUDA graph shapes:   9%|▊         | 3/35 [00:01<00:16,  1.94it/s]Cap
+INFO 10-19 15:08:10 [model_runner.py:1671] Graph capturing finished in 16 secs, took 0.24 GiB
+INFO 10-19 15:08:10 [llm_engine.py:428] init engine (profile, create kv cache, warmup model) took 21.36 seconds
+{"name": "G_runtime_patch", "status": "ok", "calls": 124}
+[rank0]:[W1019 15:08:43.069516030 ProcessGroupNCCL.cpp:1479] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
