@@ -110,3 +110,22 @@ def test_candidate_patch_converts_cumulative_offsets_only():
     for _ in range(16):
         cum.append(cum[-1] + 162)
     assert p.cumulative_to_lengths(cum) == [162] * 16  # what the (unchanged) loop needs to partition the batch
+
+
+def test_patch_validation_rules():
+    import rocm_sdpa_runtime_patch as p
+
+    assert p.validate_cumulative([0, 162, 324, 486], 486) == ([162, 162, 162], None)
+    assert p.validate_cumulative([162, 324], 324)[0] is None          # does not start at 0
+    assert p.validate_cumulative([0, 300, 200], 200)[0] is None       # not monotone
+    assert p.validate_cumulative([0, 162, 324], 400)[0] is None       # last != prefill tokens
+    assert p.validate_cumulative([0, 162, 162, 324], 324)[0] is None  # zero length
+    assert p.validate_cumulative([0], 0)[0] is None                   # too short
+
+
+def test_validation_plans_fit_the_call_budget():
+    import rocm_fi_validate as v
+
+    g = v.n_calls(v.plan("dev", 32)) + 2 + v.n_calls(v.plan("heldout_full", 32))
+    h = v.n_calls(v.plan("dev_light", 32)) + 2 + v.n_calls(v.plan("heldout_light", 32))
+    assert g <= 130 and g + h <= 200, (g, h)
