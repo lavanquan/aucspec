@@ -92,18 +92,21 @@ class StubTarget:
 class PhysicalTarget:
     VERIFIER_SEMANTICS = "V1"
 
-    def __init__(self, alphas, seed, a=WALL_A_MS, b=WALL_B_MS_PER_TOKEN, noise=0.08, prompt_lens=None):
+    def __init__(self, alphas, seed, a=WALL_A_MS, b=WALL_B_MS_PER_TOKEN, noise=0.08, prompt_lens=None, b_gamma=None):
         self.alphas, self.seed, self.a, self.b, self.noise = alphas, seed, a, b, noise
+        self.b_gamma = b if b_gamma is None else b_gamma          # TRUTH of the CPU world; the controller only ever sees its own assumed CostModel
         self.prompt_lens = prompt_lens
         self.calls = []
 
     def verify_batch_sync(self, payload):
-        results, processed, ids = [], 0, []
+        results, processed, ids, ctx_sum, g_sum = [], 0, [], 0, 0
         prompt_lens = self.prompt_lens
         for ctx, draft, remaining in payload:
             cid, g = draft.client_id, len(draft.token_ids)
             pos0 = len(ctx) - (PROMPT_LEN if prompt_lens is None else int(prompt_lens[cid]))
             processed += len(ctx) + g
+            ctx_sum += len(ctx)
+            g_sum += g
             ids.append((cid, len(ctx)))
             acc = 0
             for k in range(g):
@@ -116,7 +119,7 @@ class PhysicalTarget:
             results.append(VerificationResult(accepted_length=acc, committed_token_ids=committed, committed_text="x", target_latency_ms=0.0,
                                               acceptance_probabilities=[float(self.alphas[cid])] * inspected))
         z = (_u(self.seed, "wall", tuple(ids)) - 0.5) * 2.0
-        wall = (self.a + self.b * processed) * (1.0 + self.noise * z)
+        wall = (self.a + self.b * ctx_sum + self.b_gamma * g_sum) * (1.0 + self.noise * z)
         self.calls.append(len(payload))
         stamp_batch_timing(results, wall)
         return results
@@ -220,6 +223,17 @@ class Spec:
     wireless: dict | None = None
     batch_wait_ms: float = 150.0
     prompt_lens: list | None = None               # per-client prompt length (tokens); default PROMPT_LEN for everybody
+    # ---- C3
+    work_conserving: bool = False
+    c3: object = None                             # C3Params (scheduler constraints, weights, assumed cost model); None = defaults when needed
+    start_offsets_ms: list | None = None          # per-client virtual start offsets (breaks the initial cohort)
+    jitter_ms: float = 0.0                        # arrival_jitter_ms_max (deterministic, non-negative)
+    truth_a: float = WALL_A_MS                    # CPU-world physical service time (the controller never reads these)
+    truth_b: float = WALL_B_MS_PER_TOKEN
+    truth_b_gamma: float | None = None
+    truth_noise: float = 0.08
+    shadow_depth: bool = False                    # C3 open-loop replay: fixed gamma ACTS, the depth rule only logs the decision it would have taken
+    oracle_alpha: bool = False                    # C3: every client reads its TRUE alpha as a static offline-profiled estimate (equal information for all arms)
 
 
 HOMOG_CLIENTS = {"rtt_ms_range": [50.0, 50.0], "uplink_mbps_range": [20.0, 20.0], "downlink_mbps_range": [40.0, 40.0],
@@ -264,21 +278,40 @@ def build(spec: Spec):
     sim.causal_virtual_time = spec.causal
     sim.coordinator = VirtualCoordinator(sim.batch_wait_ms, EventLedger()) if spec.causal else None
     sim.failure_reports, sim.memory_events = [], {}
-    sim.controller = Ablated(
-        gamma_choices=[0, 1, 2, 3, 4], V=spec.V, min_tps=spec.x_req, server_price_scale=0.02, policy=spec.policy, fixed_gamma=spec.fixed_gamma,
-        seed=spec.seed, slot_ms=100.0, min_exploration_rounds=0, exploration_epsilon=0.0, proposal_vocab_size=151936,
-        proposal_distribution_payload="delta_proposal", ablate=spec.ablate, theta_override=spec.theta_f, rescale=spec.rescale)
-    target = PhysicalTarget(alphas, spec.seed, prompt_lens=spec.prompt_lens)
+    ctrl_kw = dict(gamma_choices=[0, 1, 2, 3, 4], V=spec.V, min_tps=spec.x_req, server_price_scale=0.02, policy=spec.policy, fixed_gamma=spec.fixed_gamma,
+                   seed=spec.seed, slot_ms=100.0, min_exploration_rounds=0, exploration_epsilon=0.0, proposal_vocab_size=151936,
+                   proposal_distribution_payload="delta_proposal")
+    if spec.policy == "c3_depth" or spec.shadow_depth:
+        from edge_specsim.c3_control import C3Controller, C3Params
+
+        c3p = spec.c3 or C3Params(max_batch_size=spec.max_batch, V=spec.V, x_req_tps=spec.x_req)
+        sim.controller = C3Controller(c3=c3p, **ctrl_kw)
+        sim.controller.shadow = bool(spec.shadow_depth)
+    else:
+        sim.controller = Ablated(ablate=spec.ablate, theta_override=spec.theta_f, rescale=spec.rescale, **ctrl_kw)
+    target = PhysicalTarget(alphas, spec.seed, a=spec.truth_a, b=spec.truth_b, noise=spec.truth_noise, prompt_lens=spec.prompt_lens,
+                            b_gamma=spec.truth_b_gamma)
     sim.verifier = VerificationBatcher(
         target, max_batch_size=spec.max_batch, batch_wait_ms=sim.batch_wait_ms, verify_token_budget=spec.token_budget,
         scheduler_name=spec.scheduler, service_time_model="batch_wall", coordinator=sim.coordinator, causal=spec.causal,
-        on_batch_complete=sim._on_batch_complete if spec.causal else None)
+        on_batch_complete=sim._on_batch_complete if spec.causal else None, work_conserving=spec.work_conserving,
+        c3_params=(spec.c3 if spec.scheduler in ("c3_deficit", "c3_fcfs") else None))
     sim.batch_log = []
     if spec.log_batches:
         _instrument_queue(sim, spec)
+    if spec.oracle_alpha:
+        for c in sim.clients:
+            al = float(alphas[c.client_id])
+            c.alpha_hat = c.alpha_ucb = al
+            c.refresh_learning_stats = lambda total_rounds, _c=c: None
+            c.positional_acceptance_profile = lambda g, use_ucb, _a=al: [_a] * g if g > 0 else []
+    if spec.jitter_ms:
+        sim.cfg["clients"]["arrival_jitter_ms_max"] = spec.jitter_ms
     if spec.causal:
         for c in sim.clients:
-            sim.coordinator.register_client(c.client_id, c.rtt_ms)
+            off = float(spec.start_offsets_ms[c.client_id]) if spec.start_offsets_ms else 0.0
+            c.virtual_time_ms = off
+            sim.coordinator.register_client(c.client_id, c.rtt_ms, start_ms=off)
     sim._write_results = lambda: None
     sim.spec = spec
     return sim
@@ -287,13 +320,14 @@ def build(spec: Spec):
 def _instrument_queue(sim, spec):
     q = sim.verifier.server_queue
     orig = q.pop_batch
-    alts = ("fcfs", "capacity_knapsack", "max_throughput")
+    alts = ("fcfs", "capacity_knapsack", "max_throughput") if spec.scheduler not in ("c3_deficit", "c3_fcfs") else ("fcfs", "c3_fcfs", "c3_deficit")
 
     def wrapped(**kw):
-        eligible = q.eligible_requests(kw["batch_wait_ms"])
+        eligible = q.eligible_requests(kw["batch_wait_ms"], kw.get("cutoff_ms"))
         rec = {"n_eligible": len(eligible), "eligible_cost": sum(r.verifier_token_cost for r in eligible),
                "cap": kw["max_batch_size"], "budget": kw["verify_token_budget"], "eligible_ids": [r.client_id for r in eligible],
-               "z_by_client": {r.client_id: r.weight for r in eligible}}
+               "z_by_client": {r.client_id: r.weight for r in eligible}, "ctx_by_client": {r.client_id: len(r.context_token_ids) for r in eligible},
+               "gamma_by_client": {r.client_id: r.gamma for r in eligible}, "cutoff_ms": kw.get("cutoff_ms")}
         for name in alts:
             alt = VerificationQueue()
             alt.waiting = [dataclasses.replace(r) for r in eligible]
@@ -302,6 +336,8 @@ def _instrument_queue(sim, spec):
         batch = orig(**kw)
         rec["chosen_scheduler"] = kw["scheduler_name"]
         rec["chosen"] = [r.client_id for r in batch]
+        rec["skips_before_service"] = [getattr(r, "c3_skips", 0) for r in batch]
+        rec["chosen_processed_tokens"] = sum(len(r.context_token_ids) + len(r.candidate_token_ids) for r in batch)
         sim.batch_log.append(rec)
         return batch
 

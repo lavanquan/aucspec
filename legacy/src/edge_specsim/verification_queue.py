@@ -30,6 +30,10 @@ class VerificationRequest:
     server_queue_price: float = 0.0       # Q_s at submission time
     theta_f_ms_per_token: float = 0.0     # DPP compute-work price (ms/verifier-token)
     request_id: int = 0                    # per-client submission counter (causality ledger)
+    # C3 (opt-in; ignored by every legacy scheduler): virtual time at which weight/Z was stamped (the client's decision time), and the
+    # number of batches for which this request was eligible but not selected (starvation guard of the c3_deficit scheduler).
+    decision_time_ms: float | None = None
+    c3_skips: int = 0
 
     @property
     def verifier_token_cost(self) -> int:
@@ -108,6 +112,14 @@ class VerificationBatchMetadata:
     batch_context_tokens_sum: int = 0
     batch_context_tokens_max: int = 0
     batch_processed_tokens: int = 0
+    # C3 (additive diagnostics, default 0): realized useful tokens of the batch, requests still waiting that had arrived by the batch
+    # start (causal lower bound on the backlog), their predicted work, and the eligibility cutoff actually used.
+    batch_useful_tokens: int = 0
+    waiting_after: int = 0
+    waiting_work_after_ms: float = 0.0
+    eligibility_cutoff_ms: float = 0.0
+    batch_weighted_useful: float = 0.0         # sum_j (weight_j / V) * useful_j : deficit-weighted tokens (C3 shadow price numerator); 0 without C3 params
+    predicted_service_ms: float = 0.0          # CostModel prediction from formation-time features (members' context and depth); 0 if no cost model
 
 
 @dataclass
@@ -137,10 +149,15 @@ class VerificationQueue:
         batch_wait_ms: float,
         verify_token_budget: int,
         utility_lambda: float,
+        cutoff_ms: float | None = None,
+        c3=None,
     ) -> list[VerificationRequest]:
         if not self.waiting:
             return []
-        cutoff_ms = self.waiting[0].arrival_time + batch_wait_ms
+        # C3: `cutoff_ms` (work-conserving batch formation) extends eligibility to everything that arrived by the batch START; the
+        # legacy default is head arrival + W.
+        if cutoff_ms is None:
+            cutoff_ms = self.waiting[0].arrival_time + batch_wait_ms
         eligible = [request for request in self.waiting if request.arrival_time <= cutoff_ms]
         if not eligible:
             return []
@@ -223,12 +240,18 @@ class VerificationQueue:
                 verify_token_budget,
                 value_fn=lambda request: request.capacity_dpp_value,
             )
+        elif scheduler_name in ("c3_deficit", "c3_fcfs"):
+            from .c3_control import select_c3_deficit, select_c3_fcfs
+
+            if c3 is None:
+                raise ValueError(f"scheduler {scheduler_name} needs C3Params (VerificationBatcher(c3_params=...))")
+            selected = (select_c3_deficit if scheduler_name == "c3_deficit" else select_c3_fcfs)(eligible, cutoff_ms, c3)
         else:
             raise ValueError(
                 "verification_batching.scheduler must be one of: "
                 "fcfs, random, equal_tokens, max_expected_accepted_tokens, "
                 "max_throughput, max_expected_accepted_per_cost, weighted_utility, "
-                "knapsack, capacity_knapsack"
+                "knapsack, capacity_knapsack, c3_deficit, c3_fcfs"
             )
 
         self.last_batch_forced_service = not selected
@@ -250,10 +273,11 @@ class VerificationQueue:
     def has_request_past_cutoff(self, cutoff_ms: float) -> bool:
         return any(request.arrival_time > cutoff_ms for request in self.waiting)
 
-    def eligible_requests(self, batch_wait_ms: float) -> list[VerificationRequest]:
+    def eligible_requests(self, batch_wait_ms: float, cutoff_ms: float | None = None) -> list[VerificationRequest]:
         if not self.waiting:
             return []
-        cutoff_ms = self.waiting[0].arrival_time + batch_wait_ms
+        if cutoff_ms is None:
+            cutoff_ms = self.waiting[0].arrival_time + batch_wait_ms
         return [request for request in self.waiting if request.arrival_time <= cutoff_ms]
 
     def __bool__(self) -> bool:

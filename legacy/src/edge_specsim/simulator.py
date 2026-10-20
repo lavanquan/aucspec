@@ -192,6 +192,8 @@ class EdgeSpecSimulator:
             causal=self.causal_virtual_time,
             on_batch_complete=self._on_batch_complete if self.causal_virtual_time else None,
             on_failure=self._on_batch_failure if bool(sim.get("failure_diagnostics", False)) else None,
+            work_conserving=bool(batching.get("work_conserving", False)),
+            c3_params=self._c3_params_from_cfg(batching),
         )
         self.failure_reports: list[dict] = []
         # C1.4 opt-in memory summaries (snapshots only; never per batch): after engine init, at run start, at run end, on failure.
@@ -206,7 +208,14 @@ class EdgeSpecSimulator:
         proposal_distribution_payload = (
             "delta_proposal" if self.sampling_temperature <= 0.0 else "full_vocab_logprobs"
         )
-        self.controller = OnlineController(
+        _controller_cls = OnlineController
+        _controller_extra: dict = {}
+        if str(controller_cfg.get("policy", "adaptive_ucb")).lower() == "c3_depth":
+            from .c3_control import C3Controller
+
+            _controller_cls, _controller_extra = C3Controller, {"c3": self._c3_params_from_cfg(batching, force=True)}
+        self.controller = _controller_cls(
+            **_controller_extra,
             gamma_choices=gamma_choices,
             V=float(controller_cfg.get("V", controller_cfg.get("v", sim["controller_v"]))),
             min_tps=float(controller_cfg.get("min_interactivity_tps", sim["min_interactivity_tps"])),
@@ -318,8 +327,21 @@ class EdgeSpecSimulator:
                 writer.writeheader()
                 writer.writerows(self.records)
 
+    @staticmethod
+    def _c3_params_from_cfg(batching: dict, force: bool = False):
+        """C3 (opt-in): build C3Params from verification_batching.c3 (None unless the scheduler/policy asks for it)."""
+        if not force and str(batching.get("scheduler", "fcfs")).lower() not in ("c3_deficit", "c3_fcfs"):
+            return None
+        from .c3_control import C3Params, CostModel
+
+        raw = dict(batching.get("c3", {}))
+        cost = CostModel(**raw.pop("cost", {}))
+        return C3Params(max_batch_size=int(batching.get("max_batch_size", 16)), cost=cost, **raw)
+
     def _on_batch_complete(self, meta) -> None:
         """D2: the verifier publishes server state to the controller in batch order (virtual-finish order)."""
+        if hasattr(self.controller, "observe_batch_meta"):
+            self.controller.observe_batch_meta(meta)
         self.controller.observe_server_batch(
             batch_id=meta.batch_id,
             verify_finish_ms=meta.verify_finish_ms,
@@ -916,6 +938,15 @@ class EdgeSpecSimulator:
             upload_ms = self._transfer_time_ms(
                 upload_bytes, uplink_rate_mbps, client.packet_loss
             )
+        # C3 (opt-in, default 0): deterministic non-negative access-delay jitter breaks permanent cohort lock-step.  It is part of the
+        # uplink delay (so it also shifts edge_finish and the arrival), and being >= 0 it never violates the coordinator's lower bound.
+        _jit_max = float(self.cfg["clients"].get("arrival_jitter_ms_max", 0.0) or 0.0)
+        if _jit_max > 0.0 and gamma >= 0:
+            import hashlib
+
+            _h = hashlib.blake2b(repr((self.cfg["simulation"].get("seed", 0), client.client_id, round_id, "arrival_jitter")).encode(),
+                                 digest_size=8).digest()
+            upload_ms += _jit_max * (int.from_bytes(_h, "big") / 2.0 ** 64)
 
         draft_start_ms = client.virtual_time_ms
         draft_finish_ms = draft_start_ms + draft_edge_latency_ms
@@ -953,6 +984,7 @@ class EdgeSpecSimulator:
             # no-op for every legacy scheduler, see verification_queue.py).
             server_queue_price=stamped_server_queue_price,
             theta_f_ms_per_token=stamped_theta_f,
+            decision_time_ms=decision_virtual_ms,
         )
         batch_id = batch_metadata.batch_id
         verification_batch_size = batch_metadata.batch_size

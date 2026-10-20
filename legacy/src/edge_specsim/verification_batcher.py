@@ -42,12 +42,18 @@ class VerificationBatcher:
         causal: bool = False,
         on_batch_complete: Callable[[VerificationBatchMetadata], None] | None = None,
         on_failure: Callable[[dict], None] | None = None,
+        work_conserving: bool = False,
+        c3_params=None,
     ) -> None:
         if causal and coordinator is None:
             raise ValueError("causal batching requires a VirtualCoordinator")
         if causal and roofline_budget_model is not None:
             raise ValueError("causal virtual time is not supported with roofline_knee budgets (D3: the budget "
                              "signal reads real-order queue state)")
+        if work_conserving and not causal:
+            raise ValueError("work-conserving batch formation is defined on the causal event graph only")
+        self.work_conserving = bool(work_conserving)   # C3: batch eligibility = everything arrived by the batch START (opt-in)
+        self.c3_params = c3_params
         self.coordinator = coordinator
         self.causal = bool(causal)
         self.on_batch_complete = on_batch_complete
@@ -111,6 +117,7 @@ class VerificationBatcher:
         expected_acceptance_profile: list[float] | None = None,
         server_queue_price: float = 0.0,
         theta_f_ms_per_token: float = 0.0,
+        decision_time_ms: float | None = None,
     ) -> tuple[VerificationBatchMetadata, VerificationResult]:
         loop = asyncio.get_running_loop()
         future: asyncio.Future[tuple[VerificationBatchMetadata, VerificationResult]] = (
@@ -144,6 +151,7 @@ class VerificationBatcher:
                 server_queue_price=server_queue_price,
                 theta_f_ms_per_token=theta_f_ms_per_token,
                 request_id=request_id,
+                decision_time_ms=decision_time_ms,
             )
         )
         if self.causal:
@@ -200,7 +208,12 @@ class VerificationBatcher:
         self._absorb_submitted()
         if not self.server_queue:
             return None
-        return self.server_queue.waiting[0].arrival_time + self.batch_wait_ms
+        cutoff = self.server_queue.waiting[0].arrival_time + self.batch_wait_ms
+        if self.work_conserving:
+            # C3: the batch starts at S = max(head + W, verifier free); every request that arrived by S is eligible.  The horizon
+            # max(server_available, min arrival + W) of the coordinator is exactly a lower bound on S, so decisions stay causal.
+            cutoff = max(cutoff, self.server_available_at_ms)
+        return cutoff
 
     def _absorb_submitted(self) -> bool:
         """Causal mode: move submitted requests into the server queue (pure bookkeeping, safe to call from anywhere);
@@ -231,14 +244,17 @@ class VerificationBatcher:
             if not self._close_seen:
                 await coord.wait_for_cutoff(ready)
             effective_budget = self._effective_verify_token_budget()
+            wc_cutoff = self._head_cutoff() if self.work_conserving else None
             batch = self.server_queue.pop_batch(
                 scheduler_name=self.scheduler_name,
                 max_batch_size=self.max_batch_size,
                 batch_wait_ms=self.batch_wait_ms,
                 verify_token_budget=effective_budget,
                 utility_lambda=self.utility_lambda,
+                cutoff_ms=wc_cutoff,
+                c3=self.c3_params,
             )
-            await self._process(batch, effective_budget)
+            await self._process(batch, effective_budget, cutoff_ms=wc_cutoff)
 
     async def _loop(self) -> None:
         if self.causal:
@@ -330,8 +346,18 @@ class VerificationBatcher:
         self,
         batch: list[VerificationRequest],
         effective_budget: int,
+        cutoff_ms: float | None = None,
     ) -> None:
-        batch_ready_ms = batch[0].arrival_time + self.batch_wait_ms
+        batch_ready_ms = batch[0].arrival_time + self.batch_wait_ms if cutoff_ms is None else cutoff_ms
+        # C3: backlog certainly present at the batch start (arrived by S, not selected): a causal lower bound on the backlog at the
+        # batch's completion; computed synchronously right after pop_batch, before any await.
+        waiting_by_start = [r for r in self.server_queue.waiting if r.arrival_time <= batch_ready_ms + 1e-9]
+        waiting_after = len(waiting_by_start)
+        cost = getattr(self.c3_params, "cost", None)
+        waiting_work_after_ms = (
+            sum(cost.demand_ms(len(r.context_token_ids), r.gamma) for r in waiting_by_start) + (cost.a_ms if waiting_by_start else 0.0)
+        ) if cost is not None else 0.0
+        predicted_service_ms = cost.batch_ms([(len(r.context_token_ids), r.gamma) for r in batch]) if cost is not None else 0.0
         batch_token_cost = sum(request.verifier_token_cost for request in batch)
         # CAPACITY_AWARE_FRAMEWORK_CODEX_IMPLEMENTATION.md Section 6.3: this
         # reads the flag set by the pop_batch() call that produced `batch`
@@ -371,7 +397,7 @@ class VerificationBatcher:
         members = [(request.client_id, self._member_id(request)) for request in batch]
         if self.coordinator is not None:
             self.coordinator.batch_formed(
-                batch_metadata.batch_id, batch[0].arrival_time + self.batch_wait_ms, members,
+                batch_metadata.batch_id, batch_ready_ms, members,
                 batch_metadata.batch_start_ms)
         payload = [
             (req.context_token_ids, req.draft, req.remaining_tokens)
@@ -465,6 +491,13 @@ class VerificationBatcher:
             batch_context_tokens_sum=batch_context_tokens_sum,
             batch_context_tokens_max=batch_context_tokens_max,
             batch_processed_tokens=batch_processed_tokens,
+            batch_useful_tokens=int(sum(getattr(r, "useful_token_count", 0) for r in results)),
+            waiting_after=waiting_after,
+            waiting_work_after_ms=waiting_work_after_ms,
+            eligibility_cutoff_ms=batch_ready_ms,
+            predicted_service_ms=predicted_service_ms,
+            batch_weighted_useful=float(sum((r.weight / self.c3_params.V) * getattr(res, "useful_token_count", 0) for r, res in zip(batch, results)))
+            if self.c3_params is not None else 0.0,
         )
         self.server_available_at_ms = batch_metadata.verify_finish_ms
         self._last_ok = {"batch_id": batch_metadata.batch_id, "batch_size": batch_metadata.batch_size,
