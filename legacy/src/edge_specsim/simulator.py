@@ -25,6 +25,7 @@ from .draft_timing import (
     resolve_effective_draft_latency_ms,
 )
 from .channel import current_snr_db, spectral_efficiency_from_snr_db
+from .prompt_catalog import assert_catalog
 from .population_seeds import MasterPopulation, draw_static_client
 from .models import ClientProfile, DraftResult
 from .network import (
@@ -255,6 +256,12 @@ class EdgeSpecSimulator:
             self.cfg["dataset"]["num_questions"] = self._nested_n_max * self._nested_qpc
         samples = load_samples(self.cfg["dataset"])
         self.samples = list(samples)
+        self.catalog_record = None
+        if self._nested_population:
+            # C1.2: frozen, auditable prompt catalog -- refuse (never truncate) if it is shorter than n_max * qpc,
+            # and verify the frozen hash when the config carries one.
+            self.catalog_record = assert_catalog(
+                self.samples, self._nested_n_max, self._nested_qpc, sim.get("expected_catalog_hash"))
         self.clients = self._make_clients(self.samples, num_clients=num_clients)
         if self.coordinator is not None:
             for client in self.clients:
@@ -1168,6 +1175,9 @@ class EdgeSpecSimulator:
         self._write_events_jsonl(events_jsonl, df)
         self._write_run_config_json(run_config_json, output_csv=output, artifacts_dir=artifacts_dir)
         self._write_summary_json(summary_json, df, output_csv=output, artifacts_dir=artifacts_dir)
+        if getattr(self, "catalog_record", None) is not None:
+            with (artifacts_dir / "catalog_record.json").open("w", encoding="utf-8") as handle:
+                json.dump(self.catalog_record, handle, indent=1)
         if self.coordinator is not None:
             violations = self.coordinator.ledger.check_causality()
             with (artifacts_dir / "causality_ledger.jsonl").open("w", encoding="utf-8") as handle:

@@ -92,18 +92,18 @@ class TwoTokenTarget(MockTarget):
 
 
 def build_sim(n, *, run_seed, causal, population_seed=7, qpc=3, max_new=9, delay_seed=0, policy="capacity_dpp",
-              early_stop_margin_s=None, draft_mode="simulation"):
+              early_stop_margin_s=None, draft_mode="simulation", n_max=16):
     sim = object.__new__(EdgeSpecSimulator)
     sim.cfg = {"simulation": {"seed": run_seed, "num_clients": n, "nested_population": True,
-                              "population_n_max": 16, "questions_per_client": qpc},
+                              "population_n_max": n_max, "questions_per_client": qpc},
                "clients": dict(CLIENTS_CFG), "models": {"draft": "d", "target": "t"}, "dataset": {}}
     if population_seed is not None:
         sim.cfg["simulation"]["population_seed"] = population_seed
     sim.learning_cfg = {}
-    sim._nested_population, sim._nested_qpc, sim._nested_n_max = True, qpc, 16
+    sim._nested_population, sim._nested_qpc, sim._nested_n_max = True, qpc, n_max
     sim.population_fingerprint = ""
     sim.workers = [StubWorker(random.Random(delay_seed))]
-    sim.samples = [PromptSample(f"s{i}", "ds", "p", max_new) for i in range(16 * qpc)]
+    sim.samples = [PromptSample(f"s{i}", "ds", f"prompt {i}", max_new) for i in range(n_max * qpc)]
     sim.clients = sim._make_clients(sim.samples, num_clients=n)
     sim.target = StubTarget()
     sim.records = []
@@ -252,3 +252,31 @@ def test_pilot_config_gives_identical_static_hardware_across_clients_n_and_run_s
     # explicitly NOT homogeneous: channel phase (stochastic fading) and the prompt block
     assert len({c.snr_phase_rad for c in sims[2].clients}) == 16
     assert len({tuple(s.sample_id for s in c.prompt_queue) for c in sims[2].clients}) == 16
+
+
+def test_extension_to_n32_keeps_the_first_16_clients_exactly_and_never_truncates():
+    from edge_specsim.prompt_catalog import CatalogError, assert_catalog, catalog_record
+    small = build_sim(16, run_seed=1, causal=False, qpc=4, n_max=16)
+    big = build_sim(32, run_seed=2, causal=False, qpc=4, n_max=32)
+    for i in range(16):
+        assert [x.sample_id for x in small.clients[i].prompt_queue] == [x.sample_id for x in big.clients[i].prompt_queue]
+        for f in ("rtt_ms", "uplink_mbps", "draft_fixed_latency_ms", "snr_phase_rad"):
+            assert getattr(small.clients[i], f) == getattr(big.clients[i], f)
+    assert all(len(c.prompt_queue) == 4 for c in big.clients)               # 64-question analogue: full blocks for every client
+    ids = [x.sample_id for c in big.clients for x in c.prompt_queue]
+    assert len(ids) == len(set(ids)) == 32 * 4                              # deterministic, no reuse
+    rec_s, rec_b = catalog_record(small.samples, 16, 4), catalog_record(big.samples, 32, 4)
+    assert rec_b["prefix_hashes"]["16"] == rec_s["catalog_hash"]            # exact nested prefix of the catalog
+    assert rec_b["duplicates"]["duplicate_slots"] == 0
+    with pytest.raises(CatalogError):
+        catalog_record(small.samples, 32, 4)                                 # shorter than n_max*qpc: refuse, do not truncate
+    with pytest.raises(CatalogError):
+        assert_catalog(big.samples, 32, 4, "0" * 64)                         # frozen hash mismatch
+    assert assert_catalog(big.samples, 32, 4, rec_b["catalog_hash"])["catalog_hash"] == rec_b["catalog_hash"]
+
+
+def test_catalog_duplicate_statistics_are_reported():
+    from edge_specsim.prompt_catalog import catalog_record
+    s = [PromptSample(f"a-{i}", "ds", "same" if i % 2 else f"p{i}", 9) for i in range(8)]
+    rec = catalog_record(s, 2, 4)
+    assert rec["duplicates"]["duplicate_slots"] == 3 and rec["duplicates"]["distinct_sample_ids"] == 8

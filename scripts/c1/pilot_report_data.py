@@ -56,7 +56,7 @@ if __name__ == "__main__":
     seeds = [int(s) for s in sys.argv[4].split(",")]
     runs = []
     for seed in seeds:
-        for n in (1, 2, 4, 8, 12, 16):
+        for n in (1, 2, 4, 8, 12, 16, 24, 32):
             p = pg.csv_path(root, tag, n, seed)
             if p.exists():
                 runs.append(one(p, n, seed))
