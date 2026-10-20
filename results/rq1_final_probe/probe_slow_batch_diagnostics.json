@@ -1,0 +1,106 @@
+{
+ "28": {
+  "n_batches": 342,
+  "median_ms": 441.34888937696815,
+  "mean_ms": 469.72211293620194,
+  "p90_ms": 647.0008338335903,
+  "p99_ms": 928.0777445179399,
+  "max_ms": 1189.6567738149315,
+  "slow_threshold_ms": 882.6977787539363,
+  "n_slow": 5,
+  "slow_in_warmup": 1,
+  "slow_in_window": 4,
+  "slow_after_window": 0,
+  "slow_virtual_time_s": [
+   18.2,
+   64.6,
+   66.4,
+   94.2,
+   128.2
+  ],
+  "slow_batch_ids": [
+   40,
+   133,
+   135,
+   197,
+   273
+  ],
+  "slow_run_lengths": [
+   1,
+   1,
+   1,
+   1,
+   1
+  ],
+  "lag1_autocorr_of_slow_flag": -0.014880952380952354,
+  "mean_verification_batch_processed_tokens_slow_vs_fast": [
+   2473.0,
+   2262.9317507418396
+  ],
+  "mean_verification_batch_context_tokens_sum_slow_vs_fast": [
+   2448.8,
+   2235.261127596439
+  ],
+  "mean_verification_batch_context_tokens_max_slow_vs_fast": [
+   246.2,
+   203.02373887240356
+  ],
+  "mean_verification_batch_size_slow_vs_fast": [
+   12.8,
+   14.01780415430267
+  ],
+  "fast_fit_ms_per_token_intercept": [
+   0.19373904662336297,
+   22.946157430436646
+  ],
+  "slow_over_fit_ratio_median": 2.181137318108723,
+  "median_first_half_ms": 442.006743978709,
+  "median_second_half_ms": 437.1140990406275
+ },
+ "32": {
+  "n_batches": 312,
+  "median_ms": 508.6777424439788,
+  "mean_ms": 514.0124871462691,
+  "p90_ms": 628.4873695578427,
+  "p99_ms": 843.3658984233623,
+  "max_ms": 1206.484803929925,
+  "slow_threshold_ms": 1017.3554848879576,
+  "n_slow": 1,
+  "slow_in_warmup": 0,
+  "slow_in_window": 0,
+  "slow_after_window": 1,
+  "slow_virtual_time_s": [
+   158.9
+  ],
+  "slow_batch_ids": [
+   310
+  ],
+  "slow_run_lengths": [
+   1
+  ],
+  "lag1_autocorr_of_slow_flag": -0.003225806451612892,
+  "mean_verification_batch_processed_tokens_slow_vs_fast": [
+   2726.0,
+   2541.0192926045015
+  ],
+  "mean_verification_batch_context_tokens_sum_slow_vs_fast": [
+   2694.0,
+   2509.434083601286
+  ],
+  "mean_verification_batch_context_tokens_max_slow_vs_fast": [
+   212.0,
+   208.12540192926045
+  ],
+  "mean_verification_batch_size_slow_vs_fast": [
+   16.0,
+   16.0
+  ],
+  "fast_fit_ms_per_token_intercept": [
+   0.1919403108224047,
+   24.061855228697574
+  ],
+  "slow_over_fit_ratio_median": 2.2044661610114185,
+  "median_first_half_ms": 521.1607965175062,
+  "median_second_half_ms": 472.2914770245552
+ }
+}
