@@ -54,6 +54,10 @@ class VerificationBatcher:
         self.on_failure = on_failure          # C1.3: exception-only diagnostics hook (None = off)
         self._last_ok: dict | None = None
         self._request_counter: dict[int, int] = {}
+        # C2 (liveness fix): in causal mode submissions go to an internal list, NOT through asyncio.Queue.get(), so that the
+        # coordinator's deadlock check (which peeks at the head cutoff) can never steal an item from a batcher blocked in get().
+        self._pending: list = []
+        self._close_seen = False
         if service_time_model not in SERVICE_TIME_MODELS:
             raise ValueError(
                 f"unknown verifier service_time_model {service_time_model!r}; "
@@ -85,7 +89,11 @@ class VerificationBatcher:
             self.task = None
 
     async def close(self) -> None:
-        await self.queue.put(None)
+        if self.causal:
+            self._close_seen = True
+            self.coordinator._poke()
+        else:
+            await self.queue.put(None)
         if self.task is not None:
             await self.task
             self.task = None
@@ -112,7 +120,7 @@ class VerificationBatcher:
         self._request_counter[client_id] = request_id + 1
         if self.coordinator is not None:
             self.coordinator.note_submit(client_id, request_id, server_arrival_ms)
-        await self.queue.put(
+        request = (
             VerificationRequest(
                 client_id=client_id,
                 arrival_time=server_arrival_ms,
@@ -138,6 +146,11 @@ class VerificationBatcher:
                 request_id=request_id,
             )
         )
+        if self.causal:
+            self._pending.append(request)
+            self.coordinator._poke()
+        else:
+            await self.queue.put(request)
         return await future
 
     def estimate_verify_token_budget(
@@ -190,25 +203,17 @@ class VerificationBatcher:
         return self.server_queue.waiting[0].arrival_time + self.batch_wait_ms
 
     def _absorb_submitted(self) -> bool:
-        """Move submitted-but-undrained requests into the server queue; True if the close sentinel was seen."""
-        closed = False
-        while True:
-            try:
-                item = self.queue.get_nowait()
-            except asyncio.QueueEmpty:
-                return closed
-            if item is None:
-                self._close_seen = True
-                closed = True
-                continue
-            self.server_queue.push(item)
+        """Causal mode: move submitted requests into the server queue (pure bookkeeping, safe to call from anywhere);
+        True once close() was requested."""
+        while self._pending:
+            self.server_queue.push(self._pending.pop(0))
+        return self._close_seen
 
     async def _loop_causal(self) -> None:
         """D1: batches are formed only when no request with arrival <= cutoff can still appear."""
         coord = self.coordinator
         assert coord is not None
         coord._head_cutoff_fn = self._head_cutoff
-        self._close_seen = False
 
         def ready() -> bool:
             cutoff = self._head_cutoff()
@@ -221,11 +226,7 @@ class VerificationBatcher:
             if not self.server_queue:
                 if self._close_seen:
                     return
-                item = await self.queue.get()
-                if item is None:
-                    self._close_seen = True
-                else:
-                    self.server_queue.push(item)
+                await coord._wait_until(lambda: bool(self._pending) or bool(self.server_queue) or self._close_seen)
                 continue
             if not self._close_seen:
                 await coord.wait_for_cutoff(ready)

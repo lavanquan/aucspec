@@ -173,6 +173,8 @@ class EdgeSpecSimulator:
             if (self.causal_virtual_time or bool(sim.get("causality_ledger", False)))
             else None
         )
+        if self.causal_virtual_time:
+            self._validate_causal_wireless()
         self.verifier = VerificationBatcher(
             self.target,
             max_batch_size=int(batching.get("max_batch_size", 16)),
@@ -353,7 +355,24 @@ class EdgeSpecSimulator:
         payload_bits = payload_bytes * 8.0
         return payload_bits / (effective_bandwidth * 1_000_000) * 1000.0
 
+    # D3 (C2): allocators whose score reads OTHER clients' mutable state (gamma, z_queue, device_queue, remaining tokens) in real order.
+    CAUSAL_SAFE_ALLOCATORS = frozenset({"equal", "proportional"})
+
+    def _validate_causal_wireless(self) -> None:
+        """In causal_virtual_time mode the shared-bandwidth allocator must not read other clients' real-order state.  Fail closed for the
+        dynamic allocators (queue-weighted, square-root); a decision-time snapshot design is in AUCSPEC_C2_CONTROLLER_MECHANISM_AUDIT.md."""
+        wireless = self.cfg.get("clients", {}).get("shared_wireless", {}) or {}
+        names = {str(wireless.get(k, wireless.get("allocator", "proportional"))).lower()
+                 for k in ("uplink_allocator", "downlink_allocator")}
+        bad = sorted(n for n in names if n not in self.CAUSAL_SAFE_ALLOCATORS)
+        if bad:
+            raise ValueError(f"causal_virtual_time does not support shared_wireless allocator(s) {bad}: they read other clients' "
+                             f"real-order state (D3). Use one of {sorted(self.CAUSAL_SAFE_ALLOCATORS)}.")
+
     def _active_clients(self) -> list[ClientProfile]:
+        if getattr(self, "causal_virtual_time", False):
+            # D3: the ADMITTED population (static), never other clients' real-order sample/remaining-token state
+            return list(self.clients)
         return [
             client
             for client in self.clients
@@ -386,12 +405,15 @@ class EdgeSpecSimulator:
         )
         raw_scores: dict[int, float] = {}
         for active_client in active_clients:
-            demand_bytes = self._estimate_active_payload_bytes(
-                active_client,
-                direction,
-                current_client=client,
-                current_payload_bytes=payload_bytes,
-            )
+            if getattr(self, "causal_virtual_time", False) and active_client.client_id != client.client_id:
+                demand_bytes = 0      # D3: other clients' dynamic payload is not read (equal/proportional scores ignore it anyway)
+            else:
+                demand_bytes = self._estimate_active_payload_bytes(
+                    active_client,
+                    direction,
+                    current_client=client,
+                    current_payload_bytes=payload_bytes,
+                )
             raw_scores[active_client.client_id] = self._bandwidth_allocation_score(
                 active_client,
                 baseline,

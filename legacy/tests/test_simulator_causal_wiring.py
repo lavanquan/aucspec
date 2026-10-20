@@ -413,3 +413,59 @@ def test_failure_path_adds_a_memory_snapshot(tmp_path):
     mem = json.loads((art / "memory_summary.json").read_text())
     assert "on_failure" in mem["snapshots"] and mem["failed"] is True
     assert (art / "failure_diagnostics.json").exists()
+
+
+# ------------------------------------------------------------------ C2 / D3: resource information set in causal mode
+def _mutate_others(sim, keep, rng):
+    for c in sim.clients:
+        if c.client_id != keep:
+            c.gamma = rng.randint(0, 4)
+            c.z_queue = rng.random() * 50
+            c.device_queue = rng.random() * 50
+            c.current_sample = None if rng.random() < 0.5 else c.current_sample
+
+
+def test_d3_causal_allocation_does_not_read_other_clients_dynamic_state():
+    import random as _r
+    sim = build_sim(8, run_seed=1, causal=True, qpc=2, max_new=12, n_max=8)
+    for c in sim.clients:
+        c.current_sample = c.prompt_queue[0] if c.prompt_queue else None
+    outs = []
+    for seed in range(5):
+        _mutate_others(sim, keep=3, rng=_r.Random(seed))
+        outs.append(sim._allocate_shared_bandwidth(sim.clients[3], "uplink", 1234.0, 100))
+    assert all(o == outs[0] for o in outs)                                   # independent of everybody else's mutable state
+    assert len(sim._active_clients()) == 8                                   # the static admitted population
+
+
+def test_d3_legacy_active_set_does_depend_on_real_order_state():
+    import random as _r
+    sim = build_sim(8, run_seed=1, causal=False, qpc=2, max_new=12, n_max=8)
+    for c in sim.clients:
+        c.current_sample = c.prompt_queue[0]
+    n_before = len(sim._active_clients())
+    _mutate_others(sim, keep=3, rng=_r.Random(1))
+    sim.clients[0].current_sample = None
+    assert len(sim._active_clients()) < n_before
+
+
+def test_d3_dynamic_allocators_are_rejected_in_causal_mode_only():
+    for alloc in ("queue-weighted", "square-root"):
+        sim = build_sim(4, run_seed=1, causal=True, qpc=2, max_new=12, n_max=4)
+        sim.cfg["clients"]["shared_wireless"] = {"uplink_allocator": alloc, "downlink_allocator": "proportional"}
+        with pytest.raises(ValueError, match="D3"):
+            sim._validate_causal_wireless()
+    ok = build_sim(4, run_seed=1, causal=True, qpc=2, max_new=12, n_max=4)
+    ok.cfg["clients"]["shared_wireless"] = {"uplink_allocator": "equal", "downlink_allocator": "proportional"}
+    ok._validate_causal_wireless()
+    ok.cfg["clients"]["shared_wireless"] = {}                                # default proportional
+    ok._validate_causal_wireless()
+
+
+def test_d3_heterogeneous_hardware_allocation_is_deterministic_under_permuted_real_order():
+    cols = ("client_id", "round_id", "upload_ms", "uplink_bandwidth_mhz", "uplink_rate_mbps", "download_ms", "downlink_bandwidth_mhz")
+    runs = []
+    for ds in (0, 4, 9):
+        s = run(build_sim(10, run_seed=2, causal=True, qpc=3, max_new=18, n_max=10, delay_seed=ds, early_stop_margin_s=0.2))
+        runs.append(sorted(tuple(round(float(r[c]), 9) for c in cols) for r in s.records))
+    assert runs[0] == runs[1] == runs[2]
