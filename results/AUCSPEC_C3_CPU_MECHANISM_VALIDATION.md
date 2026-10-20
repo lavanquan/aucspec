@@ -16,7 +16,7 @@ information). Intervals are 95 % t-intervals over **5 run-seeds of one populatio
 |---|---|---|---|---|
 | `fa3fe1f` (C2 parent), job 51265347 | 58 | 525 | **1** | `test_payload_interface::test_full_vocab_payload_exposes_dense_distribution_support` |
 | `7e802a1` (reviewed C2), job 51265346 | 60 | 547 | **1** | the same test, same assertion |
-| `22def69` (C3 prototype), job 51265750 | all | see below | 1 (same) | |
+| `8670e5b` (C3 final), job 51266089 | 61 | 579 | **1** (same) | |
 
 * `test_network_allocator` (6/6) and `test_payload_interface` (2/3) were **run**, as were `test_simulator_causal_wiring` (20, incl. the C2 liveness and D3 tests) and
   the C2 mechanism tests. The only failure is **inherited**: float32 `-0.2` vs float64 `-0.2` in a full-vocab payload comparison, byte-identical on the parent SHA,
@@ -170,4 +170,4 @@ any claim that CPU capacity numbers transfer to the GPU; any controller-vs-basel
 `legacy/tests/test_c3_controller.py` (31 tests + asynchrony-knob test), `legacy/tests/c3_scenarios.py`, `legacy/tests/closed_loop_harness.py`, `scripts/c3/*`.
 
 ## 13. Final-SHA Setonix result
-(appended after the last commit.)
+Job 51266089 on Setonix `work` (CPU), SHA `8670e5b`, per-module pytest incl. torch modules: 61 modules, **579 passed, 1 failed** — the same inherited `test_payload_interface` float32/float64 assertion as on the parent; `test_c3_controller.py` 32/32, `test_network_allocator.py` 6/6. No new failure vs `fa3fe1f`/`7e802a1`.
