@@ -220,3 +220,19 @@ def test_ledger_flags_a_stale_decision_that_missed_a_batch_finished_before_it():
     led.add(180.0, "batch_complete", "verifier", version=1, batch=0, start_ms=150.0, finish_ms=180.0, members=[[0, 0]])
     led.add(200.0, "decision", "client:1", decision_ts=200.0, visible_update_ts=0.0, version=0, client=1)
     assert any("expected 1" in v for v in led.check_causality())
+
+
+def test_deadlock_detector_ignores_waiters_whose_condition_already_holds():
+    """C1.3 regression: a woken-but-not-yet-resumed waiter must not be counted as blocked (found by the cap-16 property tests)."""
+    coord = VirtualCoordinator(50.0)
+    coord.register_client(0, 20.0)
+    coord.register_client(1, 20.0)
+    coord.clients[0].lb = 500.0
+    coord.clients[1].lb = 500.0
+    coord._decision_waiting = {0: 100.0, 1: 480.0}      # client 0: H > 100 holds; client 1 would still wait
+    coord._batcher_waiting = False
+    assert coord.horizon() > 100.0
+    coord._check_deadlock()                              # must not raise: client 0 is about to proceed
+    coord._decision_waiting = {0: 900.0, 1: 900.0}       # both genuinely blocked, nothing else can move
+    with pytest.raises(CausalityDeadlock):
+        coord._check_deadlock()

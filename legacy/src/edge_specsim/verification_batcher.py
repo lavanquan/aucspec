@@ -41,6 +41,7 @@ class VerificationBatcher:
         coordinator: VirtualCoordinator | None = None,
         causal: bool = False,
         on_batch_complete: Callable[[VerificationBatchMetadata], None] | None = None,
+        on_failure: Callable[[dict], None] | None = None,
     ) -> None:
         if causal and coordinator is None:
             raise ValueError("causal batching requires a VirtualCoordinator")
@@ -50,6 +51,8 @@ class VerificationBatcher:
         self.coordinator = coordinator
         self.causal = bool(causal)
         self.on_batch_complete = on_batch_complete
+        self.on_failure = on_failure          # C1.3: exception-only diagnostics hook (None = off)
+        self._last_ok: dict | None = None
         self._request_counter: dict[int, int] = {}
         if service_time_model not in SERVICE_TIME_MODELS:
             raise ValueError(
@@ -371,6 +374,19 @@ class VerificationBatcher:
         try:
             results = await asyncio.to_thread(self.target.verify_batch_sync, payload)
         except BaseException as exc:
+            if self.on_failure is not None:
+                try:
+                    from .failure_diagnostics import build_batch_failure_report
+
+                    self.on_failure(build_batch_failure_report(
+                        batch, batch_metadata, exc, last_ok=self._last_ok,
+                        queue_state={"waiting_after_pop": len(self.server_queue.waiting),
+                                     "server_available_at_ms": self.server_available_at_ms,
+                                     "max_batch_size": self.max_batch_size, "verify_token_budget": self.verify_token_budget},
+                        target_settings={"effective_max_logprobs": getattr(self.target, "effective_max_logprobs", None),
+                                         "prompt_logprobs": getattr(self.target, "effective_max_logprobs", None)}))
+                except Exception:   # diagnostics must never mask the original failure
+                    pass
             for request in batch:
                 if not request.future.done():
                     request.future.set_exception(exc)
@@ -442,6 +458,9 @@ class VerificationBatcher:
             batch_processed_tokens=batch_processed_tokens,
         )
         self.server_available_at_ms = batch_metadata.verify_finish_ms
+        self._last_ok = {"batch_id": batch_metadata.batch_id, "batch_size": batch_metadata.batch_size,
+                         "batch_start_ms": batch_metadata.batch_start_ms, "verify_finish_ms": batch_metadata.verify_finish_ms,
+                         "batch_wall_ms": batch_metadata.batch_wall_ms, "processed_tokens": batch_metadata.batch_processed_tokens}
         if self.coordinator is not None:
             self.coordinator.batch_done(
                 batch_metadata.batch_id, members, batch_metadata.batch_start_ms, batch_metadata.verify_finish_ms)

@@ -92,7 +92,7 @@ class TwoTokenTarget(MockTarget):
 
 
 def build_sim(n, *, run_seed, causal, population_seed=7, qpc=3, max_new=9, delay_seed=0, policy="capacity_dpp",
-              early_stop_margin_s=None, draft_mode="simulation", n_max=16):
+              early_stop_margin_s=None, draft_mode="simulation", n_max=16, max_batch=8, target=None, failure_out=None):
     sim = object.__new__(EdgeSpecSimulator)
     sim.cfg = {"simulation": {"seed": run_seed, "num_clients": n, "nested_population": True,
                               "population_n_max": n_max, "questions_per_client": qpc},
@@ -125,9 +125,14 @@ def build_sim(n, *, run_seed, causal, population_seed=7, qpc=3, max_new=9, delay
         gamma_choices=[0, 1, 2, 3], V=50.0, min_tps=3.0, server_price_scale=1.0, policy=policy, fixed_gamma=2,
         seed=run_seed, proposal_vocab_size=1000, proposal_distribution_payload="delta_proposal")
     sim.verifier = VerificationBatcher(
-        TwoTokenTarget(default_wall), max_batch_size=8, batch_wait_ms=sim.batch_wait_ms, verify_token_budget=100,
+        (target or TwoTokenTarget(default_wall)), max_batch_size=max_batch, batch_wait_ms=sim.batch_wait_ms, verify_token_budget=100,
         service_time_model="batch_wall", coordinator=sim.coordinator, causal=causal,
-        on_batch_complete=sim._on_batch_complete if causal else None)
+        on_batch_complete=sim._on_batch_complete if causal else None,
+        on_failure=sim._on_batch_failure if failure_out else None)
+    sim.failure_reports = []
+    if failure_out:
+        sim.cfg["simulation"]["output_csv"] = str(failure_out)
+        sim.cfg["simulation"]["failure_diagnostics"] = True
     for c in sim.clients:
         sim.coordinator.register_client(c.client_id, c.rtt_ms)
     sim._write_results = lambda: None
@@ -280,3 +285,79 @@ def test_catalog_duplicate_statistics_are_reported():
     s = [PromptSample(f"a-{i}", "ds", "same" if i % 2 else f"p{i}", 9) for i in range(8)]
     rec = catalog_record(s, 2, 4)
     assert rec["duplicates"]["duplicate_slots"] == 3 and rec["duplicates"]["distinct_sample_ids"] == 8
+
+
+# ------------------------------------------------------------------ C1.3: batch_cap_16 in the real round code
+def _cohort_sizes(sim):
+    by = {}
+    for r in sim.records:
+        by.setdefault(r["verification_batch_id"], r["verification_batch_size"])
+    return [by[k] for k in sorted(by)]
+
+
+def test_cap16_with_24_clients_splits_cohorts_keeps_causality_lifecycle_and_early_stop():
+    from edge_specsim.workload_lifecycle import assess_workload
+    s = run(build_sim(24, run_seed=1, causal=True, qpc=6, max_new=30, n_max=24, max_batch=16, early_stop_margin_s=0.5))
+    assert s.coordinator.ledger.check_causality() == []
+    sizes = _cohort_sizes(s)
+    assert max(sizes) <= 16 and 16 in sizes and any(0 < x < 16 for x in sizes)      # full and partial batches both occur
+    assert all(r["verifier_max_batch_size"] == 16 for r in s.records)                # the effective serving config is recorded
+    rows = {}
+    for r in s.records:
+        rows.setdefault(r["client_id"], []).append(r)
+    assert set(rows) == set(range(24))                                               # nobody starved
+    a = assess_workload(rows, admitted_client_ids=range(24), measurement_start_ms=s.measurement_start_ms,
+                        measurement_end_ms=s.measurement_end_ms)
+    assert not a.invalid and a.verifiable                                            # early stop, not exhaustion
+    served = sum(sizes)
+    assert served == len(s.records)                                                  # every request answered exactly once
+
+
+def test_cap16_with_32_clients_is_deterministic_under_permuted_real_order():
+    keys = []
+    for ds in (0, 3):
+        s = run(build_sim(32, run_seed=1, causal=True, qpc=4, max_new=18, n_max=32, max_batch=16, early_stop_margin_s=0.3, delay_seed=ds))
+        assert s.coordinator.ledger.check_causality() == []
+        assert max(_cohort_sizes(s)) <= 16
+        keys.append(sorted(vkey(r) for r in s.records))
+    assert keys[0] == keys[1]
+
+
+class FailingTarget(TwoTokenTarget):
+    def __init__(self, wall_fn, fail_on_call):
+        super().__init__(wall_fn)
+        self.fail_on_call = fail_on_call
+        self.effective_max_logprobs = 1
+
+    def verify_batch_sync(self, payload):
+        if len(self.calls) + 1 == self.fail_on_call:
+            self.calls.append(len(payload))
+            raise MemoryError("HIP out of memory. Tried to allocate 4.08 GiB (mock)")
+        return super().verify_batch_sync(payload)
+
+
+def test_failure_diagnostics_are_exception_only_and_contain_the_requested_metadata(tmp_path):
+    import json
+    out = tmp_path / "run.csv"
+    sim = build_sim(12, run_seed=1, causal=True, qpc=4, max_new=24, n_max=12, max_batch=8,
+                    target=FailingTarget(default_wall, fail_on_call=5), failure_out=out)
+    with pytest.raises(MemoryError):
+        run(sim)
+    art = tmp_path / "run_artifacts"
+    diag = json.loads((art / "failure_diagnostics.json").read_text())
+    f = diag["batch_failures"][0]
+    assert f["failed_batch_id"] == 4 and f["member_count"] == len(f["members"]) == len(f["context_lengths"]) == len(f["gamma_per_request"])
+    assert f["total_processed_tokens"] == f["context_tokens_sum"] + sum(f["gamma_per_request"])
+    assert f["target_settings"]["effective_max_logprobs"] == 1 and f["target_settings"]["prompt_logprobs"] == 1
+    assert f["last_completed_batch"]["batch_id"] == 3 and f["queue_state"]["max_batch_size"] == 8
+    assert "MemoryError" in f["exception"] and "Traceback" in f["traceback"] and "gpu_memory" in f
+    assert set(f["gpu_memory"]) >= {"available"}
+    assert diag["completed_batches"] >= 5 and diag["verifier_max_batch_size"] == 8     # counter counts formed batches
+    assert (art / "rounds_PARTIAL.csv").exists()
+    text = (art / "failure_diagnostics.json").read_text()
+    assert "prompt" not in text.lower().replace("prompt_logprobs", "")           # metadata only
+    # a healthy run writes nothing (exception-only)
+    ok = tmp_path / "ok.csv"
+    sim2 = build_sim(4, run_seed=1, causal=True, qpc=2, max_new=12, n_max=4, failure_out=ok)
+    run(sim2)
+    assert not (tmp_path / "ok_artifacts").exists()

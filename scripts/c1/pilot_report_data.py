@@ -10,6 +10,7 @@ import analyze_rq1_pilot as an  # noqa: E402
 import pilot_gate as pg  # noqa: E402
 
 PROFILE_MS_PER_TOKEN = 22.2
+EXPECT_MAX_BATCH = int(__import__("os").environ.get("EXPECT_MAX_BATCH", "0")) or None
 
 
 def one(csv: Path, n: int, seed: int) -> dict:
@@ -30,6 +31,27 @@ def one(csv: Path, n: int, seed: int) -> dict:
         "profile_ms_per_token": PROFILE_MS_PER_TOKEN,
     }
     m["draft"]["physical_gpu_rel_dev_vs_profile"] = m["draft"]["physical_gpu_ms_per_token"] / PROFILE_MS_PER_TOKEN - 1
+    qw = (win["batch_start_ms"] - win["server_arrival_ms"])
+    pc = qw.groupby(win["client_id"]).mean()
+    m["queue_wait_ms"] = {"mean": float(qw.mean()), "p50": float(qw.median()), "p90": float(qw.quantile(0.9)), "max": float(qw.max()),
+                          "per_client_mean_min": float(pc.min()), "per_client_mean_max": float(pc.max())}
+    try:
+        import numpy as _np
+        x, y = b["verification_batch_processed_tokens"].to_numpy(float), b["verification_batch_wall_ms"].to_numpy(float)
+        a1, a0 = _np.polyfit(x, y, 1)
+        r = float(_np.corrcoef(x, y)[0, 1])
+        m["wall_vs_processed_tokens"] = {"slope_ms_per_token": float(a1), "intercept_ms": float(a0), "r": r,
+                                         "processed_tokens_mean": float(x.mean()), "processed_tokens_max": float(x.max()),
+                                         "context_tokens_max_mean": float(b["verification_batch_context_tokens_max"].mean())}
+    except Exception:
+        m["wall_vs_processed_tokens"] = None
+    # cohort view: consecutive batches that start back-to-back (start == previous finish) are one cohort split by the cap
+    bb = b.sort_values("batch_start_ms")
+    fin = (bb["batch_start_ms"] + bb["verification_batch_wall_ms"]).to_numpy()
+    st = bb["batch_start_ms"].to_numpy()
+    back = int(((st[1:] - fin[:-1]) < 1.0).sum()) if len(bb) > 1 else 0
+    m["back_to_back_batches"] = back
+    m["verifier_max_batch_size"] = int(win["verifier_max_batch_size"].iloc[0]) if "verifier_max_batch_size" in win.columns and len(win) else None
     m["rounds_per_client"] = win.groupby("client_id").size().reindex(range(n), fill_value=0).tolist()
     m["tokens_per_round_mean"] = float(win["committed_token_count"].mean())
     m["gamma_values"] = sorted(int(g) for g in df["gamma"].unique())
@@ -43,7 +65,7 @@ def one(csv: Path, n: int, seed: int) -> dict:
     m["virtual_max_s"] = float(df["client_receive_ms"].max()) / 1000
     chk = json.loads((Path(str(csv).replace(".csv", "_artifacts")) / "causality_check.json").read_text())
     m["causality"] = {"n_events": chk["n_events"], "n_violations": chk["n_violations"], "causal_virtual_time": chk["causal_virtual_time"]}
-    ok, why = pg.gate(csv, n, Path(str(csv).replace(".csv", "_artifacts")) / "causality_check.json")
+    ok, why = pg.gate(csv, n, Path(str(csv).replace(".csv", "_artifacts")) / "causality_check.json", EXPECT_MAX_BATCH)
     m["gate_ok"], m["gate_reasons"] = ok, why
     m["batches_in_window"] = int(len(b))
     m["requests_in_window"] = int(len(win))

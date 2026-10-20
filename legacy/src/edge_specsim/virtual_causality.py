@@ -138,7 +138,7 @@ class VirtualCoordinator:
         self.state_version = 0
         self.last_update_ts = 0.0
         self._waiters: list[asyncio.Future] = []
-        self._decision_waiting: set[int] = set()
+        self._decision_waiting: dict[int, float] = {}     # client -> decision time it is waiting at
         self._batcher_waiting = False
         self._head_cutoff_fn: Callable[[], float | None] | None = None
 
@@ -246,11 +246,11 @@ class VirtualCoordinator:
     async def wait_decision(self, client_id: int, t: float) -> None:
         """Client side: block until no batch finishing at or before t can still be unprocessed (H > t)."""
         self.begin_round(client_id, t)
-        self._decision_waiting.add(int(client_id))
+        self._decision_waiting[int(client_id)] = float(t)
         try:
             await self._wait_until(lambda: self.horizon() > t)
         finally:
-            self._decision_waiting.discard(int(client_id))
+            self._decision_waiting.pop(int(client_id), None)
 
     def record_decision(self, client_id: int, t: float, visible_update_ts: float, version: int, **detail) -> None:
         self.ledger.add(t, "decision", f"client:{client_id}", decision_ts=t,
@@ -264,6 +264,8 @@ class VirtualCoordinator:
                 continue
             if st.status == "idle" and cid not in self._decision_waiting:
                 return  # somebody is still computing in real time -> progress is possible
+            if st.status == "idle" and self.horizon() > self._decision_waiting[cid]:
+                return  # this waiter's condition already holds; it is merely not resumed yet (not a deadlock)
         # nobody can make progress except through the coordinator
         if self.queued and self._head_cutoff_fn is not None:
             cutoff = self._head_cutoff_fn()

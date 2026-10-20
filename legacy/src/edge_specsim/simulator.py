@@ -189,7 +189,9 @@ class EdgeSpecSimulator:
             coordinator=self.coordinator,
             causal=self.causal_virtual_time,
             on_batch_complete=self._on_batch_complete if self.causal_virtual_time else None,
+            on_failure=self._on_batch_failure if bool(sim.get("failure_diagnostics", False)) else None,
         )
+        self.failure_reports: list[dict] = []
         proposal_distribution_payload = (
             "delta_proposal" if self.sampling_temperature <= 0.0 else "full_vocab_logprobs"
         )
@@ -266,6 +268,26 @@ class EdgeSpecSimulator:
         if self.coordinator is not None:
             for client in self.clients:
                 self.coordinator.register_client(client.client_id, client.rtt_ms)
+
+    def _on_batch_failure(self, report: dict) -> None:
+        self.failure_reports.append(report)
+
+    def _write_failure_artifacts(self, exc: BaseException) -> None:
+        """Exception-only: partial rounds (records so far) + failure report next to the normal artifacts. No per-batch I/O."""
+        from .failure_diagnostics import write_json
+
+        output = Path(self.cfg["simulation"]["output_csv"])
+        art = output.parent / f"{output.stem}_artifacts"
+        write_json(art / "failure_diagnostics.json", {
+            "run_exception": f"{type(exc).__name__}: {exc}", "completed_rounds": len(self.records),
+            "completed_batches": self.verifier.batch_counter, "verifier_max_batch_size": self.verifier.max_batch_size,
+            "batch_failures": self.failure_reports})
+        if self.records:
+            with (art / "rounds_PARTIAL.csv").open("w", newline="", encoding="utf-8") as handle:
+                keys = [k for k in self.records[0].keys() if k not in ("prompt", "committed_text")]
+                writer = csv.DictWriter(handle, fieldnames=keys, extrasaction="ignore")
+                writer.writeheader()
+                writer.writerows(self.records)
 
     def _on_batch_complete(self, meta) -> None:
         """D2: the verifier publishes server state to the controller in batch order (virtual-finish order)."""
@@ -662,6 +684,13 @@ class EdgeSpecSimulator:
         await self.verifier.start()
         try:
             await asyncio.gather(*(self._run_client(client) for client in self.clients))
+        except BaseException as exc:
+            if bool(self.cfg["simulation"].get("failure_diagnostics", False)):
+                try:
+                    self._write_failure_artifacts(exc)
+                except Exception:
+                    pass
+            raise
         finally:
             await self.verifier.close()
         self._write_results()
@@ -977,6 +1006,7 @@ class EdgeSpecSimulator:
             "round_id": round_id,
             "verification_batch_id": batch_id,
             "verification_batch_size": verification_batch_size,
+            "verifier_max_batch_size": self.verifier.max_batch_size,
             "verification_batch_token_cost": batch_metadata.batch_token_cost,
             "verification_batch_token_budget": batch_metadata.batch_token_budget,
             "estimated_verifier_budget": estimated_verifier_budget,
