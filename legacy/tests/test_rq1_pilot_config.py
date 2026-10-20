@@ -69,3 +69,50 @@ def test_live_pilot_switches_are_on():
     assert s["draft_execution_mode"] == "isolated_profile" and s["draft_profile"]["per_token_ms"] == 22.2
     assert PILOT["clients"]["draft_speed_multiplier_range"] == [1.0, 1.0]
     assert PILOT["controller"]["verifier_price_mode"] == "zero"
+
+
+# ---------------- C1.2 extension config (exploratory; the original pilot config stays immutable) ----------------
+EXT = yaml.safe_load((ROOT / "configs" / "rq1_extension_fixed_gamma2_tritonfa33.yaml").read_text(encoding="utf-8"))
+CATS = __import__("json").loads((ROOT / "results" / "rq1_extension" / "prompt_catalogs.json").read_text())
+
+
+def _flat(d, p=""):
+    out = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            out.update(_flat(v, p + k + "."))
+        else:
+            out[p + k] = v
+    return out
+
+
+def test_extension_differs_from_the_pilot_only_in_catalog_and_population_size():
+    a, b = _flat(PILOT), _flat(EXT)
+    changed = {k for k in set(a) | set(b) if a.get(k) != b.get(k)}
+    assert changed == {"dataset.split", "dataset.num_questions", "simulation.population_n_max", "simulation.expected_catalog_hash"}, changed
+    assert EXT["dataset"]["split"] == "train" and EXT["dataset"]["num_questions"] == 32 * 64
+    assert EXT["simulation"]["population_n_max"] * EXT["simulation"]["questions_per_client"] == EXT["dataset"]["num_questions"]
+
+
+def test_extension_catalog_is_frozen_unique_and_documented_as_incompatible_with_the_pilot():
+    ext, old = CATS["extension_catalog"], CATS["original_pilot_catalog"]
+    assert EXT["simulation"]["expected_catalog_hash"] == ext["catalog_hash"] != old["catalog_hash"]
+    assert ext["duplicates"]["duplicate_slots"] == 0 and ext["duplicates"]["dataset_names"] == ["gsm8k"] and ext["duplicates"]["id_prefixes"] == ["gsm8k-train"]
+    assert old["duplicates"]["id_prefixes"] == ["gsm8k-test"] and CATS["prompt_overlap_between_catalogs"] == 0
+    assert "NOT directly comparable" in CATS["compatibility"]
+    assert ext["n_slots"] == 2048 and len(ext["client_block_hashes"]) == 32
+
+
+def test_extension_keeps_every_frozen_scientific_setting():
+    assert EXT["runtime"] == BASE["runtime"] and EXT["controller"]["policy"] == "fixed_gamma" and EXT["controller"]["fixed_gamma"] == 2
+    assert EXT["verification_batching"]["scheduler"] == "fcfs" and EXT["verification_batching"]["service_time_model"] == "batch_wall"
+    assert EXT["controller"]["verifier_price_mode"] == "zero" and EXT["simulation"]["causal_virtual_time"] is True
+    assert EXT["simulation"]["draft_execution_mode"] == "isolated_profile" and EXT["simulation"]["draft_profile"]["per_token_ms"] == 22.2
+    assert (EXT["experiment"]["warmup_seconds"], EXT["experiment"]["measurement_seconds"]) == (30.0, 120.0)
+
+
+def test_extension_job_script_has_the_registered_order_and_walltime():
+    txt = (ROOT / "scripts" / "c1" / "run_rq1_extension_job.sh").read_text()
+    assert "--time=01:15:00" in txt and "12 8 16 24 32" in txt
+    pop = MasterPopulation(EXT["clients"], EXT["simulation"]["population_seed"], 32)
+    assert pop.fingerprint(16) == MasterPopulation(PILOT["clients"], PILOT["simulation"]["population_seed"], 16).fingerprint(16)   # static profiles unchanged
