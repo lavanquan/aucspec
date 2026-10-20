@@ -66,7 +66,14 @@ def one(csv: Path, n: int, seed: int) -> dict:
     chk = json.loads((Path(str(csv).replace(".csv", "_artifacts")) / "causality_check.json").read_text())
     m["causality"] = {"n_events": chk["n_events"], "n_violations": chk["n_violations"], "causal_virtual_time": chk["causal_virtual_time"]}
     ok, why = pg.gate(csv, n, Path(str(csv).replace(".csv", "_artifacts")) / "causality_check.json", EXPECT_MAX_BATCH)
-    m["gate_ok"], m["gate_reasons"] = ok, why
+    m["gate_ok"], m["gate_reasons"] = ok, why           # ORIGINAL protocol (includes real/virtual <= 3)
+    art = Path(str(csv).replace(".csv", "_artifacts"))
+    ok2, why2, tel = pg.gate_exploratory_v2(csv, n, art / "causality_check.json", EXPECT_MAX_BATCH, art / "run_config.json")
+    m["gate_v2_ok"], m["gate_v2_reasons"], m["gate_v2_telemetry"] = ok2, why2, tel
+    mem = art / "memory_summary.json"
+    m["memory_summary"] = json.loads(mem.read_text()) if mem.exists() else None
+    rc = art / "run_config.json"
+    m["live_engine"] = json.loads(rc.read_text()).get("runtime_identity", {}).get("live_engine") if rc.exists() else None
     m["batches_in_window"] = int(len(b))
     m["requests_in_window"] = int(len(win))
     m["runtime_fallback_events"] = None
@@ -78,7 +85,7 @@ if __name__ == "__main__":
     seeds = [int(s) for s in sys.argv[4].split(",")]
     runs = []
     for seed in seeds:
-        for n in (1, 2, 4, 8, 12, 16, 24, 32):
+        for n in (1, 2, 4, 8, 12, 16, 24, 28, 32):
             p = pg.csv_path(root, tag, n, seed)
             if p.exists():
                 runs.append(one(p, n, seed))
@@ -90,6 +97,6 @@ if __name__ == "__main__":
     for r in runs:
         print(r["N"], "x_min %.3f mean %.3f Y %.2f Nxmin %.2f fair %.2f util %.2f bs %.2f/%d wall %.0f r/v %.2f ledger %d gate %s rounds_min %d draft_gpu_dev %+.1f%% eos %d" % (
             r["x_min"], r["x_mean"], r["Y"], r["N_x_min"], r["x_min_over_mean"], r["verifier_utilisation"], r["batch_size_mean"], r["batch_size_max"],
-            r["batch_wall_ms"]["mean"], r["real_over_virtual"], r["causality"]["n_violations"], r["gate_ok"], r["rounds_per_client_min"],
+            r["batch_wall_ms"]["mean"], r["real_over_virtual"], r["causality"]["n_violations"], r["gate_v2_ok"], r["rounds_per_client_min"],
             100 * r["draft"]["physical_gpu_rel_dev_vs_profile"], r["lifecycle"]["eos_finished_samples"]))
     print(res["verdict"]["verdict"])
