@@ -1,0 +1,739 @@
+{
+ "runs": [
+  {
+   "N": 1,
+   "window_s": 120.0,
+   "rates": {
+    "0": 7.758333333333334
+   },
+   "x_min": 7.758333333333334,
+   "x_mean": 7.758333333333334,
+   "Y": 7.758333333333334,
+   "N_x_min": 7.758333333333334,
+   "jain": 1.0,
+   "x_min_over_mean": 1.0,
+   "verifier_utilisation": 0.27839900137041695,
+   "batch_size_mean": 1.0,
+   "batch_size_max": 1,
+   "batch_wall_ms_mean": 97.68386012997087,
+   "queue_wait_ms_mean": 150.0,
+   "draft_ms_mean": 53.361403508771915,
+   "round_ms_mean": 351.0503599328239,
+   "rounds_per_client_min": 342,
+   "invalid": false,
+   "invalid_reason": "",
+   "real_over_virtual": 0.5084836216269357,
+   "seed": 1,
+   "batch_size_hist": {
+    "1": 342
+   },
+   "batch_wall_ms": {
+    "mean": 97.68386012997087,
+    "p50": 69.72780299838632,
+    "p90": 94.07616327516736,
+    "max": 765.4411608818918
+   },
+   "draft": {
+    "virtual_ms_per_token": 22.199999999999992,
+    "physical_gpu_ms_per_token": 23.20234371979392,
+    "physical_wall_ms_per_token": 23.309158190909194,
+    "profile_ms_per_token": 22.2,
+    "physical_gpu_rel_dev_vs_profile": 0.0451506180087351
+   },
+   "rounds_per_client": [
+    342
+   ],
+   "tokens_per_round_mean": 2.7222222222222223,
+   "gamma_values": [
+    0,
+    1,
+    2
+   ],
+   "lifecycle": {
+    "max_client_virtual_end_s": 160.1394725092601,
+    "min_client_virtual_end_s": 160.1394725092601,
+    "any_work_complete": false,
+    "samples_assigned": 64,
+    "mean_tokens_per_finished_sample": 96.0,
+    "eos_finished_samples": 0
+   },
+   "wall_clock_s": 81.42829894693568,
+   "virtual_max_s": 160.1394725092601,
+   "causality": {
+    "n_events": 1837,
+    "n_violations": 0,
+    "causal_virtual_time": true
+   },
+   "gate_ok": true,
+   "gate_reasons": [],
+   "batches_in_window": 342,
+   "requests_in_window": 342,
+   "runtime_fallback_events": null
+  },
+  {
+   "N": 2,
+   "window_s": 120.0,
+   "rates": {
+    "0": 7.658333333333333,
+    "1": 7.741666666666666
+   },
+   "x_min": 7.658333333333333,
+   "x_mean": 7.699999999999999,
+   "Y": 15.399999999999999,
+   "N_x_min": 15.316666666666666,
+   "jain": 0.9999707191722661,
+   "x_min_over_mean": 0.9945887445887447,
+   "verifier_utilisation": 0.2902134928056815,
+   "batch_size_mean": 2.0,
+   "batch_size_max": 2,
+   "batch_wall_ms_mean": 103.6476760020291,
+   "queue_wait_ms_mean": 149.3388069329338,
+   "draft_ms_mean": 53.60714285714285,
+   "round_ms_mean": 356.6037667156162,
+   "rounds_per_client_min": 336,
+   "invalid": false,
+   "invalid_reason": "",
+   "real_over_virtual": 0.6337460416006941,
+   "seed": 1,
+   "batch_size_hist": {
+    "2": 336
+   },
+   "batch_wall_ms": {
+    "mean": 103.6476760020291,
+    "p50": 100.59696901589632,
+    "p90": 124.91352146025747,
+    "max": 440.2243460062891
+   },
+   "draft": {
+    "virtual_ms_per_token": 22.199999999999996,
+    "physical_gpu_ms_per_token": 35.10558438508517,
+    "physical_wall_ms_per_token": 35.236555386941426,
+    "profile_ms_per_token": 22.2,
+    "physical_gpu_rel_dev_vs_profile": 0.5813326299587915
+   },
+   "rounds_per_client": [
+    336,
+    336
+   ],
+   "tokens_per_round_mean": 2.75,
+   "gamma_values": [
+    0,
+    1,
+    2
+   ],
+   "lifecycle": {
+    "max_client_virtual_end_s": 160.07365575465323,
+    "min_client_virtual_end_s": 160.07365551907128,
+    "any_work_complete": false,
+    "samples_assigned": 64,
+    "mean_tokens_per_finished_sample": 96.0,
+    "eos_finished_samples": 0
+   },
+   "wall_clock_s": 101.44604569906367,
+   "virtual_max_s": 160.07365575465323,
+   "causality": {
+    "n_events": 2696,
+    "n_violations": 0,
+    "causal_virtual_time": true
+   },
+   "gate_ok": true,
+   "gate_reasons": [],
+   "batches_in_window": 336,
+   "requests_in_window": 672,
+   "runtime_fallback_events": null
+  },
+  {
+   "N": 4,
+   "window_s": 120.0,
+   "rates": {
+    "0": 6.441666666666666,
+    "1": 6.466666666666667,
+    "2": 6.225,
+    "3": 6.425
+   },
+   "x_min": 6.225,
+   "x_mean": 6.389583333333333,
+   "Y": 25.558333333333334,
+   "N_x_min": 24.9,
+   "jain": 0.9997735055725494,
+   "x_min_over_mean": 0.9742419302249755,
+   "verifier_utilisation": 0.4100197974437227,
+   "batch_size_mean": 4.0,
+   "batch_size_max": 4,
+   "batch_wall_ms_mean": 173.85998478179053,
+   "queue_wait_ms_mean": 147.50725067367756,
+   "draft_ms_mean": 53.517491166077725,
+   "round_ms_mean": 424.904974991173,
+   "rounds_per_client_min": 283,
+   "invalid": false,
+   "invalid_reason": "",
+   "real_over_virtual": 1.0645459071512853,
+   "seed": 1,
+   "batch_size_hist": {
+    "4": 283
+   },
+   "batch_wall_ms": {
+    "mean": 173.85998478179053,
+    "p50": 161.86865605413914,
+    "p90": 189.0283912420273,
+    "max": 843.2245338335633
+   },
+   "draft": {
+    "virtual_ms_per_token": 22.199999999999996,
+    "physical_gpu_ms_per_token": 84.89447880530862,
+    "physical_wall_ms_per_token": 85.0778067284719,
+    "profile_ms_per_token": 22.2,
+    "physical_gpu_rel_dev_vs_profile": 2.824075621860749
+   },
+   "rounds_per_client": [
+    283,
+    283,
+    283,
+    283
+   ],
+   "tokens_per_round_mean": 2.7093639575971733,
+   "gamma_values": [
+    0,
+    1,
+    2
+   ],
+   "lifecycle": {
+    "max_client_virtual_end_s": 160.32263723653077,
+    "min_client_virtual_end_s": 160.32263630686506,
+    "any_work_complete": false,
+    "samples_assigned": 64,
+    "mean_tokens_per_finished_sample": 96.0,
+    "eos_finished_samples": 0
+   },
+   "wall_clock_s": 170.67080729384907,
+   "virtual_max_s": 160.32263723653077,
+   "causality": {
+    "n_events": 3794,
+    "n_violations": 0,
+    "causal_virtual_time": true
+   },
+   "gate_ok": true,
+   "gate_reasons": [],
+   "batches_in_window": 283,
+   "requests_in_window": 1132,
+   "runtime_fallback_events": null
+  },
+  {
+   "N": 8,
+   "window_s": 120.0,
+   "rates": {
+    "0": 4.058333333333334,
+    "1": 4.125,
+    "2": 3.975,
+    "3": 4.175,
+    "4": 4.133333333333334,
+    "5": 4.041666666666667,
+    "6": 4.058333333333334,
+    "7": 4.158333333333333
+   },
+   "x_min": 3.975,
+   "x_mean": 4.090625,
+   "Y": 32.725,
+   "N_x_min": 31.8,
+   "jain": 0.9997568245999373,
+   "x_min_over_mean": 0.9717341482047365,
+   "verifier_utilisation": 0.6249116738928326,
+   "batch_size_mean": 8.0,
+   "batch_size_max": 8,
+   "batch_wall_ms_mean": 418.93520037508335,
+   "queue_wait_ms_mean": 146.81685834014607,
+   "draft_ms_mean": 53.857402234636865,
+   "round_ms_mean": 669.650091935528,
+   "rounds_per_client_min": 179,
+   "invalid": false,
+   "invalid_reason": "",
+   "real_over_virtual": 1.5272787314541252,
+   "seed": 1,
+   "batch_size_hist": {
+    "8": 179
+   },
+   "batch_wall_ms": {
+    "mean": 418.93520037508335,
+    "p50": 285.384738817811,
+    "p90": 983.2188344094903,
+    "max": 1337.1363601181656
+   },
+   "draft": {
+    "virtual_ms_per_token": 22.199999999999996,
+    "physical_gpu_ms_per_token": 136.13608088033237,
+    "physical_wall_ms_per_token": 147.40628290696932,
+    "profile_ms_per_token": 22.2,
+    "physical_gpu_rel_dev_vs_profile": 5.132255895510467
+   },
+   "rounds_per_client": [
+    179,
+    179,
+    179,
+    179,
+    179,
+    179,
+    179,
+    179
+   ],
+   "tokens_per_round_mean": 2.74231843575419,
+   "gamma_values": [
+    0,
+    1,
+    2
+   ],
+   "lifecycle": {
+    "max_client_virtual_end_s": 160.38492887143087,
+    "min_client_virtual_end_s": 160.3849266873018,
+    "any_work_complete": false,
+    "samples_assigned": 64,
+    "mean_tokens_per_finished_sample": 96.0,
+    "eos_finished_samples": 0
+   },
+   "wall_clock_s": 244.95249071111903,
+   "virtual_max_s": 160.38492887143087,
+   "causality": {
+    "n_events": 4382,
+    "n_violations": 0,
+    "causal_virtual_time": true
+   },
+   "gate_ok": true,
+   "gate_reasons": [],
+   "batches_in_window": 179,
+   "requests_in_window": 1432,
+   "runtime_fallback_events": null
+  },
+  {
+   "N": 12,
+   "window_s": 120.0,
+   "rates": {
+    "0": 4.108333333333333,
+    "1": 4.1,
+    "2": 4.033333333333333,
+    "3": 4.208333333333333,
+    "4": 4.116666666666666,
+    "5": 4.091666666666667,
+    "6": 4.216666666666667,
+    "7": 4.15,
+    "8": 4.191666666666666,
+    "9": 4.141666666666667,
+    "10": 4.1,
+    "11": 4.133333333333334
+   },
+   "x_min": 4.033333333333333,
+   "x_mean": 4.132638888888889,
+   "Y": 49.59166666666667,
+   "N_x_min": 48.4,
+   "jain": 0.9998479098745594,
+   "x_min_over_mean": 0.9759704251386322,
+   "verifier_utilisation": 0.6252611563754423,
+   "batch_size_mean": 12.0,
+   "batch_size_max": 12,
+   "batch_wall_ms_mean": 414.53778323233746,
+   "queue_wait_ms_mean": 144.6954908214396,
+   "draft_ms_mean": 53.80718232044198,
+   "round_ms_mean": 663.1014953275868,
+   "rounds_per_client_min": 181,
+   "invalid": false,
+   "invalid_reason": "",
+   "real_over_virtual": 1.9943222650604224,
+   "seed": 1,
+   "batch_size_hist": {
+    "12": 181
+   },
+   "batch_wall_ms": {
+    "mean": 414.53778323233746,
+    "p50": 416.9083738233894,
+    "p90": 490.2799818664789,
+    "max": 751.9469577819109
+   },
+   "draft": {
+    "virtual_ms_per_token": 22.199999999999996,
+    "physical_gpu_ms_per_token": 137.70365614653272,
+    "physical_wall_ms_per_token": 196.9572617405112,
+    "profile_ms_per_token": 22.2,
+    "physical_gpu_rel_dev_vs_profile": 5.202867393987961
+   },
+   "rounds_per_client": [
+    181,
+    181,
+    181,
+    181,
+    181,
+    181,
+    181,
+    181,
+    181,
+    181,
+    181,
+    181
+   ],
+   "tokens_per_round_mean": 2.7398710865561693,
+   "gamma_values": [
+    0,
+    1,
+    2
+   ],
+   "lifecycle": {
+    "max_client_virtual_end_s": 160.51720889524896,
+    "min_client_virtual_end_s": 160.5172042385579,
+    "any_work_complete": false,
+    "samples_assigned": 64,
+    "mean_tokens_per_finished_sample": 96.0,
+    "eos_finished_samples": 0
+   },
+   "wall_clock_s": 320.1230436251499,
+   "virtual_max_s": 160.51720889524896,
+   "causality": {
+    "n_events": 6304,
+    "n_violations": 0,
+    "causal_virtual_time": true
+   },
+   "gate_ok": true,
+   "gate_reasons": [],
+   "batches_in_window": 181,
+   "requests_in_window": 2172,
+   "runtime_fallback_events": null
+  },
+  {
+   "N": 16,
+   "window_s": 120.0,
+   "rates": {
+    "0": 3.3833333333333333,
+    "1": 3.466666666666667,
+    "2": 3.325,
+    "3": 3.4583333333333335,
+    "4": 3.3916666666666666,
+    "5": 3.3583333333333334,
+    "6": 3.4583333333333335,
+    "7": 3.4916666666666667,
+    "8": 3.5416666666666665,
+    "9": 3.3666666666666667,
+    "10": 3.4,
+    "11": 3.425,
+    "12": 3.5083333333333333,
+    "13": 3.3833333333333333,
+    "14": 3.341666666666667,
+    "15": 3.316666666666667
+   },
+   "x_min": 3.316666666666667,
+   "x_mean": 3.4135416666666667,
+   "Y": 54.61666666666667,
+   "N_x_min": 53.06666666666667,
+   "jain": 0.9996322146801357,
+   "x_min_over_mean": 0.9716203844980166,
+   "verifier_utilisation": 0.6900717746932059,
+   "batch_size_mean": 16.0,
+   "batch_size_max": 16,
+   "batch_wall_ms_mean": 552.0574197545648,
+   "queue_wait_ms_mean": 144.64035835206207,
+   "draft_ms_mean": 53.82649999999999,
+   "round_ms_mean": 800.6057537024096,
+   "rounds_per_client_min": 150,
+   "invalid": false,
+   "invalid_reason": "",
+   "real_over_virtual": 2.170922637273509,
+   "seed": 1,
+   "batch_size_hist": {
+    "16": 150
+   },
+   "batch_wall_ms": {
+    "mean": 552.0574197545648,
+    "p50": 531.7356460727751,
+    "p90": 683.3554103272036,
+    "max": 1225.9723469614985
+   },
+   "draft": {
+    "virtual_ms_per_token": 22.199999999999996,
+    "physical_gpu_ms_per_token": 145.713294613444,
+    "physical_wall_ms_per_token": 253.52180225657887,
+    "profile_ms_per_token": 22.2,
+    "physical_gpu_rel_dev_vs_profile": 5.563661919524504
+   },
+   "rounds_per_client": [
+    150,
+    150,
+    150,
+    150,
+    150,
+    150,
+    150,
+    150,
+    150,
+    150,
+    150,
+    150,
+    150,
+    150,
+    150,
+    150
+   ],
+   "tokens_per_round_mean": 2.7308333333333334,
+   "gamma_values": [
+    0,
+    1,
+    2
+   ],
+   "lifecycle": {
+    "max_client_virtual_end_s": 160.4481813043769,
+    "min_client_virtual_end_s": 160.4481754256968,
+    "any_work_complete": false,
+    "samples_assigned": 64,
+    "mean_tokens_per_finished_sample": 96.0,
+    "eos_finished_samples": 0
+   },
+   "wall_clock_s": 348.320588903036,
+   "virtual_max_s": 160.4481813043769,
+   "causality": {
+    "n_events": 6782,
+    "n_violations": 0,
+    "causal_virtual_time": true
+   },
+   "gate_ok": true,
+   "gate_reasons": [],
+   "batches_in_window": 150,
+   "requests_in_window": 2400,
+   "runtime_fallback_events": null
+  }
+ ],
+ "verdict": {
+  "invalid_seeds_by_N": {},
+  "per_N": {
+   "1": {
+    "seeds": [
+     1
+    ],
+    "Y": {
+     "mean": 7.758333333333334,
+     "min": 7.758333333333334,
+     "max": 7.758333333333334
+    },
+    "x_min": {
+     "mean": 7.758333333333334,
+     "min": 7.758333333333334,
+     "max": 7.758333333333334
+    },
+    "N_x_min": {
+     "mean": 7.758333333333334,
+     "min": 7.758333333333334,
+     "max": 7.758333333333334
+    },
+    "x_min_over_mean": {
+     "mean": 1.0,
+     "min": 1.0,
+     "max": 1.0
+    },
+    "utilisation": {
+     "mean": 0.27839900137041695,
+     "min": 0.27839900137041695,
+     "max": 0.27839900137041695
+    },
+    "batch_size": {
+     "mean": 1.0,
+     "min": 1.0,
+     "max": 1.0
+    }
+   },
+   "2": {
+    "seeds": [
+     1
+    ],
+    "Y": {
+     "mean": 15.399999999999999,
+     "min": 15.399999999999999,
+     "max": 15.399999999999999
+    },
+    "x_min": {
+     "mean": 7.658333333333333,
+     "min": 7.658333333333333,
+     "max": 7.658333333333333
+    },
+    "N_x_min": {
+     "mean": 15.316666666666666,
+     "min": 15.316666666666666,
+     "max": 15.316666666666666
+    },
+    "x_min_over_mean": {
+     "mean": 0.9945887445887447,
+     "min": 0.9945887445887447,
+     "max": 0.9945887445887447
+    },
+    "utilisation": {
+     "mean": 0.2902134928056815,
+     "min": 0.2902134928056815,
+     "max": 0.2902134928056815
+    },
+    "batch_size": {
+     "mean": 2.0,
+     "min": 2.0,
+     "max": 2.0
+    }
+   },
+   "4": {
+    "seeds": [
+     1
+    ],
+    "Y": {
+     "mean": 25.558333333333334,
+     "min": 25.558333333333334,
+     "max": 25.558333333333334
+    },
+    "x_min": {
+     "mean": 6.225,
+     "min": 6.225,
+     "max": 6.225
+    },
+    "N_x_min": {
+     "mean": 24.9,
+     "min": 24.9,
+     "max": 24.9
+    },
+    "x_min_over_mean": {
+     "mean": 0.9742419302249755,
+     "min": 0.9742419302249755,
+     "max": 0.9742419302249755
+    },
+    "utilisation": {
+     "mean": 0.4100197974437227,
+     "min": 0.4100197974437227,
+     "max": 0.4100197974437227
+    },
+    "batch_size": {
+     "mean": 4.0,
+     "min": 4.0,
+     "max": 4.0
+    }
+   },
+   "8": {
+    "seeds": [
+     1
+    ],
+    "Y": {
+     "mean": 32.725,
+     "min": 32.725,
+     "max": 32.725
+    },
+    "x_min": {
+     "mean": 3.975,
+     "min": 3.975,
+     "max": 3.975
+    },
+    "N_x_min": {
+     "mean": 31.8,
+     "min": 31.8,
+     "max": 31.8
+    },
+    "x_min_over_mean": {
+     "mean": 0.9717341482047365,
+     "min": 0.9717341482047365,
+     "max": 0.9717341482047365
+    },
+    "utilisation": {
+     "mean": 0.6249116738928326,
+     "min": 0.6249116738928326,
+     "max": 0.6249116738928326
+    },
+    "batch_size": {
+     "mean": 8.0,
+     "min": 8.0,
+     "max": 8.0
+    }
+   },
+   "12": {
+    "seeds": [
+     1
+    ],
+    "Y": {
+     "mean": 49.59166666666667,
+     "min": 49.59166666666667,
+     "max": 49.59166666666667
+    },
+    "x_min": {
+     "mean": 4.033333333333333,
+     "min": 4.033333333333333,
+     "max": 4.033333333333333
+    },
+    "N_x_min": {
+     "mean": 48.4,
+     "min": 48.4,
+     "max": 48.4
+    },
+    "x_min_over_mean": {
+     "mean": 0.9759704251386322,
+     "min": 0.9759704251386322,
+     "max": 0.9759704251386322
+    },
+    "utilisation": {
+     "mean": 0.6252611563754423,
+     "min": 0.6252611563754423,
+     "max": 0.6252611563754423
+    },
+    "batch_size": {
+     "mean": 12.0,
+     "min": 12.0,
+     "max": 12.0
+    }
+   },
+   "16": {
+    "seeds": [
+     1
+    ],
+    "Y": {
+     "mean": 54.61666666666667,
+     "min": 54.61666666666667,
+     "max": 54.61666666666667
+    },
+    "x_min": {
+     "mean": 3.316666666666667,
+     "min": 3.316666666666667,
+     "max": 3.316666666666667
+    },
+    "N_x_min": {
+     "mean": 53.06666666666667,
+     "min": 53.06666666666667,
+     "max": 53.06666666666667
+    },
+    "x_min_over_mean": {
+     "mean": 0.9716203844980166,
+     "min": 0.9716203844980166,
+     "max": 0.9716203844980166
+    },
+    "utilisation": {
+     "mean": 0.6900717746932059,
+     "min": 0.6900717746932059,
+     "max": 0.6900717746932059
+    },
+    "batch_size": {
+     "mean": 16.0,
+     "min": 16.0,
+     "max": 16.0
+    }
+   }
+  },
+  "required_seeds": [
+   1,
+   2,
+   3
+  ],
+  "N8_to_N16": {
+   "valid_pairs": [
+    1
+   ],
+   "missing_or_invalid_required_seeds": [
+    2,
+    3
+   ],
+   "per_seed": {
+    "1": {
+     "Y_ratio": 1.6689584924879042,
+     "x_min_ratio": 0.8343815513626834
+    }
+   },
+   "Y_ratio_mean": 1.6689584924879042,
+   "x_min_ratio_mean": 0.8343815513626834,
+   "plateau": false,
+   "floor_falls": false,
+   "homogeneous_fair": true
+  },
+  "verdict": "INCONCLUSIVE(partial): valid pairs for seeds [1], required [1, 2, 3] (missing/INVALID [2, 3]); numbers are descriptive diagnostics only"
+ }
+}

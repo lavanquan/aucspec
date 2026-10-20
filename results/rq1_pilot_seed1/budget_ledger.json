@@ -1,0 +1,12 @@
+{
+ "cap_node_hours": 3.2,
+ "authorized_jobs": 1,
+ "jobs": [
+  {
+   "job_id": "51179457",
+   "seed": 1,
+   "elapsed_s": 1883.0,
+   "node_hours": 0.5230555555555556
+  }
+ ]
+}
