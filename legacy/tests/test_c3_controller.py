@@ -331,3 +331,17 @@ def test_online_estimator_prediction_uses_only_formation_time_features():
     before = est.predict_ms([(100, 2), (200, 4)])
     est.update([(100, 2), (200, 4)], 500.0)                                 # the measurement arrives after the prediction was made
     assert before == pytest.approx(CostModel().batch_ms([(100, 2), (200, 4)]), rel=1e-6)
+
+
+def test_simulator_start_offset_and_jitter_options_are_opt_in_and_keep_the_ledger_clean():
+    """The real simulator's opt-in asynchrony knobs (clients.start_offset_ms_max / arrival_jitter_ms_max) exist for the GPU pilot; defaults are no-ops."""
+    import inspect
+
+    from edge_specsim import simulator as simmod
+
+    src = inspect.getsource(simmod.EdgeSpecSimulator.__init__)
+    assert "start_offset_ms_max" in src and 'get("start_offset_ms_max", 0.0)' in src
+    run_src = inspect.getsource(simmod.EdgeSpecSimulator._run_round)
+    assert 'get("arrival_jitter_ms_max", 0.0)' in run_src
+    sim = sc.run(sc.make_spec("fix4+PF", 16, "hetero_async", cap=8, **SHORT))      # harness mirrors both knobs (offsets + jitter) with the same semantics
+    assert sc.metrics(sim)["ledger_violations"] == 0

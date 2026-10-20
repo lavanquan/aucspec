@@ -63,6 +63,7 @@ class C3Params:
     t_ref_ms: float = 52.0                      # congestion normaliser: waiting work equal to one fixed batch overhead => gate 1/2
     use_price: bool = True                      # False = device-latency-only depth ablation (no verifier term)
     use_deficit_weight: bool = True
+    read_lag_ms: float = 0.0                    # fault injection for the delayed-state test: decisions read the snapshot of time t - lag (never > 0 in a real run)
     # mechanism A ranking, declared in advance (both are evaluated, neither is tuned):
     #   "density": rank by (V + Z_eff) * phi_hat / (a/B_max + d_r)           max-weight / throughput-weighted form
     #   "deficit": rank by Z_eff first (neediest client first), ties by density   floor-oriented form
@@ -295,7 +296,7 @@ class C3Controller(OnlineController):
         self._tick += 1
         client.refresh_learning_stats(total_rounds)
         t = client.virtual_time_ms
-        snap = self.snapshot_at(t)
+        snap = self.snapshot_at(t - self.c3.read_lag_ms)
         xhat = self.own_rate_tok_per_ms(client.client_id, t)
         best = self._c3_argmax(client, snap, xhat)
         self.c3_log.append({"client": client.client_id, "t": t, "gamma": best, "version": snap["version"], "started": snap["started"], "start_used": snap["start_used"], "u_hat": snap["u_hat_ms"],

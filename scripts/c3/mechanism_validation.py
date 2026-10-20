@@ -117,6 +117,10 @@ def tasks_sens():
     for ms in (0, 2, 8, 10 ** 6):
         for s in SEEDS[:3]:
             t.append(dict(base, arm="fix4+DSz", seed=s, max_skips=ms, _tag=f"sens_maxskips{ms}"))
+    # (4) delayed state updates: the depth rule reads a snapshot that is `lag` ms old (fault injection), well specified b_gamma = 5.5
+    for lag in (0.0, 250.0, 1000.0, 4000.0):
+        for s_ in SEEDS[:3]:
+            t.append(dict(base, arm="depth+PF", seed=s_, cost_bg=5.5, truth_b_gamma=5.5, read_lag_ms=lag, _tag=f"sens_readlag{lag}"))
     for cap_ms in (float("inf"), 900.0, 600.0):
         for arm in ("fix4+PF", "fix4+DSz"):
             for s in SEEDS[:3]:

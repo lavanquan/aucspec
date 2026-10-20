@@ -286,8 +286,18 @@ class EdgeSpecSimulator:
                 self.samples, self._nested_n_max, self._nested_qpc, sim.get("expected_catalog_hash"))
         self.clients = self._make_clients(self.samples, num_clients=num_clients)
         if self.coordinator is not None:
+            # C3 (opt-in, default 0): deterministic per-client start offset in [0, start_offset_ms_max] breaks the initial cohort without
+            # touching event causality (the coordinator's lower bound starts at offset + RTT/2).
+            _off_max = float(self.cfg["clients"].get("start_offset_ms_max", 0.0) or 0.0)
             for client in self.clients:
-                self.coordinator.register_client(client.client_id, client.rtt_ms)
+                off = 0.0
+                if _off_max > 0.0:
+                    import hashlib
+
+                    h = hashlib.blake2b(repr((sim.get("seed", 0), client.client_id, "start_offset")).encode(), digest_size=8).digest()
+                    off = _off_max * (int.from_bytes(h, "big") / 2.0 ** 64)
+                    client.virtual_time_ms = off
+                self.coordinator.register_client(client.client_id, client.rtt_ms, start_ms=off)
 
     def _on_batch_failure(self, report: dict) -> None:
         self.failure_reports.append(report)

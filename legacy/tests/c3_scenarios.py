@@ -123,5 +123,5 @@ def task_to_spec(t: dict) -> ch.Spec:
     cost = CostModel(a_ms=t.pop("cost_a", 52.0), b_ms_per_token=t.pop("cost_b", 0.19), b_gamma_ms_per_token=t.pop("cost_bg", None))
     c3 = C3Params(max_batch_size=cap, V=V, x_req_tps=x_req, cost=cost, t_ref_ms=t.pop("t_ref_ms", 52.0), max_skips=t.pop("max_skips", 2),
                   service_time_cap_ms=t.pop("service_time_cap_ms", float("inf")), processed_token_budget=t.pop("token_budget_processed", 4096),
-                  window_ms=t.pop("window_ms", 5000.0), use_deficit_weight=t.pop("use_deficit_weight", True))
+                  window_ms=t.pop("window_ms", 5000.0), use_deficit_weight=t.pop("use_deficit_weight", True), read_lag_ms=t.pop("read_lag_ms", 0.0))
     return make_spec(arm, n, pop, seed, cap=cap, c3=c3, V=V, x_req=x_req, **t)
