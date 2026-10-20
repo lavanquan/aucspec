@@ -1,0 +1,37 @@
+client=21 sample=gsm8k-train-1346 round=13 batch=82/24 gamma=2 accepted=2 useful=3 proposed=[624, 256] committed=[624, 256, 481] progress=39/96
+client=07 sample=gsm8k-train-450 round=11 batch=82/24 gamma=2 accepted=2 useful=3 proposed=[3070, 88634] committed=[3070, 88634, 769] progress=33/96
+client=00 sample=gsm8k-train-2 round=13 batch=82/24 gamma=2 accepted=2 useful=3 proposed=[8471, 448] committed=[8471, 448, 220] progress=40/96
+client=14 sample=gsm8k-train-898 round=15 batch=82/24 gamma=2 accepted=1 useful=2 proposed=[8596, 21308] committed=[8596, 702] progress=45/96
+client=22 sample=gsm8k-train-1410 round=14 batch=82/24 gamma=2 accepted=2 useful=3 proposed=[12771, 220] committed=[12771, 220, 21] progress=41/96
+client=01 sample=gsm8k-train-66 round=15 batch=82/24 gamma=2 accepted=2 useful=3 proposed=[6551, 3123] committed=[6551, 3123, 220] progress=46/96
+client=08 sample=gsm8k-train-514 round=11 batch=82/24 gamma=2 accepted=2 useful=3 proposed=[69774, 594] committed=[69774, 594, 3220] progress=31/96
+client=15 sample=gsm8k-train-962 round=11 batch=82/24 gamma=2 accepted=0 useful=1 proposed=[1817, 1042] committed=[29071] progress=33/96
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_c1/legacy/scripts/run_simulation.py", line 41, in <module>
+[rank0]:     main()
+[rank0]:   File "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_c1/legacy/scripts/run_simulation.py", line 37, in main
+[rank0]:     asyncio.run(simulator.run())
+[rank0]:   File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+[rank0]:   File "/software/projects/pawsey1257/quanla/aucspec/vllm_rocm_build/vllm/vllm/model_executor/layers/sampler.py", line 786, in _get_ranks
+[rank0]:     return result.sum(1).add_(1)
+[rank0]:            ^^^^^^^^^^^^^
+[rank0]: torch.OutOfMemoryError: HIP out of memory. Tried to allocate 4.08 GiB. GPU 0 has a total capacity of 63.98 GiB of which 3.82 GiB is free. Of the allocated memory 52.64 GiB is allocated by PyTorch, with 178.00 MiB allocated in private pools (e.g., HIP Graphs), and 6.76 GiB is reserved by PyTorch but unallocated. If reser
+[rank0]:[W1020 14:33:27.623301561 ProcessGroupNCCL.cpp:1479] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+Traceback (most recent call last):
+  File "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_c1/scripts/canonical_launch.py", line 184, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_c1/scripts/canonical_launch.py", line 177, in main
+    return {"init": cmd_init, "run": cmd_run, "summary": cmd_summary}[a.cmd](a)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_c1/scripts/canonical_launch.py", line 89, in cmd_run
+    rc = cx.cmd_run(argparse.Namespace(run_tag=a.run_tag, n=a.n, seed=a.seed))
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_c1/scripts/certify_x3_run.py", line 53, in cmd_run
+    m = rcf.run_one(ctx.base_cfg, a.n, x, a.seed, meas_s, ctx.config_hash, cache, ctx.raw_dir, False)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/pawsey1257/quanla/aucspec_worktrees/wt_c1/scripts/run_capacity_frontier.py", line 349, in run_one
+    raise RuntimeError(f"run_simulation.py failed for {label} (exit {r.returncode})")
+RuntimeError: run_simulation.py failed for fixed_gamma_n24_x3.0_s1 (exit 1)
+=== RUN_DONE n=24 seed=1 exit=1 ===
+=== STOP: run failed or INVALID ===
