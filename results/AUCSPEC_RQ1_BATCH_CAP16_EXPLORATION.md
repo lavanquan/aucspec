@@ -1,0 +1,54 @@
+# AUCspec RQ1 — `batch_cap_16` exploration (C1.3, exploratory, one seed)
+
+One run-seed, one job, hybrid emulator. No certified N\*(x), no ICA, no policy comparison. Labels used below: **[V]** verified observation from the logged data, **[W]** within-run comparison,
+**[OLD]** `batch_cap_32` data (unchanged, incl. the N = 24 OOM), **[NEW]** `batch_cap_16` data, **[H]** speculative hypothesis (not tested).
+
+**Headline.** With `max_batch_size = 16` the N = 24 point ran **without any OOM** [V]. It **failed the pre-registered real/virtual-time gate (3.07 > 3.0)**, so the job stopped and N = 32 was never run; N = 24 is therefore a *gate-failed diagnostic*, not a valid point.
+At N = 24 the verifier is **saturated (99.2 % busy)** and lockstep full-N batching **disappears** (batches of 16 and 8) [V]; aggregate goodput rose 44 % over N = 16 while the per-client floor barely moved [V, gate-failed run].
+
+## 1. What differs from `batch_cap_32` (new serving configuration `batch_cap_16`)
+Config `configs/rq1_batchcap16_fixed_gamma2_tritonfa33.yaml` (generated; tested): the **only serving change is `verification_batching.max_batch_size` 32 → 16**. A second key, `simulation.failure_diagnostics: true`, is **observation-only**
+(writes metadata only if a run raises; no per-batch I/O, no change to verifier behaviour). Unchanged and tested equal: runtime H / Triton FA, `max_logprobs`, `target_gpu_memory_utilization 0.7`, engine settings, γ = 2, FCFS, `batch_wall`, price zero, `isolated_profile` 22.2 ms/token,
+30 s + 120 s + 10 s, GSM8K-train catalog and its hash (`02e79304…`, verified in the run), population seed, 64 questions/client. Same correctness-qualified backend. [OLD] data are preserved untouched (`results/rq1_extension/`).
+The effective cap is recorded in every round row (`verifier_max_batch_size`, all = 16) and enforced by the run gate.
+
+## 2. CPU gates before the GPU job (all passed on `5a37f03`; Setonix: 56 modules, only the pre-existing `test_payload_interface` float-equality failure)
+`test_batch_cap16.py` (30 tests): real batcher + coordinator with 24 and 32 simulated clients under cap 16, nonzero mock service time, independent sequential scheduler as oracle — no batch > 16; every request served exactly once; no D1/D2; no overlap; tied arrivals split 16 + 8 and 16 + 16 in client-id order; partial-cohort liveness (a slow client never blocks the 23 others); 20 random scenarios equal the oracle; virtual times and queue-state versions identical under reordered tasks; the real-order control is flagged. Simulator-level tests (24 and 32 clients, early stop, lifecycle, effective cap in rows, failure diagnostics with a mock OOM).
+**One real finding:** the first random cap-16 scenario raised a `CausalityDeadlock` that was a **false positive of my detector** (a waiter whose condition already held but had not been resumed yet was counted as blocked). Fixed (blocked ⇔ its own condition is false), regression test added, 80 earlier tests re-pass. Runs completed before the fix never raised it; the fix only removes false raises.
+
+## 3. Provenance and cost
+Code `5a37f03bec3af778b412a6e84bcf58aae632ed7c`; run directory `RQ1_CAP16_5a37f03` (config hash `152f51e13658963d`, 4 planned runs); job **51226862**, 75 min requested, **24 min 15 s = 0.404 node-h**, status FAILED by the gate after N = 24 (exit of the job script 3).
+Order run: **8** (burn-in, diagnostic-only) → **16** → **24** → *(32 not run)*. Ledger (`results/rq1_batchcap16/budget_ledger.json`): 0.523 + 0.441 + 0.404 = **1.369 node-h used of 3.2; 1.831 remaining.** No further job submitted.
+
+## 4. Results (seed 1, GSM8K-train population, window 120 s)
+| N | client rate min / mean / max | x_min | Y | N·x_min | x_min/mean | verifier busy | batch sizes (window) | batch wall mean / p90 / max (ms) | queue wait mean / p90 / max (per-client mean range) ms | processed tokens per batch mean / max | wall ~ tokens | mean round ms | wall/virtual | ledger events / violations | min rounds | gate |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 8 (burn-in) | 5.04 / 5.17 / 5.33 | 5.042 | 41.36 | 40.3 | 0.975 | 0.534 | {8: 223} | 287 / 350 / 641 | 146 / 150 / 150 (146–147) | 1348 / 1736 | 0.223 ms/tok, r = 0.77 | 538 | 268/160 = 1.67 | 5408 / 0 | 223 | pass |
+| 16 | 3.42 / 3.53 / 3.64 | 3.425 | 56.43 | 54.8 | 0.971 | 0.681 | {16: 153} | 534 / 659 / 1115 | 144 / 150 / 150 (144–144) | 2585 / 3284 | 0.203 ms/tok, r = 0.65 | 782 | 344/160 = 2.15 | 6850 / 0 | 153 | pass |
+| 24 (**gate failed**) | 3.28 / 3.40 / 3.52 | 3.283 | 81.55 | 78.8 | 0.966 | **0.992** | {8: 148, 16: 148} | 402 / 612 / 854 | 263 / 466 / 753 (178–433) | 1928 / 3450 | 0.189 ms/tok, r = 0.92 | 812 | 494/161 = **3.07** | 10164 / 0 | 148 | **FAIL: real/virtual 3.07 > 3.0** |
+
+[V] All three runs: virtual draft 22.2 ms/token; physical draft GPU latency +526 % / +542 % / +533 % above the profile (the E1 contention, removed from virtual time); 64 questions assigned, no exhausted/unverifiable client, 0 EOS, every sample at the 96-token cap, clients stopped by the early stop at ≈ 160 s, 0 causality violations, catalog hash equal to the frozen hash.
+No GPU-memory or OOM event occurred; **peak GPU memory was not recorded** (diagnostics run only on failure), so no memory-use curve is available. N = 24's other gates passed; only the cost guard failed, and it was **not relaxed**.
+
+## 5. Observations and what they mean
+1. **Lockstep full-N batching disappears at N = 24 [V, NEW].** Every cohort is served as two verifier calls (16 + 8; 148 + 148 batches); 250 of 296 batches start exactly when the previous one ends (continuous verifier use). At N = 8, 16 batches are still full-N lockstep (cap not binding).
+2. **Round time equals one verifier cycle [V, W]:** mean round 812 ms ≈ 534 (N = 16 batch wall) + 279 (N = 8 batch wall, median) = 813 ms. The per-client rate floor at N = 24 is the cycle length, not the arrival pattern.
+3. **Why goodput rose while the floor stayed [V, W; mechanism H].** At N = 16 the verifier is idle ≈ 32 % of each 782 ms round (150 ms batch wait, drafting, RTT); at N = 24 the second (8-request) batch fills that idle slot (busy 0.99) and the round grows only to 812 ms. Y: 41.4 → 56.4 → 81.6 (+37 %, +44 %); x_min: 5.04 → 3.43 → 3.28 (−32 %, −4 %). **Saturation is reached at N = 24 (busy 99 %); [H] beyond it each added batch lengthens the cycle (≈ 2 × 534 ms at N = 32 ⇒ x_min ≈ 2.6, Y ≈ 83), i.e. a goodput plateau with a falling floor — the regime RQ1 describes — but N = 32 was not measured.**
+4. **Fairness [V]:** rates are nearly equal across clients (`x_min/mean` 0.966, range 3.28–3.52) although the *waiting time* is not (per-client mean queue wait 178–433 ms; the 8-request group waits longest in the queue yet has a shorter service). Fairness of the rate floor holds; fairness of queueing delay does not.
+5. **Batch-wall dependence [V]:** wall time is increasing in processed tokens (0.19–0.22 ms per token, intercept ≈ 0–40 ms; r = 0.77/0.65/0.92); the batch-wall tail is light in this job (1, 2, 7 slow batches; no bursts: lag-1 autocorrelation ≈ 0).
+6. **Cold-start hypothesis weakened [V]:** the burn-in N = 8, the *first* run of this job, had 1 slow batch (> 600 ms) versus 45 in the pilot's first run; its x_min/Y (5.042 / 41.36) reproduce the `batch_cap_32` extension's N = 8 (5.050 / 41.38) within 0.2 % even though the cap is not binding at N = 8 in either. N = 16 also reproduces (3.425 vs 3.467, −1.2 %; Y 56.43 vs 56.73). These are **job-to-job replicates of the same configuration and seed (cap not binding)**; the earlier N = 8 anomaly is therefore not a general "first run is slow" effect; its cause remains unexplained.
+7. **The old OOM [H]:** the cap-32 failure allocated 4.08 GiB inside the sampler's logprob ranking; 4.08 GiB ÷ (152,064 vocab × 4 B) ≈ 7,200 positions, about what a 24-request batch of ≈ 300-token contexts needs, while the largest cap-16 batch here has 3,450 processed tokens. This is a consistency argument, not a measurement; vLLM prefill splitting was **not logged**, so nothing is claimed about how many sequences were processed simultaneously.
+8. **Real/virtual cost [V]:** 1.67 → 2.15 → 3.07 (N = 8 → 16 → 24). The ratio grows roughly with the number of concurrently drafting clients (single-process physical draft contention). N = 32 would very likely exceed 3 again [H], so the registered cost gate, not memory, now limits the reachable N.
+
+## 6. Answers to the planned questions
+* **Plateau between N = 16, 24, 32?** Goodput has not plateaued through N = 24 (still +44 %), but the verifier is saturated at N = 24, so a plateau is expected from there [H]; N = 32 is untested.
+* **Could a capacity boundary be studied under this configuration?** Physically yes: the floor is ≈ 3.3 at N = 24 and [H] ≈ 2.6 at N = 32, so a x ≈ 3 boundary would lie between 24 and 32 for this policy (controller-achieved, not existential). Practically, a certified boundary point needs ≥ 5 (typically 8–12) seeds at ≈ 6–8 probes, each N ≥ 24 run costing ≈ 0.2 node-h (≈ 10–12 min at r ≈ 3), i.e. **≈ 8–20 node-h per x**, far above the 1.83 node-h left. A cheaper design is a descriptive curve at N ∈ {16, 20, 24, 28, 32}, 1–2 seeds.
+* **How this changes the RQ1 interpretation:** up to N = 16 the floor falls while goodput still rises; N = 16 → 24 is *not* the hypothesised concealment regime (goodput up 44 %, floor ≈ flat) because the verifier had slack; the concealment regime (goodput plateau + falling floor) is predicted to begin around saturation (N ≈ 24) and is the thing still to be measured. The original pre-registered N = 8 → 16 rule stays INCONCLUSIVE (Y ratio 1.37 on this population).
+* **Remaining budget:** 1.831 node-h.
+
+## 7. Limits
+One seed; N = 24 is a gate-failed diagnostic; N = 32 unmeasured; peak memory and vLLM prefill splitting not recorded; mechanism statements marked [H] are not tested; lockstep survives for N ≤ 16 (homogeneous design); hybrid emulator with isolated draft profile; population differs from the first pilot (GSM8K train vs test), so [OLD]/[NEW] comparisons here are only among runs on the train catalog. The registered thresholds were not changed. Seeds 2–3 were not started; nothing else was submitted.
+
+Next decisions for you: (a) allow a **cost-gate waiver or a higher registered ratio** (e.g. 4) for N ≥ 24 — a change of the pre-registered gate that I will not make myself; (b) a short follow-up to measure N = 28/32 (≈ 0.25 node-h each) with failure diagnostics and memory logging on; (c) or stop the extension and spend the remaining budget on multi-seed N ∈ {8, 16}.
+
+Artifacts: `results/rq1_batchcap16/{cap16_seed1_compact.json, cap16_slow_batch_diagnostics.json, n24_causality_check.json, budget_ledger.json}`; raw CSV/ledgers on `/scratch/pawsey1257/quanla/canonical_raw/RQ1_CAP16_5a37f03/` (not in git).

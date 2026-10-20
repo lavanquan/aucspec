@@ -1,0 +1,161 @@
+{
+ "8": {
+  "n_batches": 300,
+  "median_ms": 279.12790689151734,
+  "mean_ms": 284.1256631282158,
+  "p90_ms": 344.1698622424156,
+  "p99_ms": 420.43676203815244,
+  "max_ms": 641.3639287929982,
+  "slow_threshold_ms": 600.0,
+  "n_slow": 1,
+  "slow_in_warmup": 0,
+  "slow_in_window": 1,
+  "slow_after_window": 0,
+  "slow_virtual_time_s": [
+   43.2
+  ],
+  "slow_batch_ids": [
+   81
+  ],
+  "slow_run_lengths": [
+   1
+  ],
+  "lag1_autocorr_of_slow_flag": -0.0033557046979865697,
+  "mean_verification_batch_processed_tokens_slow_vs_fast": [
+   1264.0,
+   1316.9030100334448
+  ],
+  "mean_verification_batch_context_tokens_sum_slow_vs_fast": [
+   1248.0,
+   1301.1103678929767
+  ],
+  "mean_verification_batch_context_tokens_max_slow_vs_fast": [
+   183.0,
+   209.31103678929765
+  ],
+  "mean_verification_batch_size_slow_vs_fast": [
+   8.0,
+   8.0
+  ],
+  "fast_fit_ms_per_token_intercept": [
+   0.20987578364471518,
+   6.544835105118884
+  ],
+  "slow_over_fit_ratio_median": 2.3594491377096314,
+  "median_first_half_ms": 277.4236756376922,
+  "median_second_half_ms": 280.366504448466
+ },
+ "16": {
+  "n_batches": 201,
+  "median_ms": 538.3791108615696,
+  "mean_ms": 548.1037090367994,
+  "p90_ms": 686.4872891455889,
+  "p99_ms": 888.7417488731444,
+  "max_ms": 1114.7379830945283,
+  "slow_threshold_ms": 1076.7582217231393,
+  "n_slow": 2,
+  "slow_in_warmup": 0,
+  "slow_in_window": 2,
+  "slow_after_window": 0,
+  "slow_virtual_time_s": [
+   101.8,
+   148.3
+  ],
+  "slow_batch_ids": [
+   130,
+   188
+  ],
+  "slow_run_lengths": [
+   1,
+   1
+  ],
+  "lag1_autocorr_of_slow_flag": -0.010101010101010117,
+  "mean_verification_batch_processed_tokens_slow_vs_fast": [
+   2840.0,
+   2627.241206030151
+  ],
+  "mean_verification_batch_context_tokens_sum_slow_vs_fast": [
+   2808.0,
+   2595.6633165829144
+  ],
+  "mean_verification_batch_context_tokens_max_slow_vs_fast": [
+   235.0,
+   213.96984924623115
+  ],
+  "mean_verification_batch_size_slow_vs_fast": [
+   16.0,
+   16.0
+  ],
+  "fast_fit_ms_per_token_intercept": [
+   0.2002323922741607,
+   16.405473709988105
+  ],
+  "slow_over_fit_ratio_median": 1.8978258672940953,
+  "median_first_half_ms": 539.4535609520972,
+  "median_second_half_ms": 538.3791108615696
+ },
+ "24": {
+  "n_batches": 390,
+  "median_ms": 382.19043950084597,
+  "mean_ms": 408.5455897001502,
+  "p90_ms": 627.7749397326261,
+  "p99_ms": 781.5283881453804,
+  "max_ms": 853.5830439068377,
+  "slow_threshold_ms": 764.3808790016919,
+  "n_slow": 7,
+  "slow_in_warmup": 2,
+  "slow_in_window": 5,
+  "slow_after_window": 0,
+  "slow_virtual_time_s": [
+   24.8,
+   26.8,
+   52.0,
+   68.5,
+   108.3,
+   139.4,
+   140.5
+  ],
+  "slow_batch_ids": [
+   58,
+   62,
+   124,
+   166,
+   264,
+   338,
+   340
+  ],
+  "slow_run_lengths": [
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1
+  ],
+  "lag1_autocorr_of_slow_flag": -0.018324607329842906,
+  "mean_verification_batch_processed_tokens_slow_vs_fast": [
+   3138.5714285714284,
+   1916.5718015665796
+  ],
+  "mean_verification_batch_context_tokens_sum_slow_vs_fast": [
+   3106.5714285714284,
+   1893.0626631853786
+  ],
+  "mean_verification_batch_context_tokens_max_slow_vs_fast": [
+   235.85714285714286,
+   196.68146214099218
+  ],
+  "mean_verification_batch_size_slow_vs_fast": [
+   16.0,
+   11.926892950391645
+  ],
+  "fast_fit_ms_per_token_intercept": [
+   0.1854927473788171,
+   45.728977703932756
+  ],
+  "slow_over_fit_ratio_median": 1.2263013453113465,
+  "median_first_half_ms": 379.25871508196,
+  "median_second_half_ms": 384.1589919757098
+ }
+}
