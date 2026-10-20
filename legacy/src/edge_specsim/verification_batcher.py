@@ -78,6 +78,12 @@ class VerificationBatcher:
         if self.task is None:
             self.task = asyncio.create_task(self._loop())
 
+    def abort(self) -> None:
+        """Failure path only: cancel the batcher task without waiting for it (no clean drain is possible after a failed batch)."""
+        if self.task is not None:
+            self.task.cancel()
+            self.task = None
+
     async def close(self) -> None:
         await self.queue.put(None)
         if self.task is not None:
@@ -390,6 +396,8 @@ class VerificationBatcher:
             for request in batch:
                 if not request.future.done():
                     request.future.set_exception(exc)
+            if isinstance(exc, asyncio.CancelledError):
+                raise                      # cancellation (failure-path abort) must terminate the batcher task, not be swallowed
             return
         measured_batch_service_ms = (
             asyncio.get_running_loop().time() - batch_service_start

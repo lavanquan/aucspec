@@ -22,6 +22,41 @@ def gpu_memory_snapshot() -> dict:
         return {"available": False, "reason": f"{type(exc).__name__}: {exc}"}
 
 
+def gpu_memory_all_devices() -> dict:
+    """Per-device memory summary (allocated/reserved/peaks/free/total, bytes).  No synchronisation, no per-batch calls: meant for a handful of
+    snapshots (engine init, run start, run end, failure).  Stub with the reason if torch/GPU is unavailable."""
+    try:
+        import torch  # lazy
+
+        if not torch.cuda.is_available():
+            return {"available": False, "reason": "cuda/hip not available"}
+        devs = []
+        for i in range(torch.cuda.device_count()):
+            try:
+                free, total = torch.cuda.mem_get_info(i)
+                devs.append({"device": i, "free_bytes": int(free), "total_bytes": int(total),
+                             "allocated_bytes": int(torch.cuda.memory_allocated(i)), "reserved_bytes": int(torch.cuda.memory_reserved(i)),
+                             "max_allocated_bytes": int(torch.cuda.max_memory_allocated(i)),
+                             "max_reserved_bytes": int(torch.cuda.max_memory_reserved(i))})
+            except Exception as exc:  # pragma: no cover - environment dependent
+                devs.append({"device": i, "error": f"{type(exc).__name__}: {exc}"})
+        return {"available": True, "devices": devs}
+    except Exception as exc:  # pragma: no cover - environment dependent
+        return {"available": False, "reason": f"{type(exc).__name__}: {exc}"}
+
+
+def reset_peak_stats() -> None:
+    """Start a fresh peak window (cheap, no sync).  Best effort."""
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            for i in range(torch.cuda.device_count()):
+                torch.cuda.reset_peak_memory_stats(i)
+    except Exception:  # pragma: no cover
+        pass
+
+
 def build_batch_failure_report(batch, meta, exc: BaseException, *, last_ok: dict | None, queue_state: dict,
                                target_settings: dict | None = None, memory_fn=gpu_memory_snapshot) -> dict:
     ctx = [len(r.context_token_ids) for r in batch]

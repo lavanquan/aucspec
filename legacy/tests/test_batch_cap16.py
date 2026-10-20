@@ -150,3 +150,22 @@ def test_gate_rejects_a_run_whose_effective_cap_is_not_16(tmp_path):
 def test_job_script_has_the_registered_order_walltime_and_cap_check():
     txt = (ROOT / "scripts" / "c1" / "run_rq1_batchcap16_job.sh").read_text()
     assert "--time=01:15:00" in txt and "8 16 24 32" in txt and "EXPECT_MAX_BATCH=16" in txt and "rq1_batchcap16" in txt
+
+
+# ------------------------------------------------------------------ C1.4 probe configuration
+def test_c14_probe_config_differs_from_the_cap16_config_only_by_the_memory_summary_flag():
+    a, b = _flat(_load("rq1_batchcap16_fixed_gamma2_tritonfa33.yaml")), _flat(_load("rq1_cap16_probe_fixed_gamma2_tritonfa33.yaml"))
+    assert {k for k in set(a) | set(b) if a.get(k) != b.get(k)} == {"simulation.memory_summary"}
+    assert b["verification_batching.max_batch_size"] == 16 and b["simulation.memory_summary"] is True
+    for k in ("simulation.expected_catalog_hash", "simulation.population_seed", "simulation.draft_profile.per_token_ms",
+              "verification_batching.service_time_model", "controller.fixed_gamma", "controller.verifier_price_mode", "runtime.identity",
+              "experiment.warmup_seconds", "experiment.measurement_seconds", "experiment.early_stop_margin_seconds"):
+        assert a[k] == b[k], k
+
+
+def test_c14_job_script_uses_the_exploratory_protocol_and_the_60_minute_budget():
+    txt = (ROOT / "scripts" / "c1" / "run_rq1_cap16_probe_job.sh").read_text()
+    assert "--time=01:00:00" in txt and "GATE_PROTOCOL=exploratory_v2" in txt and "EXPECT_MAX_BATCH=16" in txt and "28 32" in txt
+    assert "rq1_cap16_probe" in txt
+    old = (ROOT / "scripts" / "c1" / "run_rq1_batchcap16_job.sh").read_text()
+    assert "GATE_PROTOCOL" not in old                    # the C1.3 protocol script keeps the original gate

@@ -192,6 +192,15 @@ class EdgeSpecSimulator:
             on_failure=self._on_batch_failure if bool(sim.get("failure_diagnostics", False)) else None,
         )
         self.failure_reports: list[dict] = []
+        # C1.4 opt-in memory summaries (snapshots only; never per batch): after engine init, at run start, at run end, on failure.
+        self.memory_summary_enabled = bool(sim.get("memory_summary", False))
+        self.memory_events: dict = {}
+        if self.memory_summary_enabled:
+            from . import failure_diagnostics as _fd
+
+            self._memory_fn = _fd.gpu_memory_all_devices
+            self.memory_events["after_engine_init"] = self._memory_fn()      # includes init-time peaks
+            _fd.reset_peak_stats()                                           # run peaks are measured from here
         proposal_distribution_payload = (
             "delta_proposal" if self.sampling_temperature <= 0.0 else "full_vocab_logprobs"
         )
@@ -272,12 +281,30 @@ class EdgeSpecSimulator:
     def _on_batch_failure(self, report: dict) -> None:
         self.failure_reports.append(report)
 
+    def _snap_memory(self, label: str) -> None:
+        if getattr(self, "memory_summary_enabled", False):
+            self.memory_events[label] = self._memory_fn()
+
+    def _write_memory_summary(self, artifacts_dir: Path, extra: dict | None = None) -> None:
+        if not getattr(self, "memory_summary_enabled", False):
+            return
+        from .failure_diagnostics import write_json
+
+        payload = {"snapshots": self.memory_events, "verifier_max_batch_size": self.verifier.max_batch_size,
+                   "completed_batches": self.verifier.batch_counter, "note": "bytes; peaks are since the run start (reset after engine init); "
+                   "no per-batch sampling"}
+        if extra:
+            payload.update(extra)
+        write_json(artifacts_dir / "memory_summary.json", payload)
+
     def _write_failure_artifacts(self, exc: BaseException) -> None:
         """Exception-only: partial rounds (records so far) + failure report next to the normal artifacts. No per-batch I/O."""
         from .failure_diagnostics import write_json
 
         output = Path(self.cfg["simulation"]["output_csv"])
         art = output.parent / f"{output.stem}_artifacts"
+        self._snap_memory("on_failure")
+        self._write_memory_summary(art, {"failed": True})
         write_json(art / "failure_diagnostics.json", {
             "run_exception": f"{type(exc).__name__}: {exc}", "completed_rounds": len(self.records),
             "completed_batches": self.verifier.batch_counter, "verifier_max_batch_size": self.verifier.max_batch_size,
@@ -682,9 +709,12 @@ class EdgeSpecSimulator:
 
     async def run(self) -> None:
         await self.verifier.start()
+        self._snap_memory("run_start")
+        failed = False
         try:
             await asyncio.gather(*(self._run_client(client) for client in self.clients))
         except BaseException as exc:
+            failed = True
             if bool(self.cfg["simulation"].get("failure_diagnostics", False)):
                 try:
                     self._write_failure_artifacts(exc)
@@ -692,7 +722,11 @@ class EdgeSpecSimulator:
                     pass
             raise
         finally:
-            await self.verifier.close()
+            if failed:
+                # a failed batch leaves the coordinator waiting on clients that will never resume: do not await a clean close
+                self.verifier.abort()
+            else:
+                await self.verifier.close()
         self._write_results()
 
     async def _run_client(self, client: ClientProfile) -> None:
@@ -1205,6 +1239,8 @@ class EdgeSpecSimulator:
         self._write_events_jsonl(events_jsonl, df)
         self._write_run_config_json(run_config_json, output_csv=output, artifacts_dir=artifacts_dir)
         self._write_summary_json(summary_json, df, output_csv=output, artifacts_dir=artifacts_dir)
+        self._snap_memory("run_end")
+        self._write_memory_summary(artifacts_dir)
         if getattr(self, "catalog_record", None) is not None:
             with (artifacts_dir / "catalog_record.json").open("w", encoding="utf-8") as handle:
                 json.dump(self.catalog_record, handle, indent=1)

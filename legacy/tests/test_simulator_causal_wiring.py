@@ -361,3 +361,55 @@ def test_failure_diagnostics_are_exception_only_and_contain_the_requested_metada
     sim2 = build_sim(4, run_seed=1, causal=True, qpc=2, max_new=12, n_max=4, failure_out=ok)
     run(sim2)
     assert not (tmp_path / "ok_artifacts").exists()
+
+
+def _enable_memory(sim, calls):
+    sim.memory_summary_enabled = True
+    sim.memory_events = {"after_engine_init": {"available": False, "reason": "mock"}}
+
+    def fake():
+        calls.append(1)
+        return {"available": True, "devices": [{"device": 0, "free_bytes": 1, "total_bytes": 10, "allocated_bytes": 5, "reserved_bytes": 7,
+                                                "max_allocated_bytes": 6, "max_reserved_bytes": 8}]}
+
+    sim._memory_fn = fake
+
+
+def test_memory_summary_is_opt_in_snapshot_only_and_serialisable(tmp_path):
+    import json
+    out = tmp_path / "run.csv"
+    sim = build_sim(4, run_seed=1, causal=True, qpc=2, max_new=12, n_max=4)
+    sim.cfg["simulation"]["output_csv"] = str(out)
+    sim._write_results = EdgeSpecSimulator._write_results.__get__(sim)        # real writer, but stub the heavy parts below
+    for name in ("_write_events_jsonl", "_write_run_config_json", "_write_summary_json"):
+        setattr(sim, name, lambda *a, **k: None)
+    calls = []
+    _enable_memory(sim, calls)
+    run(sim)
+    mem = json.loads((tmp_path / "run_artifacts" / "memory_summary.json").read_text())
+    assert set(mem["snapshots"]) == {"after_engine_init", "run_start", "run_end"}
+    assert len(calls) == 2                                              # run_start + run_end only: no per-batch sampling
+    assert mem["verifier_max_batch_size"] == 8 and mem["snapshots"]["run_end"]["devices"][0]["max_reserved_bytes"] == 8
+    # disabled by default: nothing written
+    sim2 = build_sim(2, run_seed=1, causal=True, qpc=2, max_new=12, n_max=2)
+    sim2.cfg["simulation"]["output_csv"] = str(tmp_path / "off.csv")
+    sim2._write_results = EdgeSpecSimulator._write_results.__get__(sim2)
+    for name in ("_write_events_jsonl", "_write_run_config_json", "_write_summary_json"):
+        setattr(sim2, name, lambda *a, **k: None)
+    run(sim2)
+    assert not (tmp_path / "off_artifacts" / "memory_summary.json").exists()
+
+
+def test_failure_path_adds_a_memory_snapshot(tmp_path):
+    import json
+    out = tmp_path / "f.csv"
+    sim = build_sim(12, run_seed=1, causal=True, qpc=4, max_new=24, n_max=12, max_batch=8,
+                    target=FailingTarget(default_wall, fail_on_call=4), failure_out=out)
+    calls = []
+    _enable_memory(sim, calls)
+    with pytest.raises(MemoryError):
+        run(sim)
+    art = tmp_path / "f_artifacts"
+    mem = json.loads((art / "memory_summary.json").read_text())
+    assert "on_failure" in mem["snapshots"] and mem["failed"] is True
+    assert (art / "failure_diagnostics.json").exists()

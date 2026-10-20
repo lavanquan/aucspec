@@ -33,6 +33,20 @@ def jain(xs):
     return (s * s) / (len(xs) * q) if q > 0 else float("nan")
 
 
+def exact_occupancy(df, start_ms: float, end_ms: float) -> dict:
+    """C1.4: exact virtual verifier occupancy.  Every UNIQUE verifier service interval [batch_start, verify_finish] is intersected with
+    the measurement window; overlap_b = max(0, min(finish_b, end) - max(start_b, start)); utilisation = sum(overlap) / window.
+    All batches overlapping the window are used (not only batches reached through in-window client receives).  Also reports whether any
+    two service intervals overlap each other (serialisation violation) - then the sum would exceed the true busy time."""
+    b = df.drop_duplicates("verification_batch_id")[["verification_batch_id", "batch_start_ms", "verify_finish_ms"]].sort_values("batch_start_ms")
+    s, f = b["batch_start_ms"].to_numpy(float), b["verify_finish_ms"].to_numpy(float)
+    ov = [max(0.0, min(fi, end_ms) - max(si, start_ms)) for si, fi in zip(s, f)]
+    dur = end_ms - start_ms
+    serial_ok = bool(all(s[i + 1] >= f[i] - 1e-6 for i in range(len(s) - 1)))
+    return {"utilisation": float(sum(ov)) / dur if dur > 0 else float("nan"), "n_batches_overlapping_window": int(sum(o > 0 for o in ov)),
+            "busy_ms": float(sum(ov)), "serialisation_ok": serial_ok}
+
+
 def run_metrics(df, n: int, *, expected_samples: int | None = None) -> dict:
     start = float(df["experiment_warmup_end_ms"].iloc[0])
     end = float(df["experiment_measurement_end_ms"].iloc[0])
@@ -44,12 +58,17 @@ def run_metrics(df, n: int, *, expected_samples: int | None = None) -> dict:
     work = assess_from_dataframe(df, admitted_client_ids=range(n), measurement_start_ms=start, measurement_end_ms=end,
                                  expected_samples_per_client=expected_samples)
     batches = win.drop_duplicates("verification_batch_id")
-    util = float(batches["verification_batch_wall_ms"].sum()) / 1000.0 / t_m if len(batches) else 0.0
+    util_legacy = float(batches["verification_batch_wall_ms"].sum()) / 1000.0 / t_m if len(batches) else 0.0   # superseded (C1.4)
+    occ = exact_occupancy(df, start, end) if "verify_finish_ms" in df.columns else None
+    util = occ["utilisation"] if occ is not None else util_legacy
     out = {
         "N": n, "window_s": t_m, "rates": rates, "x_min": min(vals), "x_mean": statistics.fmean(vals),
         "Y": sum(vals), "N_x_min": n * min(vals), "jain": jain(vals),
         "x_min_over_mean": (min(vals) / statistics.fmean(vals)) if statistics.fmean(vals) > 0 else float("nan"),
         "verifier_utilisation": util,
+        "verifier_utilisation_legacy": util_legacy,
+        "verifier_serialisation_ok": None if occ is None else occ["serialisation_ok"],
+        "verifier_batches_overlapping_window": None if occ is None else occ["n_batches_overlapping_window"],
         "batch_size_mean": float(win["verification_batch_size"].mean()) if len(win) else float("nan"),
         "batch_size_max": int(win["verification_batch_size"].max()) if len(win) else 0,
         "batch_wall_ms_mean": float(batches["verification_batch_wall_ms"].mean()) if len(batches) else float("nan"),
