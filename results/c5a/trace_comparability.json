@@ -1,0 +1,272 @@
+{
+ "common": {
+  "run_seed": 1,
+  "population_seed": 20261020,
+  "gamma": 2,
+  "runtime": "H = V1-batchwall-tritonfa33 (vLLM 0.9.1 V0, Triton FA, prefix caching off, chunked prefill off)",
+  "verification": "V1 greedy, batch_wall, FCFS"
+ },
+ "runs": [
+  {
+   "run": "RQ1_CAP16_5a37f03",
+   "N": 8,
+   "catalog": "GSM8K-train (hash 02e79304)",
+   "serving": "batch_cap_16",
+   "protocol": "original gate; N=24 FAILED it (3.07)",
+   "effective_cap": 16,
+   "in_window_batch_size_histogram": {
+    "8": 224
+   },
+   "greedy_partition_prediction": [
+    8
+   ],
+   "mean_batch_size": 8.0,
+   "n_batches_in_window": 224
+  },
+  {
+   "run": "RQ1_CAP16_5a37f03",
+   "N": 16,
+   "catalog": "GSM8K-train (hash 02e79304)",
+   "serving": "batch_cap_16",
+   "protocol": "original gate; N=24 FAILED it (3.07)",
+   "effective_cap": 16,
+   "in_window_batch_size_histogram": {
+    "16": 154
+   },
+   "greedy_partition_prediction": [
+    16
+   ],
+   "mean_batch_size": 16.0,
+   "n_batches_in_window": 154
+  },
+  {
+   "run": "RQ1_CAP16_5a37f03",
+   "N": 24,
+   "catalog": "GSM8K-train (hash 02e79304)",
+   "serving": "batch_cap_16",
+   "protocol": "original gate; N=24 FAILED it (3.07)",
+   "effective_cap": 16,
+   "in_window_batch_size_histogram": {
+    "8": 148,
+    "16": 149
+   },
+   "greedy_partition_prediction": [
+    16,
+    8
+   ],
+   "mean_batch_size": 12.013468013468014,
+   "n_batches_in_window": 297
+  },
+  {
+   "run": "RQ1_EXT_28907a6",
+   "N": 8,
+   "catalog": "GSM8K-train (hash 02e79304)",
+   "serving": "batch_cap_32 (cap never binds for N<=16)",
+   "protocol": "original gate; N=24 OOM, no data",
+   "effective_cap": 32,
+   "in_window_batch_size_histogram": {
+    "8": 224
+   },
+   "greedy_partition_prediction": [
+    8
+   ],
+   "mean_batch_size": 8.0,
+   "n_batches_in_window": 224
+  },
+  {
+   "run": "RQ1_EXT_28907a6",
+   "N": 12,
+   "catalog": "GSM8K-train (hash 02e79304)",
+   "serving": "batch_cap_32 (cap never binds for N<=16)",
+   "protocol": "original gate; N=24 OOM, no data",
+   "effective_cap": 32,
+   "in_window_batch_size_histogram": {
+    "12": 169
+   },
+   "greedy_partition_prediction": [
+    12
+   ],
+   "mean_batch_size": 12.0,
+   "n_batches_in_window": 169
+  },
+  {
+   "run": "RQ1_EXT_28907a6",
+   "N": 16,
+   "catalog": "GSM8K-train (hash 02e79304)",
+   "serving": "batch_cap_32 (cap never binds for N<=16)",
+   "protocol": "original gate; N=24 OOM, no data",
+   "effective_cap": 32,
+   "in_window_batch_size_histogram": {
+    "16": 154
+   },
+   "greedy_partition_prediction": [
+    16
+   ],
+   "mean_batch_size": 16.0,
+   "n_batches_in_window": 154
+  },
+  {
+   "run": "RQ1_PILOT_4a7e866",
+   "N": 1,
+   "catalog": "GSM8K-test (hash 628857be)",
+   "serving": "batch_cap_32 (cap never binds for N<=16)",
+   "protocol": "original gate",
+   "effective_cap": 32,
+   "in_window_batch_size_histogram": {
+    "1": 342
+   },
+   "greedy_partition_prediction": [
+    1
+   ],
+   "mean_batch_size": 1.0,
+   "n_batches_in_window": 342
+  },
+  {
+   "run": "RQ1_PILOT_4a7e866",
+   "N": 2,
+   "catalog": "GSM8K-test (hash 628857be)",
+   "serving": "batch_cap_32 (cap never binds for N<=16)",
+   "protocol": "original gate",
+   "effective_cap": 32,
+   "in_window_batch_size_histogram": {
+    "2": 337
+   },
+   "greedy_partition_prediction": [
+    2
+   ],
+   "mean_batch_size": 2.0,
+   "n_batches_in_window": 337
+  },
+  {
+   "run": "RQ1_PILOT_4a7e866",
+   "N": 4,
+   "catalog": "GSM8K-test (hash 628857be)",
+   "serving": "batch_cap_32 (cap never binds for N<=16)",
+   "protocol": "original gate",
+   "effective_cap": 32,
+   "in_window_batch_size_histogram": {
+    "4": 283
+   },
+   "greedy_partition_prediction": [
+    4
+   ],
+   "mean_batch_size": 4.0,
+   "n_batches_in_window": 283
+  },
+  {
+   "run": "RQ1_PILOT_4a7e866",
+   "N": 8,
+   "catalog": "GSM8K-test (hash 628857be)",
+   "serving": "batch_cap_32 (cap never binds for N<=16)",
+   "protocol": "original gate",
+   "effective_cap": 32,
+   "in_window_batch_size_histogram": {
+    "8": 179
+   },
+   "greedy_partition_prediction": [
+    8
+   ],
+   "mean_batch_size": 8.0,
+   "n_batches_in_window": 179
+  },
+  {
+   "run": "RQ1_PILOT_4a7e866",
+   "N": 12,
+   "catalog": "GSM8K-test (hash 628857be)",
+   "serving": "batch_cap_32 (cap never binds for N<=16)",
+   "protocol": "original gate",
+   "effective_cap": 32,
+   "in_window_batch_size_histogram": {
+    "12": 181
+   },
+   "greedy_partition_prediction": [
+    12
+   ],
+   "mean_batch_size": 12.0,
+   "n_batches_in_window": 181
+  },
+  {
+   "run": "RQ1_PILOT_4a7e866",
+   "N": 16,
+   "catalog": "GSM8K-test (hash 628857be)",
+   "serving": "batch_cap_32 (cap never binds for N<=16)",
+   "protocol": "original gate",
+   "effective_cap": 32,
+   "in_window_batch_size_histogram": {
+    "16": 151
+   },
+   "greedy_partition_prediction": [
+    16
+   ],
+   "mean_batch_size": 16.0,
+   "n_batches_in_window": 151
+  },
+  {
+   "run": "RQ1_PROBE_2d58666",
+   "N": 28,
+   "catalog": "GSM8K-train (hash 02e79304)",
+   "serving": "batch_cap_16",
+   "protocol": "exploratory_v2; N=28, 32 FAIL the original gate (3.21, 3.28)",
+   "effective_cap": 16,
+   "in_window_batch_size_histogram": {
+    "12": 131,
+    "16": 131
+   },
+   "greedy_partition_prediction": [
+    16,
+    12
+   ],
+   "mean_batch_size": 14.0,
+   "n_batches_in_window": 262
+  },
+  {
+   "run": "RQ1_PROBE_2d58666",
+   "N": 32,
+   "catalog": "GSM8K-train (hash 02e79304)",
+   "serving": "batch_cap_16",
+   "protocol": "exploratory_v2; N=28, 32 FAIL the original gate (3.21, 3.28)",
+   "effective_cap": 16,
+   "in_window_batch_size_histogram": {
+    "16": 236
+   },
+   "greedy_partition_prediction": [
+    16,
+    16
+   ],
+   "mean_batch_size": 16.0,
+   "n_batches_in_window": 236
+  }
+ ],
+ "cross_launch_replicates_same_conditions": [
+  {
+   "N": 8,
+   "C1.2-extension": {
+    "x_min": 5.05,
+    "Y": 41.38
+   },
+   "C1.3-cap16": {
+    "x_min": 5.042,
+    "Y": 41.36
+   },
+   "x_min_rel_diff_pct": 0.15866719555731867
+  },
+  {
+   "N": 16,
+   "C1.2-extension": {
+    "x_min": 3.467,
+    "Y": 56.73
+   },
+   "C1.3-cap16": {
+    "x_min": 3.425,
+    "Y": 56.43
+   },
+   "x_min_rel_diff_pct": 1.2262773722627813
+  }
+ ],
+ "pilot_N8_vs_N12": {
+  "x_min_N8": 3.975,
+  "x_min_N12": 4.033,
+  "rel_diff_pct": 1.4591194968553527,
+  "note": "same catalog (test), same cap; difference is of the order of the cross-launch replicate difference; N=8 was the first run of its job with 45 slow batches"
+ }
+}
