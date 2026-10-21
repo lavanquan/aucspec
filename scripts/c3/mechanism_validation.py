@@ -65,6 +65,20 @@ def run_task(task: dict) -> dict:
             "pair_T0_vs_B": float(np.mean([set(r["T0_density_only"]) != set(r["c3_fcfs"]) for r in binding])),
             "mean_swapped_T_vs_B": float(np.mean([len(set(r["T_deficit_density"]) - set(r["c3_fcfs"])) for r in binding])),
             "mean_swapped_A_vs_B": float(np.mean([len(set(r["T_deficit_arrival"]) - set(r["c3_fcfs"])) for r in binding]))}
+    if binding and "R_age" in binding[0]:
+        ne = [r for r in binding if set(r["R_zeff"]) != set(r["c3_fcfs"])]            # batches where the effective-deficit rank changes the FCFS choice
+        out["attribution"] = {
+            "binding": len(binding), "zeff_ne_fcfs": len(ne),
+            "zeff_ne_fcfs_frac": len(ne) / max(1, len(binding)),
+            "age_ne_fcfs_frac": float(np.mean([set(r["R_age"]) != set(r["c3_fcfs"]) for r in binding])),
+            "zonly_ne_fcfs_frac": float(np.mean([set(r["R_zonly"]) != set(r["c3_fcfs"]) for r in binding])),
+            "zeff_ne_age_frac": float(np.mean([set(r["R_zeff"]) != set(r["R_age"]) for r in binding])),
+            "zeff_ne_zonly_frac": float(np.mean([set(r["R_zeff"]) != set(r["R_zonly"]) for r in binding])),
+            # among the batches where zeff != fcfs: is the change reproduced by age alone / by stamped Z alone / by neither?
+            "among_changed_explained_by_age": float(np.mean([set(r["R_zeff"]) == set(r["R_age"]) for r in ne])) if ne else None,
+            "among_changed_explained_by_zonly": float(np.mean([set(r["R_zeff"]) == set(r["R_zonly"]) for r in ne])) if ne else None,
+            "among_changed_explained_by_neither": float(np.mean([(set(r["R_zeff"]) != set(r["R_age"])) and (set(r["R_zeff"]) != set(r["R_zonly"])) for r in ne])) if ne else None,
+            "frac_batches_any_positive_stamped_Z": float(np.mean([any(v > 1e-9 for v in r["z_eff"].values()) for r in binding]))}
     ctrl = sim.controller
     if getattr(ctrl, "shadow_log", None):
         w = np.array([r["would"] for r in ctrl.shadow_log])
@@ -224,7 +238,29 @@ def tasks_robust_g2():
             for ps in POP_SEEDS for arm in ("fix2+PF", "fix2+DSa")]
 
 
-TASK_SETS = {"sched": tasks_sched, "depth": tasks_depth, "combined": tasks_combined, "sens": tasks_sens, "adversarial": tasks_adversarial, "openloop": tasks_openloop, "capacity": tasks_capacity, "robust": tasks_robust, "robust_g2": tasks_robust_g2}
+def tasks_c4():
+    """C4 scheduler falsification: four ranks on the SAME work-conserving path and constraints, matched population/run-seed, gamma fixed.
+    FCFS = c3_fcfs, AGE = oldest decision first, ZON = stamped Z_i only, ZEFF = Z_i + x_req*age (the C3 effective deficit).  No broadening of the grounded families."""
+    t = []
+    ranks = ("PF", "AGE", "ZON", "DSa")
+    for fam in ("measured", "measured_jitter"):
+        for (n, b) in ROBUST_CELLS:
+            for ps in POP_SEEDS:
+                for r in ranks:
+                    t.append(dict(arm=f"fix2+{r}", n=n, cap=b, pop=fam, seed=ps, pop_seed=ps, x_req=3.0, _tag=f"c4_g2_x3_{fam}"))
+    for x_req in (2.0, 4.0):                                                # predeclared SLO-floor sensitivity
+        for (n, b) in ((24, 16), (24, 8), (32, 8), (48, 16)):
+            for ps in POP_SEEDS:
+                for r in ranks:
+                    t.append(dict(arm=f"fix2+{r}", n=n, cap=b, pop="measured", seed=ps, pop_seed=ps, x_req=x_req, _tag=f"c4_g2_x{x_req:g}_measured"))
+    for (n, b) in ROBUST_CELLS:                                             # replicate at gamma = 4
+        for ps in POP_SEEDS:
+            for r in ranks:
+                t.append(dict(arm=f"fix4+{r}", n=n, cap=b, pop="measured", seed=ps, pop_seed=ps, x_req=3.0, _tag="c4_g4_x3_measured"))
+    return t
+
+
+TASK_SETS = {"sched": tasks_sched, "depth": tasks_depth, "combined": tasks_combined, "sens": tasks_sens, "adversarial": tasks_adversarial, "openloop": tasks_openloop, "capacity": tasks_capacity, "robust": tasks_robust, "robust_g2": tasks_robust_g2, "c4": tasks_c4}
 
 
 def main():

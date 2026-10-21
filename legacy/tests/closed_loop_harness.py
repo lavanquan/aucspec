@@ -342,7 +342,8 @@ def _instrument_queue(sim, spec):
         if kw.get("scheduler_name") in ("c3_deficit", "c3_fcfs") and kw.get("c3") is not None:
             import dataclasses as _dc
 
-            for label, mode, use_def in (("T0_density_only", "density", False), ("T_deficit_arrival", "deficit_fcfs", True), ("T_deficit_density", "deficit", True)):
+            for label, mode, use_def in (("T0_density_only", "density", False), ("T_deficit_arrival", "deficit_fcfs", True), ("T_deficit_density", "deficit", True),
+                                         ("R_age", "age", True), ("R_zonly", "z_only", True), ("R_zeff", "deficit_fcfs", True)):
                 alt = VerificationQueue()
                 alt.waiting = [dataclasses.replace(r) for r in eligible]
                 kw3 = dict(kw, scheduler_name="c3_deficit", c3=_dc.replace(kw["c3"], priority_mode=mode, use_deficit_weight=use_def))

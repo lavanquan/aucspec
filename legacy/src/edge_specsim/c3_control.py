@@ -68,6 +68,7 @@ class C3Params:
     #   "density": rank by (V + Z_eff) * phi_hat / (a/B_max + d_r)           max-weight / throughput-weighted form
     #   "deficit": rank by Z_eff first (neediest client first), ties by density   floor-oriented form
     #   "deficit_fcfs": rank by Z_eff first, ties by ARRIVAL order (diagnostic ablation: removes the density tie-break)
+    #   "age": oldest DECISION first (age-only falsification rank, C4); "z_only": genuine stamped client Z_i only (C4 falsification rank)
     priority_mode: str = "density"
 
 
@@ -143,6 +144,11 @@ def select_c3_deficit(eligible: list, start_ms: float, p: C3Params) -> list:
         z = effective_deficit(r, start_ms, p.x_req_tps, p.V) if p.priority_mode in ("deficit", "deficit_fcfs") else 0.0
         if p.priority_mode == "deficit_fcfs":
             return (1, -z, 0.0, r.arrival_time, r.client_id, r.request_id)
+        if p.priority_mode == "age":
+            t0 = r.decision_time_ms if r.decision_time_ms is not None else r.arrival_time
+            return (1, t0, 0.0, r.arrival_time, r.client_id, r.request_id)
+        if p.priority_mode == "z_only":
+            return (1, -max(0.0, float(r.weight) - float(p.V)), 0.0, r.arrival_time, r.client_id, r.request_id)
         return (1, -z, -dens, r.arrival_time, r.client_id, r.request_id)
 
     return _greedy_fill(sorted(eligible, key=key), eligible, p)

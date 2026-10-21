@@ -77,6 +77,10 @@ ARMS = {
     "fix2+DSz": ("fixed_gamma", 2, "c3_deficit", True),      # deficit-first ranking
     "fix4+DSz": ("fixed_gamma", 4, "c3_deficit", True),
     "fix2+DSa": ("fixed_gamma", 2, "c3_deficit", True),
+    "fix2+AGE": ("fixed_gamma", 2, "c3_deficit", True),      # C4: oldest decision first (age only)
+    "fix2+ZON": ("fixed_gamma", 2, "c3_deficit", True),      # C4: genuine client Z_i only
+    "fix4+AGE": ("fixed_gamma", 4, "c3_deficit", True),
+    "fix4+ZON": ("fixed_gamma", 4, "c3_deficit", True),
     "fix4+DSa": ("fixed_gamma", 4, "c3_deficit", True),      # diagnostic ablation: deficit-first with ARRIVAL tie-break (no density term)
     # mechanism B only (and its ablation without the verifier price)
     "depth+PF": ("c3_depth", 0, "c3_fcfs", True),
@@ -95,6 +99,10 @@ def make_spec(arm: str, n: int, pop: str, seed: int = 1, *, cap: int = 16, c3: C
         base = replace(base, priority_mode="deficit")
     if arm.endswith("DSa"):
         base = replace(base, priority_mode="deficit_fcfs")
+    if arm.endswith("AGE"):
+        base = replace(base, priority_mode="age")
+    if arm.endswith("ZON"):
+        base = replace(base, priority_mode="z_only")
     if arm.startswith("depthNP"):
         base = replace(base, use_price=False)
     kw = dict(n=n, policy=policy, fixed_gamma=g if policy == "fixed_gamma" else 2, scheduler=sched, work_conserving=wc, max_batch=cap, c3=base,
@@ -148,6 +156,7 @@ def metrics(sim) -> dict:
            "x_client0": (float(s["per_client_rates"][0]) if isinstance(s["per_client_rates"], dict) and 0 in s["per_client_rates"] else None),
            "x_p10": float(np.quantile(rates, 0.1)) if rates else None,
            "slo_deficit_sum": float(sum(max(0.0, sim.spec.x_req - x) for x in rates)),            # sum_i max(0, x_req - x_i)  [tokens/s]
+           "n_clients_below_slo": int(sum(x < sim.spec.x_req for x in rates)),
            "frac_clients_below_slo": float(np.mean([x < sim.spec.x_req for x in rates])) if rates else None,
            "skipped_service_fraction": float(np.mean([sk > 0 for r_ in log for sk in r_.get("skips_before_service", [])])) if log else None}
     return out

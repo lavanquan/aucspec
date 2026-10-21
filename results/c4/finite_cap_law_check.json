@@ -1,0 +1,98 @@
+{
+ "label": "Finite-cap saturated capacity law; (a,b) fitted on N<=16 only; targets N=24,28,32 held out (one seed, GSM8K-train).",
+ "fit": {
+  "a_ms": 11.478664967288596,
+  "b_ms_per_token": 0.20795197278117067,
+  "n_batches": 1235
+ },
+ "points": [
+  {
+   "run": "RQ1_CAP16_5a37f03",
+   "N": 24,
+   "cohorts": [
+    16,
+    8
+   ],
+   "saturated_regime": true,
+   "Y_measured": 81.55,
+   "Y_predicted": 80.19586025708962,
+   "rel_error_pct": -1.6605024437895486,
+   "x_mean_pred": 3.3414941773787343,
+   "x_min_measured": 3.283333333333333,
+   "phi_bar": 2.7550675675675675,
+   "processed_per_request": 160.6028587443946,
+   "cycle_ms": 824.5016813791982,
+   "note": "held-out N"
+  },
+  {
+   "run": "RQ1_PROBE_2d58666",
+   "N": 28,
+   "cohorts": [
+    14,
+    14
+   ],
+   "saturated_regime": true,
+   "Y_measured": 84.20833333333333,
+   "Y_predicted": 81.23687638477614,
+   "rel_error_pct": -3.5286970195632144,
+   "x_mean_pred": 2.901317013742005,
+   "x_min_measured": 2.8916666666666666,
+   "phi_bar": 2.763949671772429,
+   "processed_per_request": 159.66875681570338,
+   "cycle_ms": 952.6534531321673,
+   "note": "held-out N"
+  },
+  {
+   "run": "RQ1_PROBE_2d58666",
+   "N": 32,
+   "cohorts": [
+    16,
+    16
+   ],
+   "saturated_regime": true,
+   "Y_measured": 86.45,
+   "Y_predicted": 81.24127250239545,
+   "rel_error_pct": -6.0251330220989665,
+   "x_mean_pred": 2.5387897656998577,
+   "x_min_measured": 2.575,
+   "phi_bar": 2.7590425531914895,
+   "processed_per_request": 159.86228813559322,
+   "cycle_ms": 1086.7550320500507,
+   "note": "held-out N"
+  },
+  {
+   "run": "RQ1_CAP16_5a37f03",
+   "N": 16,
+   "cohorts": [
+    16
+   ],
+   "saturated_regime": false,
+   "Y_measured": 56.43333333333333,
+   "Y_predicted": 80.56553813860937,
+   "rel_error_pct": 42.76232393138105,
+   "x_mean_pred": 5.035346133663086,
+   "x_min_measured": 3.425,
+   "phi_bar": 2.7663398692810457,
+   "processed_per_request": 161.66761363636363,
+   "cycle_ms": 549.3842520153831,
+   "note": "N<=16 is NOT saturated: device+RTT+hold W add to the cycle, so the saturated law over-predicts (shown for contrast)"
+  },
+  {
+   "run": "RQ1_CAP16_5a37f03",
+   "N": 8,
+   "cohorts": [
+    8
+   ],
+   "saturated_regime": false,
+   "Y_measured": 41.358333333333334,
+   "Y_predicted": 76.31358318528328,
+   "rel_error_pct": 84.51803308954247,
+   "x_mean_pred": 9.53919789816041,
+   "x_min_measured": 5.041666666666667,
+   "phi_bar": 2.7819506726457397,
+   "processed_per_request": 168.40122767857142,
+   "cycle_ms": 291.63360508352866,
+   "note": "N<=16 is NOT saturated: device+RTT+hold W add to the cycle, so the saturated law over-predicts (shown for contrast)"
+  }
+ ]
+}

@@ -92,3 +92,26 @@ def test_membership_difference_is_measured_on_identical_eligible_sets_and_separa
     # on the same eligible sets: the density tie-break never changes the deficit-first choice here, the deficit does
     assert all(set(r["T_deficit_density"]) == set(r["T_deficit_arrival"]) for r in binding)
     assert sum(set(r["T_deficit_density"]) != set(r["T0_density_only"]) for r in binding) > 0.5 * len(binding)
+
+
+# ------------------------------------------------------------------ C4: falsification ranks (diagnostic modes only)
+def _r(cid, arrival, decision, z, V=50.0):
+    return types.SimpleNamespace(client_id=cid, arrival_time=arrival, request_id=0, context_token_ids=[0] * 100, candidate_token_ids=[0] * 2, gamma=2,
+                                 weight=V + z, decision_time_ms=decision, expected_useful_tokens=2.0, c3_skips=0)
+
+
+def test_age_rank_serves_the_oldest_decision_and_z_rank_uses_only_the_stamped_client_deficit():
+    reqs = [_r(0, arrival=50.0, decision=10.0, z=0.0), _r(1, arrival=40.0, decision=30.0, z=9.0), _r(2, arrival=60.0, decision=20.0, z=3.0)]
+    age = select_c3_deficit(list(reqs), 100.0, C3Params(max_batch_size=1, priority_mode="age", max_skips=10 ** 6))
+    zon = select_c3_deficit(list(reqs), 100.0, C3Params(max_batch_size=1, priority_mode="z_only", max_skips=10 ** 6))
+    assert [r.client_id for r in age] == [0] and [r.client_id for r in zon] == [1]
+
+
+def test_in_the_grounded_homogeneous_hardware_family_age_order_equals_arrival_order_so_age_only_cannot_differ_from_fcfs():
+    sb = sc.run(sc.make_spec("fix2+PF", 24, "measured", cap=8, pop_seed=2, **SHORT))
+    sa = sc.run(sc.make_spec("fix2+AGE", 24, "measured", cap=8, pop_seed=2, **SHORT))
+    mb, ma = sc.metrics(sb), sc.metrics(sa)
+    assert abs(mb["x_min"] - ma["x_min"]) < 0.1 and abs(mb["Y"] - ma["Y"]) < 0.01 * mb["Y"]      # one short window: tie-order butterflies only
+    binding = [r for r in sb.batch_log if r["n_eligible"] > r["cap"]]
+    assert sum(set(r["R_age"]) != set(r["c3_fcfs"]) for r in binding) <= 0.01 * len(binding)      # age-only is (almost) identical to FCFS here
+    assert sum(set(r["R_zonly"]) != set(r["c3_fcfs"]) for r in binding) > 0.5 * len(binding)        # the stamped deficit is what differs
