@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import types
 from typing import TYPE_CHECKING, Callable
 
 from .models import DraftResult, VerificationResult
@@ -119,6 +120,11 @@ class VerificationBatcher:
         theta_f_ms_per_token: float = 0.0,
         decision_time_ms: float | None = None,
     ) -> tuple[VerificationBatchMetadata, VerificationResult]:
+        if self.c3_params is not None:                      # C3.1: fail-closed admission preflight (hard limits are never bypassed)
+            from .c3_control import preflight_request
+
+            preflight_request(types.SimpleNamespace(client_id=client_id, context_token_ids=context_token_ids, candidate_token_ids=draft.token_ids,
+                                                    gamma=len(draft.token_ids)), self.c3_params)
         loop = asyncio.get_running_loop()
         future: asyncio.Future[tuple[VerificationBatchMetadata, VerificationResult]] = (
             loop.create_future()

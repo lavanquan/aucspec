@@ -48,6 +48,23 @@ def run_task(task: dict) -> dict:
     if ol:
         out["open_loop_selector"] = ol
         out["cap_binding_fraction"] = float(np.mean([r["n_eligible"] > r["cap"] for r in log])) if log else None
+    # C3.1: membership differences on the batches where the cap BINDS (selection is non-trivial), measured on this run's own logged eligible sets
+    binding = [r for r in log if r["n_eligible"] > r["cap"]]
+    if binding and "T0_density_only" in binding[0]:
+        out["binding_batches"] = {
+            "n": len(binding), "fraction_of_batches": len(binding) / max(1, len(log)),
+            "frac_any_positive_deficit": float(np.mean([any(v > 1e-9 for v in r["z_eff"].values()) for r in binding])),
+            **{f"member_set_differs_from_chosen__{k}": float(np.mean([set(r[k]) != set(r["chosen"]) for r in binding]))
+               for k in ("fcfs", "c3_fcfs", "c3_deficit", "T0_density_only", "T_deficit_arrival", "T_deficit_density")},
+            "mean_members_swapped_vs_c3_fcfs": float(np.mean([len(set(r["c3_deficit"]) - set(r["c3_fcfs"])) for r in binding])),
+            # pairwise on the SAME eligible set: B = c3_fcfs, T = deficit-first/density tie-break, A = deficit-first/arrival tie-break, T0 = density only (no deficit)
+            "pair_T_vs_B": float(np.mean([set(r["T_deficit_density"]) != set(r["c3_fcfs"]) for r in binding])),
+            "pair_T_vs_T0_(deficit_effect)": float(np.mean([set(r["T_deficit_density"]) != set(r["T0_density_only"]) for r in binding])),
+            "pair_A_vs_B": float(np.mean([set(r["T_deficit_arrival"]) != set(r["c3_fcfs"]) for r in binding])),
+            "pair_T_vs_A": float(np.mean([set(r["T_deficit_density"]) != set(r["T_deficit_arrival"]) for r in binding])),
+            "pair_T0_vs_B": float(np.mean([set(r["T0_density_only"]) != set(r["c3_fcfs"]) for r in binding])),
+            "mean_swapped_T_vs_B": float(np.mean([len(set(r["T_deficit_density"]) - set(r["c3_fcfs"])) for r in binding])),
+            "mean_swapped_A_vs_B": float(np.mean([len(set(r["T_deficit_arrival"]) - set(r["c3_fcfs"])) for r in binding]))}
     ctrl = sim.controller
     if getattr(ctrl, "shadow_log", None):
         w = np.array([r["would"] for r in ctrl.shadow_log])
@@ -179,7 +196,35 @@ def tasks_capacity():
             for n in range(8, 69, 4) for a in arms for s in SEEDS]
 
 
-TASK_SETS = {"sched": tasks_sched, "depth": tasks_depth, "combined": tasks_combined, "sens": tasks_sens, "adversarial": tasks_adversarial, "openloop": tasks_openloop, "capacity": tasks_capacity}
+ROBUST_CELLS = [(24, 16), (32, 16), (24, 8), (32, 8), (48, 16)]       # first two = negative control (original high-load region, B_max=16)
+ROBUST_FAMILIES = ("measured", "measured_jitter", "wide_async")
+POP_SEEDS = tuple(range(1, 21))
+
+
+def tasks_robust():
+    """Independent populations (population seed = the sampling unit, one paired run each); algorithms fixed; ranges grounded in results/c3_1/trace_conditions.json
+    for 'measured*'; 'wide_async' is the C3 assumption-driven family kept for contrast.  Arms: B = c3_fcfs, T = c3_deficit deficit-first, DSa = ablation."""
+    t = []
+    for fam in ROBUST_FAMILIES:
+        for (n, b) in ROBUST_CELLS:
+            for ps in POP_SEEDS:
+                for arm in ("fix4+PF", "fix4+DSz", "fix4+DSa"):
+                    t.append(dict(arm=arm, n=n, cap=b, pop=fam, seed=ps, pop_seed=ps, _tag=f"robust_{fam}"))
+    for sd in (0.05, 0.10, 0.15):                                   # dose-response: how much acceptance spread does a benefit need?
+        for (n, b) in ((24, 8), (32, 8), (48, 16)):
+            for ps in POP_SEEDS:
+                for arm in ("fix4+PF", "fix4+DSz"):
+                    t.append(dict(arm=arm, n=n, cap=b, pop="measured", seed=ps, pop_seed=ps, alpha_sd=sd, _tag=f"dose_sd{sd}"))
+    return t
+
+
+def tasks_robust_g2():
+    """Replication of the measured-grounded cells at the depth actually run on the GPU (gamma = 2): B = fix2+PF, A = fix2+DSa (alpha-free pilot treatment)."""
+    return [dict(arm=arm, n=n, cap=b, pop=fam, seed=ps, pop_seed=ps, _tag=f"robustg2_{fam}") for fam in ("measured", "measured_jitter") for (n, b) in ROBUST_CELLS
+            for ps in POP_SEEDS for arm in ("fix2+PF", "fix2+DSa")]
+
+
+TASK_SETS = {"sched": tasks_sched, "depth": tasks_depth, "combined": tasks_combined, "sens": tasks_sens, "adversarial": tasks_adversarial, "openloop": tasks_openloop, "capacity": tasks_capacity, "robust": tasks_robust, "robust_g2": tasks_robust_g2}
 
 
 def main():

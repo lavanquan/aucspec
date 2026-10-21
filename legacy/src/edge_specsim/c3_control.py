@@ -67,6 +67,7 @@ class C3Params:
     # mechanism A ranking, declared in advance (both are evaluated, neither is tuned):
     #   "density": rank by (V + Z_eff) * phi_hat / (a/B_max + d_r)           max-weight / throughput-weighted form
     #   "deficit": rank by Z_eff first (neediest client first), ties by density   floor-oriented form
+    #   "deficit_fcfs": rank by Z_eff first, ties by ARRIVAL order (diagnostic ablation: removes the density tie-break)
     priority_mode: str = "density"
 
 
@@ -90,16 +91,37 @@ def request_priority(req, start_ms: float, p: C3Params) -> float:
     return (p.V + z) * max(1e-9, req.expected_useful_tokens) / max(1e-9, d)
 
 
+class ConstraintInfeasible(ValueError):
+    """A request that cannot be served within a HARD limit even alone (processed-token budget M, or predicted service-time cap).  Raised instead of
+    serving it anyway: the run is explicitly invalid (fail-closed).  This is a property of the request, not of the schedule."""
+
+
+def preflight_request(req, p: C3Params) -> None:
+    """Admission preflight (also called by VerificationBatcher.submit): a singleton must satisfy the hard limits on its own.
+      * processed tokens  p_r = ctx_r + gamma_r <= M                  hard (engine max_num_batched_tokens, chunked prefill off)
+      * predicted time    T_hat({r}) <= T_max                           model-based: a prediction, NOT a memory-safety guarantee
+    Actual GPU memory safety (sampler logprob workspace ~ processed tokens x vocab) cannot be established by this check or by any CPU test."""
+    ptoks = len(req.context_token_ids) + len(req.candidate_token_ids)
+    if ptoks > p.processed_token_budget:
+        raise ConstraintInfeasible(f"request (client {req.client_id}) has {ptoks} processed tokens > budget {p.processed_token_budget}")
+    t_hat = p.cost.batch_ms([(len(req.context_token_ids), req.gamma)])
+    if t_hat > p.service_time_cap_ms:
+        raise ConstraintInfeasible(f"request (client {req.client_id}) predicted singleton service {t_hat:.1f} ms > cap {p.service_time_cap_ms:.1f} ms")
+
+
 def _greedy_fill(ranked: list, eligible: list, p: C3Params) -> list:
-    """Admit in rank order while (count, processed tokens, predicted batch time) constraints hold; the first request is always admitted
-    (liveness; flagged by the caller if it alone is oversize).  Requests eligible but not admitted get one more skip."""
+    """Admit in rank order while (count, processed tokens, predicted batch time) constraints hold.  Fail-closed: every eligible request must be admissible
+    alone (preflight), so the first ranked request can always be admitted without bypassing a hard limit (liveness for admissible workloads) and a
+    non-admissible request is never silently served.  Requests eligible but not admitted get one more skip."""
+    for r in eligible:
+        preflight_request(r, p)
     selected, tokens, members = [], 0, []
     for r in ranked:
         ptoks = len(r.context_token_ids) + len(r.candidate_token_ids)
         m = members + [(len(r.context_token_ids), r.gamma)]
         fits = (len(selected) < p.max_batch_size and tokens + ptoks <= p.processed_token_budget
                 and p.cost.batch_ms(m) <= p.service_time_cap_ms)
-        if fits or not selected:
+        if fits:
             selected.append(r)
             tokens += ptoks
             members = m
@@ -118,7 +140,9 @@ def select_c3_deficit(eligible: list, start_ms: float, p: C3Params) -> list:
         if forced:
             return (0, 0.0, 0.0, r.arrival_time, r.client_id, r.request_id)
         dens = request_priority(r, start_ms, p)
-        z = effective_deficit(r, start_ms, p.x_req_tps, p.V) if p.priority_mode == "deficit" else 0.0
+        z = effective_deficit(r, start_ms, p.x_req_tps, p.V) if p.priority_mode in ("deficit", "deficit_fcfs") else 0.0
+        if p.priority_mode == "deficit_fcfs":
+            return (1, -z, 0.0, r.arrival_time, r.client_id, r.request_id)
         return (1, -z, -dens, r.arrival_time, r.client_id, r.request_id)
 
     return _greedy_fill(sorted(eligible, key=key), eligible, p)

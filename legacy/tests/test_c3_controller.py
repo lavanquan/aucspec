@@ -139,11 +139,50 @@ def test_selection_enforces_batch_size_processed_token_budget_and_predicted_time
     assert len(select_c3_fcfs(list(reqs), 1000.0, p)) == 2                            # predicted time cap binds at 2 requests
 
 
-def test_selection_is_never_empty_and_admits_an_oversize_singleton_for_liveness():
+def test_oversize_singleton_fails_closed_instead_of_bypassing_the_processed_token_budget():
+    from edge_specsim.c3_control import ConstraintInfeasible
+
     big = _req(0, ctx=5000)
-    sel = select_c3_deficit([big], 0.0, C3Params(processed_token_budget=4096))
-    assert sel == [big]
+    for sel in (select_c3_deficit, select_c3_fcfs):
+        with pytest.raises(ConstraintInfeasible):
+            sel([big], 0.0, C3Params(processed_token_budget=4096))
+    with pytest.raises(ConstraintInfeasible):                                               # one inadmissible request poisons the whole selection, even with admissible peers
+        select_c3_deficit([_req(1, ctx=100), big], 0.0, C3Params(processed_token_budget=4096))
+
+
+def test_singleton_whose_predicted_service_exceeds_the_time_cap_fails_closed():
+    from edge_specsim.c3_control import ConstraintInfeasible
+
+    r = _req(0, ctx=300, gamma=2)                                                          # predicted 52 + 0.19*300 + 0.19*2 = 109.4 ms
+    with pytest.raises(ConstraintInfeasible):
+        select_c3_fcfs([r], 0.0, C3Params(service_time_cap_ms=100.0))
+    assert select_c3_fcfs([r], 0.0, C3Params(service_time_cap_ms=110.0)) == [r]
+
+
+def test_hard_limits_are_inclusive_at_the_boundary_and_liveness_holds_for_admissible_workloads():
+    exact = _req(0, ctx=4094, gamma=2)                                                      # 4096 processed tokens == budget: admissible
+    assert select_c3_deficit([exact], 0.0, C3Params(processed_token_budget=4096)) == [exact]
+    reqs = [_req(i, ctx=3000) for i in range(5)]                                            # each admissible alone, no two fit together
+    for sel in (select_c3_deficit, select_c3_fcfs):
+        assert len(sel(list(reqs), 0.0, C3Params(processed_token_budget=4096))) == 1        # non-empty: liveness without any bypass
     assert select_c3_deficit([], 0.0, C3Params()) == []
+
+
+def test_submit_preflight_rejects_an_inadmissible_request_before_it_is_queued():
+    import asyncio
+
+    from edge_specsim.c3_control import ConstraintInfeasible
+    from edge_specsim.models import DraftResult
+    from edge_specsim.verification_batcher import VerificationBatcher
+
+    class T:
+        pass
+
+    b = VerificationBatcher(T(), max_batch_size=4, scheduler_name="c3_fcfs", service_time_model="batch_wall", c3_params=C3Params(processed_token_budget=100))
+    draft = DraftResult(0, [1, 2], [None, None], "", 1.0, 0, distribution_payload="delta_proposal")
+    with pytest.raises(ConstraintInfeasible):
+        asyncio.run(b.submit(0, [0] * 200, draft, 10, 0.0))
+    assert not b.server_queue and not b.queue.qsize()
 
 
 def test_deficit_first_ranking_serves_the_neediest_and_effective_deficit_grows_while_waiting():

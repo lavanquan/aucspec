@@ -92,8 +92,9 @@ class StubTarget:
 class PhysicalTarget:
     VERIFIER_SEMANTICS = "V1"
 
-    def __init__(self, alphas, seed, a=WALL_A_MS, b=WALL_B_MS_PER_TOKEN, noise=0.08, prompt_lens=None, b_gamma=None):
+    def __init__(self, alphas, seed, a=WALL_A_MS, b=WALL_B_MS_PER_TOKEN, noise=0.08, prompt_lens=None, b_gamma=None, alpha_prompt_sd=0.0):
         self.alphas, self.seed, self.a, self.b, self.noise = alphas, seed, a, b, noise
+        self.alpha_prompt_sd = float(alpha_prompt_sd)         # per-PROMPT acceptance dispersion around the client's alpha (a property of the prompt, not of the run)
         self.b_gamma = b if b_gamma is None else b_gamma          # TRUTH of the CPU world; the controller only ever sees its own assumed CostModel
         self.prompt_lens = prompt_lens
         self.calls = []
@@ -109,8 +110,12 @@ class PhysicalTarget:
             g_sum += g
             ids.append((cid, len(ctx)))
             acc = 0
+            alpha_eff = self.alphas[cid]
+            if self.alpha_prompt_sd > 0.0:
+                zq = sum(_u("prompt_alpha", cid, ctx[0], j) for j in range(12)) - 6.0
+                alpha_eff = min(0.995, max(0.05, alpha_eff + self.alpha_prompt_sd * zq))
             for k in range(g):
-                if _u(self.seed, cid, ctx[0], pos0 + k) < self.alphas[cid]:
+                if _u(self.seed, cid, ctx[0], pos0 + k) < alpha_eff:
                     acc += 1
                 else:
                     break
@@ -233,6 +238,7 @@ class Spec:
     truth_b_gamma: float | None = None
     truth_noise: float = 0.08
     shadow_depth: bool = False                    # C3 open-loop replay: fixed gamma ACTS, the depth rule only logs the decision it would have taken
+    alpha_prompt_sd: float = 0.0
     oracle_alpha: bool = False                    # C3: every client reads its TRUE alpha as a static offline-profiled estimate (equal information for all arms)
 
 
@@ -290,7 +296,7 @@ def build(spec: Spec):
     else:
         sim.controller = Ablated(ablate=spec.ablate, theta_override=spec.theta_f, rescale=spec.rescale, **ctrl_kw)
     target = PhysicalTarget(alphas, spec.seed, a=spec.truth_a, b=spec.truth_b, noise=spec.truth_noise, prompt_lens=spec.prompt_lens,
-                            b_gamma=spec.truth_b_gamma)
+                            b_gamma=spec.truth_b_gamma, alpha_prompt_sd=spec.alpha_prompt_sd)
     sim.verifier = VerificationBatcher(
         target, max_batch_size=spec.max_batch, batch_wait_ms=sim.batch_wait_ms, verify_token_budget=spec.token_budget,
         scheduler_name=spec.scheduler, service_time_model="batch_wall", coordinator=sim.coordinator, causal=spec.causal,
@@ -333,6 +339,15 @@ def _instrument_queue(sim, spec):
             alt.waiting = [dataclasses.replace(r) for r in eligible]
             kw2 = dict(kw, scheduler_name=name)
             rec[name] = [r.client_id for r in alt.pop_batch(**kw2)]
+        if kw.get("scheduler_name") in ("c3_deficit", "c3_fcfs") and kw.get("c3") is not None:
+            import dataclasses as _dc
+
+            for label, mode, use_def in (("T0_density_only", "density", False), ("T_deficit_arrival", "deficit_fcfs", True), ("T_deficit_density", "deficit", True)):
+                alt = VerificationQueue()
+                alt.waiting = [dataclasses.replace(r) for r in eligible]
+                kw3 = dict(kw, scheduler_name="c3_deficit", c3=_dc.replace(kw["c3"], priority_mode=mode, use_deficit_weight=use_def))
+                rec[label] = [r.client_id for r in alt.pop_batch(**kw3)]
+            rec["z_eff"] = {r.client_id: max(0.0, r.weight - kw["c3"].V) for r in eligible}
         batch = orig(**kw)
         rec["chosen_scheduler"] = kw["scheduler_name"]
         rec["chosen"] = [r.client_id for r in batch]
