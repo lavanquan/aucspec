@@ -124,3 +124,6 @@ Status vocabulary (kept strict): **VERIFIED** (mathematically true or confirmed 
 ## 7. Smallest next research task (CPU-only)
 
 State and prove the saturated and unsaturated capacity law for a closed system with batch cap B, affine per-request cost and cohort dynamics (including the staircase and its non-monotone points), verify it exactly against a CPU discrete-event simulation, evaluate it leave-N-out on the existing seven GPU runs, and identify the conditions under which de-synchronised arrivals break it. Details, success and disconfirming criteria: `AUCSPEC_C4_MINIMUM_PUBLISHABLE_EVIDENCE.md` §2.
+
+## 8. Platform validation of the final code
+Setonix `work` (CPU) job 51276045, SHA `c9fbaf0`, per-module pytest incl. torch modules: 62 modules, **596 passed, 1 failed** — only the inherited `test_payload_interface` float32/float64 assertion (identical on `fa3fe1f`…`e6a8917`). No new failure.
