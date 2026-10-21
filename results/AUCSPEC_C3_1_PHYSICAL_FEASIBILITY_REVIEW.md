@@ -100,7 +100,7 @@ Reading: (a) the negative controls are null, as the structural argument predicts
 
 ## 6. Tests added in C3.1 (all CPU)
 
-`legacy/tests/test_c3_controller.py` (+4 fail-closed tests; 36 total), `legacy/tests/test_c3_1_baseline_treatment.py` (12). Full local suite: only the 4 known Windows failures + 2 torch collection errors; Setonix per-module result in §7.
+`legacy/tests/test_c3_controller.py` (+4 fail-closed tests; 35 total), `legacy/tests/test_c3_1_baseline_treatment.py` (12). Full local suite: only the 4 known Windows failures + 2 torch collection errors; Setonix per-module result in §7.
 
 ## 7. Platform validation of the final SHA
-(appended after the last commit.)
+Job 51268436, Setonix `work` (CPU), SHA `e6a8917`, per-module pytest incl. torch modules: 62 modules, **594 passed, 1 failed** — the inherited `test_payload_interface` float32/float64 assertion only (identical on `fa3fe1f`, `7e802a1`, `8670e5b`); `test_c3_controller.py` 35/35, `test_c3_1_baseline_treatment.py` 12/12. No new failure.
