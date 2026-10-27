@@ -16,6 +16,7 @@ from edge_specsim.capacity import (
     NStarResult,
     SearchDecision,
     XStarResult,
+    area_consistency,
     area_from_nstar,
     area_from_xstar,
     classify_feasibility,
@@ -542,9 +543,44 @@ def test_area_from_nstar_known_staircase():
         for x, n in [(1.0, 10), (2.0, 10), (3.0, 6), (4.0, 6)]
     ]
     out = area_from_nstar(results, x_L=1.0, x_U=4.0, n_ref=30)
-    # step (carry-forward): 10 on [1,3), 6 on [3,4) -> 10*2 + 6*1 = 26
-    assert out["area_lower"] == pytest.approx(26.0)
-    assert out["area_upper"] == pytest.approx(26.0)  # exact everywhere -> bounds coincide
+    # eq. (72): lower uses the right endpoint of each grid interval
+    # (10, 6, 6 -> 22), upper the left endpoint (10, 10, 6 -> 26). Even with
+    # every grid point exact, N*(x) on (2, 3) is only known to lie in [6, 10].
+    assert out["area_lower"] == pytest.approx(22.0)
+    assert out["area_upper"] == pytest.approx(26.0)
+
+
+def test_area_from_nstar_lower_bound_is_rigorous_for_any_monotone_frontier():
+    # true frontier drops 10 -> 6 at x=2.4, between grid points 2 and 3
+    def true_n(x: float) -> int:
+        return 10 if x < 2.4 else 6
+
+    grid = [1.0, 2.0, 3.0, 4.0]
+    results = [
+        NStarResult(x_requirement=x, last_confirmed_feasible_n=true_n(x), first_confirmed_infeasible_n=true_n(x) + 1,
+                    lower_bound_n=true_n(x), upper_bound_n=true_n(x) + 1, exact=True, hit_search_cap=False)
+        for x in grid
+    ]
+    out = area_from_nstar(results, x_L=1.0, x_U=4.0, n_ref=30)
+    true_area = 10 * 1.4 + 6 * 1.6
+    assert out["area_lower"] <= true_area <= out["area_upper"]
+
+
+def test_area_from_nstar_refined_grid_tightens_bounds():
+    def true_n(x: float) -> int:
+        return 10 if x < 2.4 else 6
+
+    def bounds(grid):
+        res = [
+            NStarResult(x_requirement=x, last_confirmed_feasible_n=true_n(x),
+                        first_confirmed_infeasible_n=true_n(x) + 1, lower_bound_n=true_n(x),
+                        upper_bound_n=true_n(x) + 1, exact=True, hit_search_cap=False)
+            for x in grid
+        ]
+        out = area_from_nstar(res, x_L=1.0, x_U=4.0, n_ref=30)
+        return out["area_upper"] - out["area_lower"]
+
+    assert bounds([1.0, 2.0, 2.2, 2.4, 2.6, 3.0, 4.0]) < bounds([1.0, 2.0, 3.0, 4.0])
 
 
 def test_area_from_nstar_propagates_cap_and_uncertainty():
@@ -587,4 +623,90 @@ def test_area_from_xstar_matches_area_from_nstar_on_consistent_data():
                         estimate_x=x_est, exact_within_tolerance=True)
         )
     area_x = area_from_xstar(xstar_results, x_L=1.0, x_U=4.0, n_ref=10)
-    assert area_x["area_lower"] == pytest.approx(area_n["area_lower"], rel=0.05)
+    assert area_x["missing_n"] == []
+    assert area_n["area_lower"] <= area_x["area_lower"] <= area_n["area_upper"]
+    assert area_consistency(area_n, area_x)["consistent"] is True
+
+
+def test_area_from_xstar_missing_n_widens_upper_only():
+    xstar_results = [
+        XStarResult(n_active=n, lower_feasible_x=3.0, upper_infeasible_x=3.2,
+                    estimate_x=3.1, exact_within_tolerance=True)
+        for n in (1, 2)
+    ]
+    out = area_from_xstar(xstar_results, x_L=1.0, x_U=4.0, n_ref=3)
+    assert out["missing_n"] == [3]
+    assert out["area_lower"] == pytest.approx(2.0 + 2.0)
+    assert out["area_upper"] == pytest.approx(2.2 + 2.2 + 3.0)
+
+
+def test_area_consistency_flags_disjoint_intervals():
+    check = area_consistency({"area_lower": 10.0, "area_upper": 12.0},
+                             {"area_lower": 15.0, "area_upper": 18.0})
+    assert check["consistent"] is False
+    assert check["gap"] == pytest.approx(3.0)
+
+
+# ---- KnownAlpha learning ablation (AUC_SPEC Section 4.1.2) ---------------
+
+def _known_ctrl(profile, **kw):
+    return OnlineController(
+        gamma_choices=[0, 1, 2, 3, 4],
+        V=kw.pop("V", 50.0),
+        min_tps=1.0,
+        server_price_scale=0.0,
+        policy="capacity_dpp_known_alpha",
+        known_alpha_profile=profile,
+        **kw,
+    )
+
+
+def test_known_alpha_requires_a_profile():
+    with pytest.raises(ValueError):
+        _known_ctrl(None)
+
+
+def test_known_alpha_uses_fixed_profile_not_learned_estimate():
+    ctrl = _known_ctrl([0.9, 0.8, 0.7])
+    ctrl.server_queue = 3.0
+    ctrl.current_verifier_theta_f_ms_per_token = 0.5
+    # learned estimate is very pessimistic; KnownAlpha must ignore it
+    cl = _client(z_queue=2.0, device_queue=1.0, alpha=0.05)
+    assert ctrl.decision_acceptance_profile(cl, 4, use_ucb=True) == [0.9, 0.8, 0.7, 0.7]
+
+    def brute() -> int:
+        best_g, best_s = 0, ctrl.capacity_dpp_score(cl, 0, [])
+        for g in ctrl.gamma_choices[1:]:
+            s = ctrl.capacity_dpp_score(cl, g, ctrl._known_alpha_profile_for(cl, g))
+            if s > best_s + 1e-12:
+                best_g, best_s = g, s
+        return best_g
+
+    assert ctrl.choose_gamma(cl, total_rounds=10) == brute()
+
+
+def test_known_alpha_matches_capacity_dpp_when_learned_estimate_equals_profile():
+    cl = _client(z_queue=2.0, device_queue=1.0, alpha=0.85)
+    learned = _ctrl()
+    known = _known_ctrl([0.85])
+    for c in (learned, known):
+        c.server_queue = 3.0
+        c.current_verifier_theta_f_ms_per_token = 0.5
+    assert known._capacity_dpp_gamma(cl, use_ucb=False) == learned._capacity_dpp_gamma(cl, use_ucb=True)
+
+
+def test_known_alpha_per_client_profile_and_json_loading(tmp_path):
+    import json
+
+    from edge_specsim.controller import load_known_alpha_profile
+
+    path = tmp_path / "profile.json"
+    path.write_text(json.dumps({"per_client": {"0": [0.6, 0.5]}, "pooled": [0.7]}))
+    profile = load_known_alpha_profile({"known_alpha_profile_path": str(path)})
+    ctrl = _known_ctrl(profile)
+    cl = _client(alpha=0.9)
+    assert ctrl.decision_acceptance_profile(cl, 3, use_ucb=False) == [0.6, 0.5, 0.5]
+    other = _client(alpha=0.9)
+    other.client_id = 7
+    with pytest.raises(KeyError):
+        ctrl.decision_acceptance_profile(other, 1, use_ucb=False)
