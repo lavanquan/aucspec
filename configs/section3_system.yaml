@@ -1,0 +1,15 @@
+# Deployment parameters for the AUC_SPEC Section 3 symmetric reference model
+# (scripts/section3_model.py predict). Values are midpoints of the canonical
+# capacity-frontier config; replace alpha and context_length with values
+# measured on the same runs before comparing with N*(x).
+alpha: 0.7                    # pooled per-token acceptance (measure it)
+gamma_choices: [0, 1, 2, 3, 4]
+context_length: 300           # mean verifier context in tokens (GSM8K prompt + <=96 generated)
+draft_ms_per_token: 25.0      # 1 / 40 tok/s (clients.draft_tokens_per_second 20-60)
+draft_fixed_ms: 12.5          # clients.draft_fixed_latency_ms 5-20
+rtt_ms: 57.5                  # clients.rtt_ms_range 15-100
+kappa_bits: 32                # greedy delta_proposal: one int32 token id per speculative token
+bandwidth_hz: 40.0e6          # shared 40 MHz uplink
+spectral_efficiency: 4.4      # log2(1 + SNR) at ~13 dB
+n_max: 64
+x_grid: [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 7.0, 8.0]
