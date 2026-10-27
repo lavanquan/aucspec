@@ -12,6 +12,20 @@ from .verification_queue import (
 )
 
 
+SERVICE_TIME_MODELS = {"batch_wall", "per_request_average"}
+
+
+def batch_service_time_ms(per_request_latencies_ms: list[float], service_time_model: str) -> float:
+    """Virtual verifier occupancy of one batch from the target's per-request
+    latencies (each = batch wall time / B, see target_client.py)."""
+    if not per_request_latencies_ms:
+        return 0.0
+    per_request = max(per_request_latencies_ms)
+    if service_time_model == "batch_wall":
+        return per_request * len(per_request_latencies_ms)
+    return per_request
+
+
 class VerificationBatcher:
     """Forms a real vLLM batch of context+candidate sequences."""
 
@@ -26,6 +40,14 @@ class VerificationBatcher:
         scheduler_seed: int = 0,
         roofline_budget_model: RooflineBudgetModel | None = None,
         target_replication_factor: int = 1,
+        # How long one batch occupies the virtual verifier when no roofline
+        # model is configured (AUC_SPEC eq. 35: the whole batch holds the
+        # verifier for T_v(B)).
+        #   "batch_wall"          -- wall time of the whole verify call (V2).
+        #   "per_request_average" -- wall time / B, the semantics of every
+        #                            run up to commit 6e0e7e7 (V1). Kept only
+        #                            to reproduce those runs.
+        service_time_model: str = "per_request_average",
     ) -> None:
         self.target = target
         self.max_batch_size = max_batch_size
@@ -35,6 +57,12 @@ class VerificationBatcher:
         self.utility_lambda = utility_lambda
         self.roofline_budget_model = roofline_budget_model
         self.target_replication_factor = max(1, int(target_replication_factor))
+        self.service_time_model = str(service_time_model).lower()
+        if self.service_time_model not in SERVICE_TIME_MODELS:
+            raise ValueError(
+                "verification_batching.service_time_model must be one of: "
+                + ", ".join(sorted(SERVICE_TIME_MODELS))
+            )
         self.queue: asyncio.Queue[VerificationRequest | None] = asyncio.Queue()
         self.server_queue = VerificationQueue(random_seed=scheduler_seed)
         self.task: asyncio.Task[None] | None = None
@@ -264,9 +292,9 @@ class VerificationBatcher:
         ) * 1000.0
 
         if self.roofline_budget_model is None:
-            modeled_batch_service_ms = max(
-                (result.target_latency_ms for result in results),
-                default=0.0,
+            modeled_batch_service_ms = batch_service_time_ms(
+                [result.target_latency_ms for result in results],
+                self.service_time_model,
             )
             compute_bound_batch_service_ms = modeled_batch_service_ms
             theta_f_ms_per_token = (
