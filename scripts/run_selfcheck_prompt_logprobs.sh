@@ -25,12 +25,11 @@ export VLLM_NO_USAGE_STATS=1
 export VLLM_USE_TRITON_FLASH_ATTN=0
 export PYTORCH_HIP_ALLOC_CONF=expandable_segments:True
 
-# attention backend / graph capture variants: which one breaks multi-prompt batches?
-for fa in 0 1; do
-  for eager in "" "--enforce-eager"; do
-    VLLM_USE_TRITON_FLASH_ATTN=$fa python3 legacy/scripts/selfcheck_prompt_logprobs.py \
-      --config configs/profile_target.yaml --context-lengths 300,1024 $eager \
-      --output "results/section3/selfcheck_fa${fa}${eager:+_eager}.json" "$@"
-  done
+# CK flash attention (Triton FA does not compile with this Triton); does the
+# cross-sequence mixing go away without the (inactive) Qwen2.5 sliding window?
+for variant in "" "--disable-sliding-window" "--hf-no-sliding-window"; do
+  python3 legacy/scripts/selfcheck_prompt_logprobs.py \
+    --config configs/profile_target.yaml --context-lengths 300,1024 $variant \
+    --output "results/section3/selfcheck${variant:+_${variant#--}}.json" "$@"
 done
 echo "=== SELFCHECK_DONE ==="
