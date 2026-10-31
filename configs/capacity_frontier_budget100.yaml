@@ -85,6 +85,9 @@ verification_batching:
   # AUC_SPEC eq. (35): a batch holds the verifier for its whole wall time.
   # Runs before this change used per_request_average (wall / B, "V1").
   service_time_model: batch_wall
+  # a batch waits until no unsubmitted request can still land in its
+  # virtual window (otherwise batches hold only wall-clock arrivals)
+  causal_batching: true
 
 clients:
   channel_model: iid_block_fading

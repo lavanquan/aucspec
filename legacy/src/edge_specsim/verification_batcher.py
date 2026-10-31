@@ -14,6 +14,10 @@ from .verification_queue import (
 
 SERVICE_TIME_MODELS = {"batch_wall", "per_request_average"}
 
+# Queue marker that only wakes the batcher (a client left, so the causal
+# lower bound on future arrivals may have moved).
+_WAKE = object()
+
 
 def batch_service_time_ms(per_request_latencies_ms: list[float], service_time_model: str) -> float:
     """Virtual verifier occupancy of one batch from the target's per-request
@@ -68,6 +72,39 @@ class VerificationBatcher:
         self.task: asyncio.Task[None] | None = None
         self.batch_counter = 0
         self.server_available_at_ms = 0.0
+        # Causal batching: a callable giving a lower bound on the virtual
+        # server-arrival time of every request not yet submitted (inf when
+        # no client can submit again). When set, a batch whose cutoff
+        # (first arrival + batch_wait_ms) is not yet behind that bound waits
+        # for the missing submissions. Without it, batches hold only what
+        # reached the asyncio queue in WALL time, so clients still running
+        # their (real) draft step are left out even when their virtual
+        # arrival is earlier than the cutoff.
+        self.arrival_lower_bound = None
+
+    def notify(self) -> None:
+        self.queue.put_nowait(_WAKE)
+
+    def _causally_blocked(self) -> bool:
+        if self.arrival_lower_bound is None or not self.server_queue:
+            return False
+        if len(self.server_queue.eligible_requests(self.batch_wait_ms)) >= self.max_batch_size:
+            return False
+        cutoff_ms = self.server_queue.waiting[0].arrival_time + self.batch_wait_ms
+        return self.arrival_lower_bound() <= cutoff_ms
+
+    async def _await_causal_arrivals(self) -> bool:
+        """Block until no unsubmitted request can land inside the current
+        batch window. Returns False when close() was requested."""
+        while self._causally_blocked():
+            item = await self.queue.get()
+            if item is None:
+                await self.queue.put(None)
+                return False
+            if item is not _WAKE:
+                self.server_queue.push(item)
+            await self._drain_queue()
+        return True
 
     async def start(self) -> None:
         if self.task is None:
@@ -183,9 +220,12 @@ class VerificationBatcher:
                         effective_budget,
                     )
                 return
-            self.server_queue.push(item)
+            if item is not _WAKE:
+                self.server_queue.push(item)
             await self._drain_queue()
             while self.server_queue:
+                if not await self._await_causal_arrivals():
+                    break
                 effective_budget = self._effective_verify_token_budget()
                 batch = self.server_queue.pop_batch(
                     scheduler_name=self.scheduler_name,
@@ -220,6 +260,8 @@ class VerificationBatcher:
             if item is None:
                 await self.queue.put(None)
                 return
+            if item is _WAKE:
+                continue
             self.server_queue.push(item)
 
     def _effective_verify_token_budget(self) -> int:

@@ -163,6 +163,11 @@ class EdgeSpecSimulator:
             target_replication_factor=target_replication_factor,
             service_time_model=str(batching.get("service_time_model", "per_request_average")),
         )
+        self._awaiting_verify: set[int] = set()
+        self._done_clients: set[int] = set()
+        self.causal_batching = bool(batching.get("causal_batching", False))
+        if self.causal_batching:
+            self.verifier.arrival_lower_bound = self._next_arrival_lower_bound
         proposal_distribution_payload = (
             "delta_proposal" if self.sampling_temperature <= 0.0 else "full_vocab_logprobs"
         )
@@ -613,7 +618,24 @@ class EdgeSpecSimulator:
             and client.virtual_time_ms >= self.measurement_end_ms
         )
 
+    def _next_arrival_lower_bound(self) -> float:
+        """A client that is not waiting on the verifier will next arrive at
+        the server no earlier than its current virtual time."""
+        bound = float("inf")
+        for client in self.clients:
+            if client.client_id in self._done_clients or client.client_id in self._awaiting_verify:
+                continue
+            bound = min(bound, client.virtual_time_ms)
+        return bound
+
     async def _run_client(self, client: ClientProfile) -> None:
+        try:
+            await self._run_client_rounds(client)
+        finally:
+            self._done_clients.add(client.client_id)
+            self.verifier.notify()
+
+    async def _run_client_rounds(self, client: ClientProfile) -> None:
         while not self._past_measurement_end(client) and client.start_next_sample():
             assert client.current_sample is not None
             worker = self.workers[client.client_id % len(self.workers)]
@@ -745,6 +767,9 @@ class EdgeSpecSimulator:
         draft_start_ms = client.virtual_time_ms
         draft_finish_ms = draft_start_ms + draft_edge_latency_ms
         server_arrival_ms = draft_finish_ms + client.rtt_ms / 2.0 + upload_ms
+        # no await between this add and the queue put inside submit(), so
+        # the batcher never sees the client as neither drafting nor queued
+        self._awaiting_verify.add(client.client_id)
         batch_metadata, verification = await self.verifier.submit(
             client_id=client.client_id,
             context_token_ids=context_token_ids,
@@ -770,6 +795,7 @@ class EdgeSpecSimulator:
             server_queue_price=self.controller.server_queue,
             theta_f_ms_per_token=self.controller.current_verifier_theta_f_ms_per_token,
         )
+        self._awaiting_verify.discard(client.client_id)
         batch_id = batch_metadata.batch_id
         verification_batch_size = batch_metadata.batch_size
 
@@ -1111,6 +1137,8 @@ class EdgeSpecSimulator:
             },
             "verifier_service_time_model": self.verifier.service_time_model,
             "target_verify_mode": getattr(getattr(self, "target", None), "verify_mode", None),
+            "causal_batching": getattr(self, "causal_batching", False),
+            "stop_at_measurement_end": getattr(self, "stop_at_measurement_end", False),
             "target_enable_prefix_caching": getattr(
                 getattr(self, "target", None), "enable_prefix_caching", None
             ),

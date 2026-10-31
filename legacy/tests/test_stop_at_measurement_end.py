@@ -57,6 +57,8 @@ def _sim(stop: bool, end_ms: float | None):
     sim.stop_at_measurement_end = stop
     sim.measurement_end_ms = end_ms
     sim.workers = [_Worker()]
+    sim._done_clients = set()
+    sim.verifier = SimpleNamespace(notify=lambda: None)
     sim.target = SimpleNamespace(set_confirmed_prefix=lambda *a: None)
     starts: list[float] = []
 
