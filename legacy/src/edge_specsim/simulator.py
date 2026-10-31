@@ -160,6 +160,7 @@ class EdgeSpecSimulator:
             scheduler_seed=int(sim["seed"]),
             roofline_budget_model=roofline_budget_model,
             target_replication_factor=target_replication_factor,
+            service_time_model=str(batching.get("service_time_model", "per_request_average")),
         )
         proposal_distribution_payload = (
             "delta_proposal" if self.sampling_temperature <= 0.0 else "full_vocab_logprobs"
@@ -1074,6 +1075,7 @@ class EdgeSpecSimulator:
                     self.cfg.get("verification_batching", {}).get("target_replication_factor", 1)
                 ),
             },
+            "verifier_service_time_model": self.verifier.service_time_model,
             "software_versions": {
                 "python": platform.python_version(),
                 "pandas": self._package_version("pandas"),

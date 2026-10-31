@@ -79,6 +79,9 @@ verification_batching:
   verify_token_budget: 100
   target_replication_factor: 1
   utility_lambda: 0.25
+  # AUC_SPEC eq. (35): a batch holds the verifier for its whole wall time.
+  # Runs before this change used per_request_average (wall / B, "V1").
+  service_time_model: batch_wall
 
 clients:
   channel_model: iid_block_fading
