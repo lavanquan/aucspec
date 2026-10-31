@@ -2,7 +2,7 @@
 #SBATCH --partition=gpu
 #SBATCH --account=pawsey1257-gpu
 #SBATCH --gres=gpu:1
-#SBATCH --time=4:00:00
+#SBATCH --time=8:00:00
 #SBATCH --job-name=profile_target
 #SBATCH --output=profile_target_%j.log
 # Verifier profile with profile_target.py defaults (B 1..32, gamma 0..16,
