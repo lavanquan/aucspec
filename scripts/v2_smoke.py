@@ -40,6 +40,7 @@ def main() -> None:
     p.add_argument("--seeds", default=None, help="comma list; overrides --seed")
     p.add_argument("--cells", default=None, help="x:n pairs, e.g. 4.5:22,6:5; overrides --x/--n")
     p.add_argument("--V", default=None, help="comma list of controller V values (default: config)")
+    p.add_argument("--gamma-choices", default=None, help="comma list, e.g. 0,1,2,3,4,5,6,7,8")
     p.add_argument("--measurement-seconds", type=float, default=60.0)
     p.add_argument("--warmup-seconds", type=float, default=15.0)
     p.add_argument("--out-dir", default="results/v2_smoke")
@@ -47,6 +48,10 @@ def main() -> None:
 
     base = yaml.safe_load((REPO_ROOT / args.config).read_text(encoding="utf-8"))
     base["capacity_search"]["warmup_seconds"] = args.warmup_seconds
+    if args.gamma_choices:
+        base["controller"]["gamma_choices"] = [int(v) for v in args.gamma_choices.split(",")]
+        base["simulation"]["gamma_max"] = max(base["controller"]["gamma_choices"])
+    g_tag = f"_g{max(base['controller']['gamma_choices'])}" if args.gamma_choices else ""
     cells = (
         [(float(c.split(":")[0]), int(c.split(":")[1])) for c in args.cells.split(",")]
         if args.cells else [(args.x, int(v)) for v in args.n.split(",")]
@@ -63,7 +68,7 @@ def main() -> None:
             raw = REPO_ROOT / args.out_dir / "raw"
             raw.mkdir(parents=True, exist_ok=True)
             v_tag = "" if v_value is None else f"_V{v_value:g}"
-            label = f"{policy}{v_tag}_n{n}_x{x}_s{seed}"
+            label = f"{policy}{v_tag}{g_tag}_n{n}_x{x}_s{seed}"
             out_csv = raw / f"{label}.csv"
             cfg = rcf.build_run_config(base, n, x, seed, args.measurement_seconds,
                                        str(out_csv.relative_to(REPO_ROOT)))
