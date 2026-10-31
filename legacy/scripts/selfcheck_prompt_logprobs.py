@@ -40,11 +40,16 @@ def main() -> None:
     p.add_argument("--disable-sliding-window", action="store_true",
                    help="vLLM disable_sliding_window=True (Qwen2.5 sets sliding_window=131072 "
                         "with use_sliding_window=false)")
+    p.add_argument("--block-flash-attn", action="store_true",
+                   help="make `import flash_attn` fail so ROCmFlashAttention falls back to naive SDPA")
+    p.add_argument("--dtype")
     p.add_argument("--hf-no-sliding-window", action="store_true",
                    help="hf_overrides use_sliding_window=False, sliding_window=None")
     p.add_argument("--output", default="results/section3/selfcheck_prompt_logprobs.json")
     args = p.parse_args()
 
+    if args.block_flash_attn:
+        sys.modules["flash_attn"] = None  # ImportError on import
     from vllm import LLM, SamplingParams
     from vllm.inputs import TokensPrompt
     from transformers import AutoTokenizer
@@ -53,7 +58,7 @@ def main() -> None:
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
     m = cfg["models"]
     llm = LLM(model=m["target"], gpu_memory_utilization=float(m.get("target_gpu_memory_utilization", 0.45)),
-              max_model_len=int(m.get("target_max_model_len", 8192)), dtype=str(m.get("target_dtype", "auto")),
+              max_model_len=int(m.get("target_max_model_len", 8192)), dtype=args.dtype or str(m.get("target_dtype", "auto")),
               max_logprobs=2, enable_prefix_caching=False, generation_config="vllm",
               enforce_eager=args.enforce_eager,
               disable_sliding_window=args.disable_sliding_window,
@@ -69,7 +74,15 @@ def main() -> None:
     import os
     print(f"VLLM_USE_TRITON_FLASH_ATTN={os.environ.get('VLLM_USE_TRITON_FLASH_ATTN')} "
           f"enforce_eager={args.enforce_eager} disable_sliding_window={args.disable_sliding_window} "
-          f"hf_no_sliding_window={args.hf_no_sliding_window}", flush=True)
+          f"hf_no_sliding_window={args.hf_no_sliding_window} block_flash_attn={args.block_flash_attn} "
+          f"dtype={args.dtype} VLLM_USE_V1={os.environ.get('VLLM_USE_V1')}", flush=True)
+    try:
+        impl = llm.llm_engine.model_executor.driver_worker.model_runner.model.model.layers[0].self_attn.attn.impl
+        print("attention impl:", type(impl).__name__,
+              {k: getattr(impl, k) for k in ("use_naive_attn", "use_triton_flash_attn", "sliding_window")
+               if hasattr(impl, k)}, flush=True)
+    except Exception as exc:  # noqa: BLE001
+        print("attention impl: unavailable", repr(exc)[:200], flush=True)
     report = []
     disagree = 0
     total = 0

@@ -25,11 +25,16 @@ export VLLM_NO_USAGE_STATS=1
 export VLLM_USE_TRITON_FLASH_ATTN=0
 export PYTORCH_HIP_ALLOC_CONF=expandable_segments:True
 
-# CK flash attention (Triton FA does not compile with this Triton); does the
-# cross-sequence mixing go away without the (inactive) Qwen2.5 sliding window?
-for variant in "" "--disable-sliding-window" "--hf-no-sliding-window"; do
-  python3 legacy/scripts/selfcheck_prompt_logprobs.py \
-    --config configs/profile_target.yaml --context-lengths 300,1024 $variant \
-    --output "results/section3/selfcheck${variant:+_${variant#--}}.json" "$@"
-done
+# Batched prefill mixes sequences with the default ROCm attention path; try
+# naive SDPA (flash_attn blocked), fp16 instead of bf16, and the V1 engine.
+run() {  # run <tag> <VLLM_USE_V1> [selfcheck args...]
+  local tag=$1 v1=$2; shift 2
+  VLLM_USE_V1=$v1 python3 legacy/scripts/selfcheck_prompt_logprobs.py \
+    --config configs/profile_target.yaml --context-lengths 300,1024 "$@" \
+    --output "results/section3/selfcheck_${tag}.json" || echo "!! variant $tag failed"
+}
+run control 0
+run naive_sdpa 0 --block-flash-attn
+run fp16 0 --dtype float16
+run v1 1
 echo "=== SELFCHECK_DONE ==="
