@@ -11,7 +11,8 @@ models:
   target_max_model_len: 8192
   target_dtype: auto
   target_enforce_eager: false
-  # off, as in the frontier runs: each repeat must pay the full prefill
-  target_enable_prefix_caching: false
+  # as in the V2 frontier configs: context KV reused across rounds
+  target_enable_prefix_caching: true
+  target_verify_mode: prefix_fanout
 simulation:
   seed: 42

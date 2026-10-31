@@ -28,9 +28,9 @@ export PYTORCH_HIP_ALLOC_CONF=expandable_segments:True
 
 OUT=results/section3
 mkdir -p "$OUT"
-for mode in off on; do
-  python3 legacy/scripts/probe_verifier_cache.py --config configs/profile_target.yaml \
-    --prefix-caching $mode --output "$OUT/probe_cache_$mode.json" "$@"
-done
+python3 legacy/scripts/probe_verifier_cache.py --config configs/profile_target.yaml \
+  --prefix-caching off --verify-mode prompt_logprobs --output "$OUT/probe_cache_off.json" "$@"
+python3 legacy/scripts/probe_verifier_cache.py --config configs/profile_target.yaml \
+  --prefix-caching on --verify-mode prefix_fanout --output "$OUT/probe_cache_on.json" "$@"
 python3 legacy/scripts/probe_verifier_cache.py --compare "$OUT/probe_cache_off.json" "$OUT/probe_cache_on.json"
 echo "=== PROBE_CACHE_DONE ==="
