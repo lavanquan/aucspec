@@ -21,6 +21,7 @@ export HF_HOME="$PROJECT/.hf-home"
 export HF_HUB_CACHE="$PROJECT/models"
 export TRANSFORMERS_CACHE="$PROJECT/models"
 export TORCHINDUCTOR_CACHE_DIR="$PROJECT/.torchinductor-cache"
+export PYTHONUNBUFFERED=1
 export VLLM_NO_USAGE_STATS=1
 export VLLM_USE_TRITON_FLASH_ATTN=0
 export PYTORCH_HIP_ALLOC_CONF=expandable_segments:True
