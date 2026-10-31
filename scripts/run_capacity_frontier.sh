@@ -28,4 +28,6 @@ mkdir -p "$TRITON_CACHE_DIR" "$XDG_CACHE_HOME" "$HF_HOME" "$HF_DATASETS_CACHE" "
 python3 -m pip install --break-system-packages --quiet pandas pyyaml matplotlib 2>&1 | tail -5
 
 python3 scripts/run_capacity_frontier.py "$@"
-echo "=== CAPACITY_FRONTIER_DONE exit=$? ==="
+status=$?
+echo "=== CAPACITY_FRONTIER_DONE exit=$status ==="
+exit $status

@@ -17,3 +17,9 @@ import torch, triton
 print(f"triton {triton.__version__} ({triton.__file__}), torch {torch.__version__}")
 assert not triton.__version__.startswith("3.8"), "userbase triton still first on sys.path"
 PY
+
+# Models are already in $HF_HUB_CACHE. vLLM 0.9.1 still lists repo files on
+# the Hub at every engine start (get_pooling_config); six concurrent jobs
+# from one Pawsey IP got HTTP 429 and four screening runs died (2026-10-31).
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
