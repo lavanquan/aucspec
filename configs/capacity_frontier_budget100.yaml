@@ -14,7 +14,9 @@ models:
   target_max_model_len: 4096
   target_dtype: auto
   target_enforce_eager: false
-  target_enable_prefix_caching: false
+  # KV reuse across rounds; prompt_logprobs cannot use the prefix cache in vLLM V0
+  target_enable_prefix_caching: true
+  target_verify_mode: prefix_fanout
 
 dataset:
   name: gsm8k

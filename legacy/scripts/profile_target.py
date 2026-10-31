@@ -42,6 +42,7 @@ def _make_verifier(cfg: dict, seed: int | None) -> VLLMCandidateVerifier:
         dtype=str(model_cfg.get("target_dtype", "auto")),
         enforce_eager=bool(model_cfg.get("target_enforce_eager", False)),
         enable_prefix_caching=bool(model_cfg.get("target_enable_prefix_caching", True)),
+        verify_mode=str(model_cfg.get("target_verify_mode", "prompt_logprobs")),
         sampling_temperature=0.0,
         seed=effective_seed,
     )
@@ -141,6 +142,9 @@ def _measure_batch_latency_ms(
     repeats: int,
 ) -> tuple[float, float]:
     latencies_ms: list[float] = []
+    if verifier.verify_mode == "prefix_fanout":
+        # untimed: put the contexts in the prefix cache, as earlier rounds would
+        verifier.verify_batch_sync(requests)
     for _ in range(repeats):
         start = time.perf_counter()
         verifier.verify_batch_sync(requests)
@@ -280,6 +284,7 @@ def _profile_target(args: argparse.Namespace) -> pd.DataFrame:
                         "prefix_caching_enabled": bool(
                             cfg["models"].get("target_enable_prefix_caching", True)
                         ),
+                        "verify_mode": verifier.verify_mode,
                     }
                 )
                 print(
@@ -311,6 +316,8 @@ def _profile_target(args: argparse.Namespace) -> pd.DataFrame:
         "gammas": args.gammas,
         "context_lengths": args.context_lengths,
         "repeats": args.repeats,
+        "verify_mode": verifier.verify_mode,
+        "prefix_caching_enabled": bool(cfg["models"].get("target_enable_prefix_caching", True)),
         "warmup_runs": args.warmup_runs,
         "fit_rmse_ms": fit["rmse_ms"],
         "fit_r2": fit["r2"],

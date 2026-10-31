@@ -4,6 +4,7 @@ import math
 import os
 import random
 import time
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -87,12 +88,29 @@ from .acceptance import (
 from .models import DraftProposal, VerificationResult
 
 
-class VLLMCandidateVerifier:
-    """Batched candidate verification using vLLM prompt log-probabilities.
+VERIFY_MODES = ("prompt_logprobs", "prefix_fanout")
 
-    For every request, the target receives context_token_ids + candidate_token_ids.
-    Prompt log-probabilities expose the target distribution at every candidate
-    position. Acceptance uses min(1, p/q) on the proposed token. If a proposal
+
+class VLLMCandidateVerifier:
+    """Batched candidate verification using vLLM log-probabilities.
+
+    verify_mode="prompt_logprobs": the target receives context_token_ids +
+    candidate_token_ids and prompt log-probabilities expose the target
+    distribution at every candidate position. vLLM V0 cannot combine
+    prompt_logprobs with prefix caching, so every call re-prefills the whole
+    context and computes full-vocabulary logprobs at every context position.
+
+    verify_mode="prefix_fanout": for gamma candidates the target receives the
+    gamma + 1 prompts context + candidates[:k] (k = 0..gamma), each generating
+    one token with its logprobs; output k is the target distribution at
+    candidate position k (k = gamma is the bonus position). With prefix
+    caching the shared context KV blocks are reused across these prompts and
+    across rounds, so a round only computes the new tokens, as a stateful
+    verifier would. A client whose context does not extend the context it
+    sent last round (a new sample) is prefilled first, inside the timed call.
+
+    Both modes give the same target distributions up to floating-point
+    differences between cached and fresh attention. Acceptance uses min(1, p/q) on the proposed token. If a proposal
     is rejected, the correction token is sampled from the residual distribution
     max(0, p - q). If all candidates are accepted, the next token is sampled from
     the target distribution at the following position.
@@ -109,7 +127,25 @@ class VLLMCandidateVerifier:
         enable_prefix_caching: bool = True,
         sampling_temperature: float = 0.0,
         seed: int = 0,
+        verify_mode: str = "prompt_logprobs",
     ) -> None:
+        if verify_mode not in VERIFY_MODES:
+            raise ValueError(f"verify_mode must be one of {VERIFY_MODES}, got {verify_mode!r}")
+        if verify_mode == "prompt_logprobs" and enable_prefix_caching:
+            warnings.warn(
+                "vLLM V0 fails a sampler assertion when prompt_logprobs meets prefix caching; "
+                "use verify_mode='prefix_fanout' or disable caching.",
+                stacklevel=2,
+            )
+        if verify_mode == "prefix_fanout" and not enable_prefix_caching:
+            warnings.warn(
+                "verify_mode='prefix_fanout' without prefix caching prefills every context "
+                "gamma + 1 times per round.",
+                stacklevel=2,
+            )
+        self.verify_mode = verify_mode
+        self.enable_prefix_caching = enable_prefix_caching
+        self._last_context: dict[int, tuple[int, ...]] = {}
         self.model_name = model_name
         self.rng = random.Random(seed)
         self._confirmed_prefix_hashes: dict[int, int] = {}
@@ -132,7 +168,7 @@ class VLLMCandidateVerifier:
             int(
                 max_logprobs
                 if max_logprobs is not None
-                else (1 if self.greedy_only else self.vocab_size)
+                else (2 if self.greedy_only else self.vocab_size)
             ),
         )
         try:
@@ -154,10 +190,13 @@ class VLLMCandidateVerifier:
             temperature=sampling_temperature,
             top_p=1.0,
             max_tokens=1,
-            prompt_logprobs=requested_max_logprobs,
+            prompt_logprobs=requested_max_logprobs if verify_mode == "prompt_logprobs" else None,
             logprobs=requested_max_logprobs,
             detokenize=False,
             skip_special_tokens=False,
+        )
+        self.prefill_sampling = SamplingParams(
+            temperature=0.0, top_p=1.0, max_tokens=1, detokenize=False, skip_special_tokens=False,
         )
 
     def build_context_token_ids(self, user_prompt: str, history_token_ids: list[int]) -> list[int]:
@@ -188,7 +227,8 @@ class VLLMCandidateVerifier:
 
     @staticmethod
     def _best_token_id(logprob_dict: dict[int, float]) -> int:
-        return max(logprob_dict.items(), key=lambda item: item[1])[0]
+        # exact ties -> smallest token id, independent of vLLM's dict order
+        return max(logprob_dict.items(), key=lambda item: (item[1], -int(item[0])))[0]
 
     @staticmethod
     def _lookup_logprob(logprob_dict: dict[int, float], token_id: int) -> float:
@@ -281,22 +321,70 @@ class VLLMCandidateVerifier:
                 break
         return history_token_ids
 
+    def _prompt_logprobs_generate(self, requests):
+        """One prompt per request; candidate distributions from prompt_logprobs."""
+        prompts = [
+            TokensPrompt(prompt_token_ids=list(context_ids) + list(draft.token_ids))
+            for context_ids, draft, _ in requests
+        ]
+        outputs = self.llm.generate(prompts, self.sampling, use_tqdm=False)
+        entries = []
+        for (context_ids, draft, _), output in zip(requests, outputs):
+            prompt_logprobs = getattr(output, "prompt_logprobs", None)
+            if prompt_logprobs is None and draft.token_ids:
+                raise RuntimeError(
+                    "vLLM did not return prompt_logprobs needed for rejection sampling "
+                    "verification."
+                )
+            start = len(context_ids)
+            entries.append([prompt_logprobs[start + k] for k in range(len(draft.token_ids))])
+        return entries, outputs
+
+    def _fanout_generate(self, requests):
+        """gamma + 1 one-token prompts per request; output k is position k."""
+        new_contexts = []
+        for context_ids, draft, _ in requests:
+            ctx = tuple(int(t) for t in context_ids)
+            last = self._last_context.get(draft.client_id)
+            if last is None or ctx[: len(last)] != last:
+                new_contexts.append(TokensPrompt(prompt_token_ids=list(ctx)))
+            self._last_context[draft.client_id] = ctx
+        if new_contexts and self.enable_prefix_caching:
+            # fill the prefix cache once instead of gamma + 1 times below
+            self.llm.generate(new_contexts, self.prefill_sampling, use_tqdm=False)
+
+        prompts, owners = [], []
+        for index, (context_ids, draft, _) in enumerate(requests):
+            base = list(context_ids)
+            for k in range(len(draft.token_ids) + 1):
+                prompts.append(TokensPrompt(prompt_token_ids=base + list(draft.token_ids[:k])))
+                owners.append(index)
+        outputs = self.llm.generate(prompts, self.sampling, use_tqdm=False)
+        per_request = [[] for _ in requests]
+        for index, output in zip(owners, outputs):
+            per_request[index].append(output)
+        entries, bonus_outputs = [], []
+        for outs in per_request:
+            entries.append([
+                out.outputs[0].logprobs[0] if out.outputs and out.outputs[0].logprobs else None
+                for out in outs[:-1]
+            ])
+            bonus_outputs.append(outs[-1])
+        return entries, bonus_outputs
+
     def verify_batch_sync(
         self,
         requests: list[tuple[list[int], DraftProposal, int]],
     ) -> list[VerificationResult]:
         start = time.perf_counter()
-        prompts = [
-            TokensPrompt(prompt_token_ids=list(context_ids) + list(draft.token_ids))
-            for context_ids, draft, _ in requests
-        ]
-        outputs = self.llm.generate(
-            prompts,
-            self.sampling,
-            use_tqdm=False,
-        )
+        if self.verify_mode == "prefix_fanout":
+            position_entries, bonus_outputs = self._fanout_generate(requests)
+        else:
+            position_entries, bonus_outputs = self._prompt_logprobs_generate(requests)
         results: list[VerificationResult] = []
-        for (context_ids, draft, remaining_tokens), output in zip(requests, outputs):
+        for (context_ids, draft, remaining_tokens), entries, bonus_output in zip(
+            requests, position_entries, bonus_outputs
+        ):
             if not draft.supports_lossless_rejection_sampling(self.vocab_size):
                 raise ValueError(
                     "Draft proposal payload is not sufficient for lossless rejection-sampling "
@@ -310,16 +398,9 @@ class VLLMCandidateVerifier:
             correction_token: int | None = None
             bonus_token: int | None = None
             confirmed_prefix = list(context_ids)
-            prompt_logprobs = getattr(output, "prompt_logprobs", None)
-            candidate_start = len(context_ids)
 
             for offset, proposed_id in enumerate(draft.token_ids):
-                if prompt_logprobs is None:
-                    raise RuntimeError(
-                        "vLLM did not return prompt_logprobs needed for rejection sampling "
-                        "verification."
-                    )
-                target_entry = self._logprob_dict(prompt_logprobs[candidate_start + offset])
+                target_entry = self._logprob_dict(entries[offset])
                 if (not self.greedy_only) and int(proposed_id) not in target_entry:
                     raise RuntimeError(
                         "Target prompt_logprobs did not include the proposed token. "
@@ -359,15 +440,15 @@ class VLLMCandidateVerifier:
                 if correction_token is not None:
                     committed.append(correction_token)
                 else:
-                    if not output.outputs or not output.outputs[0].token_ids:
+                    if not bonus_output.outputs or not bonus_output.outputs[0].token_ids:
                         bonus_id = None
                     else:
-                        bonus_id = int(output.outputs[0].token_ids[0])
+                        bonus_id = int(bonus_output.outputs[0].token_ids[0])
                     if bonus_id is not None:
                         if self.greedy_only:
                             target_greedy.append(bonus_id)
                         else:
-                            bonus_entry = self._logprob_dict(output.outputs[0].logprobs[0])
+                            bonus_entry = self._logprob_dict(bonus_output.outputs[0].logprobs[0])
                             target_logprobs.append(bonus_entry)
                             target_greedy.append(greedy_correction_token(bonus_entry))
                         committed.append(bonus_id)

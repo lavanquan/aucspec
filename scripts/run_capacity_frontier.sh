@@ -18,7 +18,7 @@ export PIP_CACHE_DIR="$PROJECT/.pip-cache"
 export WANDB_DIR="$PROJECT/.wandb"
 export WANDB_CACHE_DIR="$PROJECT/.cache/wandb"
 export VLLM_NO_USAGE_STATS=1
-export VLLM_USE_TRITON_FLASH_ATTN=0
+source scripts/setonix_vllm_env.sh
 export PYTORCH_HIP_ALLOC_CONF=expandable_segments:True
 mkdir -p "$TRITON_CACHE_DIR" "$XDG_CACHE_HOME" "$HF_HOME" "$HF_DATASETS_CACHE" "$TORCHINDUCTOR_CACHE_DIR" \
   "$MPLCONFIGDIR" "$XDG_CONFIG_HOME" "$PIP_CACHE_DIR" "$WANDB_DIR" "$WANDB_CACHE_DIR"

@@ -339,6 +339,7 @@ async def _run_live_trace(args: argparse.Namespace) -> dict[str, object]:
         dtype=str(model_cfg.get("target_dtype", "auto")),
         enforce_eager=bool(model_cfg.get("target_enforce_eager", False)),
         enable_prefix_caching=bool(model_cfg.get("target_enable_prefix_caching", True)),
+        verify_mode=str(model_cfg.get("target_verify_mode", "prompt_logprobs")),
         sampling_temperature=temperature,
         seed=int(cfg["simulation"]["seed"]),
     )

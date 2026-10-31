@@ -119,6 +119,7 @@ class EdgeSpecSimulator:
             dtype=str(model_cfg.get("target_dtype", "auto")),
             enforce_eager=bool(model_cfg.get("target_enforce_eager", False)),
             enable_prefix_caching=bool(model_cfg.get("target_enable_prefix_caching", True)),
+            verify_mode=str(model_cfg.get("target_verify_mode", "prompt_logprobs")),
             sampling_temperature=self.sampling_temperature,
             seed=int(sim["seed"]),
         )
@@ -1023,6 +1024,17 @@ class EdgeSpecSimulator:
         print(f"Wrote {len(self.records)} records to {output}")
 
     @staticmethod
+    def _triton_version() -> str | None:
+        # the imported module, not the dist metadata: the overlay in
+        # scripts/setonix_vllm_env.sh shadows the userbase triton
+        try:
+            import triton
+
+            return f"{triton.__version__} {triton.__file__}"
+        except Exception:  # noqa: BLE001
+            return None
+
+    @staticmethod
     def _package_version(name: str) -> str | None:
         try:
             return metadata.version(name)
@@ -1076,6 +1088,10 @@ class EdgeSpecSimulator:
                 ),
             },
             "verifier_service_time_model": self.verifier.service_time_model,
+            "target_verify_mode": getattr(getattr(self, "target", None), "verify_mode", None),
+            "target_enable_prefix_caching": getattr(
+                getattr(self, "target", None), "enable_prefix_caching", None
+            ),
             "software_versions": {
                 "python": platform.python_version(),
                 "pandas": self._package_version("pandas"),
@@ -1083,6 +1099,7 @@ class EdgeSpecSimulator:
                 "torch": self._package_version("torch"),
                 "transformers": self._package_version("transformers"),
                 "vllm": self._package_version("vllm"),
+                "triton": self._triton_version(),
             },
         }
         with path.open("w", encoding="utf-8") as handle:

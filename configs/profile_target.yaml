@@ -1,0 +1,18 @@
+# Offline verifier profile for the Section 3 roofline fit
+# (scripts/run_profile_target.sh -> legacy/scripts/profile_target.py).
+# Same target model and engine settings as capacity_frontier_final.yaml,
+# except max_model_len (contexts up to 4096 + gamma + 1), one GPU, and a
+# smaller KV pool: verify_batch_sync asks for prompt_logprobs over the whole
+# context, whose full-vocab rank buffers (~4.6 GiB at L=4096) live outside
+# the KV pool and OOM at 0.7.
+models:
+  target: Qwen/Qwen2.5-7B-Instruct
+  target_gpu_memory_utilization: 0.45
+  target_max_model_len: 8192
+  target_dtype: auto
+  target_enforce_eager: false
+  # as in the V2 frontier configs: context KV reused across rounds
+  target_enable_prefix_caching: true
+  target_verify_mode: prefix_fanout
+simulation:
+  seed: 42
