@@ -42,6 +42,7 @@ simulation:
 
 experiment:
   warmup_seconds: 30
+  stop_at_measurement_end: true  # end each client once past the window
   measurement_seconds: null      # overridden per candidate
   seeds: [1]
 

@@ -217,6 +217,15 @@ class EdgeSpecSimulator:
         # in client-index order. We therefore load population_n_max * Q
         # prompts regardless of the requested num_clients.
         self._nested_population = bool(sim.get("nested_population", False))
+        # Stop each client once its virtual clock passes the measurement
+        # window: any round it would start afterwards receives after
+        # measurement_end_ms, so it can never be counted, and under
+        # batch_wall it cannot join a batch that serves an in-window round
+        # (those batches start before measurement_end_ms). Without this the
+        # run continues until every client finishes questions_per_client.
+        self.stop_at_measurement_end = bool(
+            experiment_cfg.get("stop_at_measurement_end", False)
+        )
         self._nested_qpc = int(sim.get("questions_per_client", 5))
         self._nested_n_max = int(sim.get("population_n_max", sim["num_clients"]))
         self.population_fingerprint = ""
@@ -597,14 +606,27 @@ class EdgeSpecSimulator:
             await self.verifier.close()
         self._write_results()
 
+    def _past_measurement_end(self, client: ClientProfile) -> bool:
+        return (
+            self.stop_at_measurement_end
+            and self.measurement_end_ms is not None
+            and client.virtual_time_ms >= self.measurement_end_ms
+        )
+
     async def _run_client(self, client: ClientProfile) -> None:
-        while client.start_next_sample():
+        while not self._past_measurement_end(client) and client.start_next_sample():
             assert client.current_sample is not None
             worker = self.workers[client.client_id % len(self.workers)]
             await worker.reset_client(client.client_id)
             self.target.set_confirmed_prefix(client.client_id, [])
             sample_round = 0
             while client.remaining_tokens > 0:
+                if self._past_measurement_end(client):
+                    print(
+                        f"client={client.client_id:02d} stopped at measurement end "
+                        f"virtual_ms={client.virtual_time_ms:.1f}"
+                    )
+                    return
                 reached_eos = await self._run_round(client, sample_round)
                 sample_round += 1
                 if reached_eos:
