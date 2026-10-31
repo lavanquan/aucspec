@@ -1,0 +1,14 @@
+# Offline verifier profile for the Section 3 roofline fit
+# (scripts/run_profile_target.sh -> legacy/scripts/profile_target.py).
+# Same target model and engine settings as capacity_frontier_final.yaml,
+# except max_model_len (contexts up to 4096 + gamma + 1) and one GPU.
+models:
+  target: Qwen/Qwen2.5-7B-Instruct
+  target_gpu_memory_utilization: 0.7
+  target_max_model_len: 8192
+  target_dtype: auto
+  target_enforce_eager: false
+  # off, as in the frontier runs: each repeat must pay the full prefill
+  target_enable_prefix_caching: false
+simulation:
+  seed: 42
