@@ -2,7 +2,7 @@
 #SBATCH --partition=gpu
 #SBATCH --account=pawsey1257-gpu
 #SBATCH --gres=gpu:1
-#SBATCH --time=1:00:00
+#SBATCH --time=1:30:00
 #SBATCH --job-name=selfcheck_plp
 #SBATCH --output=selfcheck_plp_%j.log
 # Does prompt_logprobs agree with the engine's own greedy generation?
@@ -25,6 +25,12 @@ export VLLM_NO_USAGE_STATS=1
 export VLLM_USE_TRITON_FLASH_ATTN=0
 export PYTORCH_HIP_ALLOC_CONF=expandable_segments:True
 
-python3 legacy/scripts/selfcheck_prompt_logprobs.py --config configs/profile_target.yaml \
-  --context-lengths 300,1024 "$@"
+# attention backend / graph capture variants: which one breaks multi-prompt batches?
+for fa in 0 1; do
+  for eager in "" "--enforce-eager"; do
+    VLLM_USE_TRITON_FLASH_ATTN=$fa python3 legacy/scripts/selfcheck_prompt_logprobs.py \
+      --config configs/profile_target.yaml --context-lengths 300,1024 $eager \
+      --output "results/section3/selfcheck_fa${fa}${eager:+_eager}.json" "$@"
+  done
+done
 echo "=== SELFCHECK_DONE ==="
