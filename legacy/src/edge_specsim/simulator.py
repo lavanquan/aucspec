@@ -16,7 +16,7 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from .controller import OnlineController
+from .controller import OnlineController, load_known_alpha_profile
 from .dataset import load_samples, shard_round_robin
 from .draft_worker import DraftRequest, DraftWorker
 from .draft_timing import (
@@ -184,6 +184,7 @@ class EdgeSpecSimulator:
             use_virtual_queues=bool(controller_cfg.get("use_virtual_queues", True)),
             proposal_distribution_payload=proposal_distribution_payload,
             proposal_vocab_size=self.target.vocab_size,
+            known_alpha_profile=load_known_alpha_profile(controller_cfg),
         )
         self.records: list[dict[str, object]] = []
         self.detailed_log = detailed_log
@@ -734,7 +735,8 @@ class EdgeSpecSimulator:
             * (self.controller.V + (client.z_queue if self.controller.use_virtual_queues else 0.0)),
             deadline=None,
             expected_acceptance_rate=client.alpha_hat,
-            expected_acceptance_profile=client.positional_acceptance_profile(
+            expected_acceptance_profile=self.controller.decision_acceptance_profile(
+                client,
                 gamma,
                 use_ucb=False,
             ),

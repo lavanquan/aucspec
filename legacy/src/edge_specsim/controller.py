@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 import math
 import random
 from dataclasses import dataclass
+from pathlib import Path
 
 from .expectations import expected_useful_tokens, expected_useful_tokens_from_profile
 from .models import ClientProfile
@@ -30,6 +32,23 @@ def paper_index_gamma(
         return 0
     gamma = math.ceil(math.log(float(c_value)) / math.log(alpha)) - 1
     return max(0, min(clipped_gamma_max, int(gamma)))
+
+
+def load_known_alpha_profile(controller_cfg: dict) -> list[float] | dict[int, list[float]] | None:
+    """KnownAlpha profile from `controller.known_alpha_profile` (inline list
+    or {client_id: list}) or `controller.known_alpha_profile_path` (JSON with
+    the same shape, e.g. written by scripts/build_known_alpha_profile.py).
+    Returns None when neither is set."""
+    inline = controller_cfg.get("known_alpha_profile")
+    path = controller_cfg.get("known_alpha_profile_path")
+    if inline is not None and path is not None:
+        raise ValueError("set only one of known_alpha_profile / known_alpha_profile_path")
+    if path is not None:
+        with open(Path(path), "r", encoding="utf-8") as f:
+            inline = json.load(f)
+        if isinstance(inline, dict) and "per_client" in inline:
+            inline = inline["per_client"]
+    return inline
 
 
 class OnlineController:
@@ -63,6 +82,12 @@ class OnlineController:
         gelato_draft_power_mw: float = 500.0,
         gelato_uplink_power_mw: float = 200.0,
         gelato_energy_budget_mj: float = 50.0,
+        # AUC_SPEC Section 4.1.2 KnownAlpha learning ablation: the same
+        # capacity_dpp controller, but phi_hat_i uses a FIXED empirical
+        # positional acceptance profile instead of the censored-UCB
+        # estimate. Either one list [alpha_1, ..., alpha_K] shared by all
+        # clients, or {client_id: [alpha_1, ...]}. Not an offline oracle.
+        known_alpha_profile: list[float] | dict[int, list[float]] | None = None,
     ) -> None:
         if not gamma_choices:
             raise ValueError("controller.gamma_choices must contain at least one action")
@@ -120,6 +145,7 @@ class OnlineController:
         self._tick = 0
         self._last_uplink_rate_mbps: dict[int, float] = {}
         self._last_uplink_observed_tick: dict[int, int] = {}
+        self.known_alpha_profile = self._normalize_known_alpha_profile(known_alpha_profile)
         valid_policies = {
             "target_only",
             "fixed_gamma",
@@ -141,13 +167,22 @@ class OnlineController:
             # over gamma_choices, rather than the paper_index_gamma closed
             # form. adaptive_index is left untouched for reproducibility.
             "capacity_dpp",
+            # AUC_SPEC Section 4.1.2: KnownAlpha learning ablation of
+            # capacity_dpp (fixed empirical acceptance profile, no UCB).
+            "capacity_dpp_known_alpha",
         }
         if self.policy not in valid_policies:
             raise ValueError(
                 "controller.policy must be one of: "
                 "target_only, fixed_gamma, load_only, random_gamma, oracle_gamma, "
                 "adaptive_queue, adaptive_ucb, adaptive_index, "
-                "goodspeed, turbospec, fixed_slo, gelato, capacity_dpp"
+                "goodspeed, turbospec, fixed_slo, gelato, capacity_dpp, "
+                "capacity_dpp_known_alpha"
+            )
+        if self.policy == "capacity_dpp_known_alpha" and self.known_alpha_profile is None:
+            raise ValueError(
+                "controller.policy=capacity_dpp_known_alpha requires "
+                "controller.known_alpha_profile (or known_alpha_profile_path)"
             )
         if self.fixed_gamma not in self.gamma_choices:
             raise ValueError("controller.fixed_gamma must be included in controller.gamma_choices")
@@ -437,6 +472,51 @@ class OnlineController:
         device_cost = q_i * gamma * self._capacity_dpp_device_cost_per_token_ms(client)
         return float(benefit - verifier_cost - device_cost)
 
+    @staticmethod
+    def _normalize_known_alpha_profile(
+        profile: list[float] | dict | None,
+    ) -> list[float] | dict[int, list[float]] | None:
+        def _clean(values) -> list[float]:
+            cleaned = [min(1.0, max(0.0, float(v))) for v in values]
+            if not cleaned:
+                raise ValueError("known_alpha_profile entries must be non-empty")
+            return cleaned
+
+        if profile is None:
+            return None
+        if isinstance(profile, dict):
+            return {int(cid): _clean(values) for cid, values in profile.items()}
+        return _clean(profile)
+
+    def _known_alpha_profile_for(self, client: ClientProfile, gamma: int) -> list[float]:
+        """Fixed positional profile truncated/extended to `gamma` positions.
+        Positions past the profiled depth reuse the last profiled value."""
+        if gamma <= 0:
+            return []
+        table = self.known_alpha_profile
+        if isinstance(table, dict):
+            if client.client_id not in table:
+                raise KeyError(
+                    f"known_alpha_profile has no entry for client {client.client_id}"
+                )
+            values = table[client.client_id]
+        else:
+            values = table
+        return [values[min(k, len(values) - 1)] for k in range(gamma)]
+
+    def decision_acceptance_profile(
+        self,
+        client: ClientProfile,
+        gamma: int,
+        use_ucb: bool,
+    ) -> list[float]:
+        """Acceptance profile the controller plugs into phi_hat_i(gamma):
+        the fixed empirical profile under KnownAlpha, otherwise the client's
+        online censored estimate (UCB or point estimate)."""
+        if self.policy == "capacity_dpp_known_alpha":
+            return self._known_alpha_profile_for(client, gamma)
+        return client.positional_acceptance_profile(gamma, use_ucb)
+
     def _capacity_dpp_gamma(self, client: ClientProfile, use_ucb: bool) -> int:
         """Exact argmax of capacity_dpp_score over gamma_choices; ties go to
         the smaller gamma (avoids gratuitous verifier work at equal utility,
@@ -446,7 +526,7 @@ class OnlineController:
         for candidate in self.gamma_choices:
             if candidate == 0:
                 continue
-            profile = client.positional_acceptance_profile(candidate, use_ucb)
+            profile = self.decision_acceptance_profile(client, candidate, use_ucb)
             score = self.capacity_dpp_score(client, candidate, profile)
             if score > best_score + 1e-12:
                 best_score = score
@@ -647,6 +727,8 @@ class OnlineController:
             gamma = self._gelato_gamma(client)
         elif self.policy == "capacity_dpp":
             gamma = self._capacity_dpp_gamma(client, use_ucb=True)
+        elif self.policy == "capacity_dpp_known_alpha":
+            gamma = self._capacity_dpp_gamma(client, use_ucb=False)
         else:
             raise RuntimeError(f"Unsupported controller policy: {self.policy}")
         gamma = self._apply_exploration(client, gamma)

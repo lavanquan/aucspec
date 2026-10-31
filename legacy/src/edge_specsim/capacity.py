@@ -751,12 +751,17 @@ def area_from_nstar(
     x_U: float,
     n_ref: float,
 ) -> dict:
-    """Section 11: dual-bound capacity area from a sequence of `NStarResult`
-    (one per swept x, sorted by x). NO extrapolation outside `[x_L, x_U]`
+    """Section 11 / AUC_SPEC eq. (72): rigorous area bounds from a sequence of
+    `NStarResult` (one per swept x). NO extrapolation outside `[x_L, x_U]`
     -- the swept grid must already cover that range (raises otherwise).
-    Cap-limited or interval-valued points widen `area_upper` using
-    `n_ref` as the unresolved upper bound and `area_lower` using the last
-    CONFIRMED feasible count.
+
+    N*(x) is nonincreasing, so on each grid interval [x_k, x_{k+1}]
+        N*(x_{k+1}) <= N*(x) <= N*(x_k).
+    `area_lower` therefore integrates the RIGHT endpoint's confirmed lower
+    bound N^-(x_{k+1}) and `area_upper` the LEFT endpoint's upper bound
+    N^+(x_k). Cap-limited or interval-valued points use `n_ref` / the first
+    non-feasible count as N^+, and the last confirmed feasible count as N^-.
+    The gap between the two shrinks as the x-grid is refined.
     """
     pts = sorted(results, key=lambda r: r.x_requirement)
     if not pts:
@@ -774,22 +779,16 @@ def area_from_nstar(
         else min(float(n_ref), float(r.upper_bound_n) if r.upper_bound_n is not None else float(n_ref))
         for r in pts
     ]
-    # restrict to [x_L, x_U] and integrate the step function (carry the
-    # value at the last grid point <= the evaluation point)
-    knots = sorted({x_L, x_U, *[x for x in xs if x_L < x < x_U]})
 
-    def _step_area(ns: list[float]) -> float:
-        def n_at(x: float) -> float:
-            if x <= xs[0]:
-                return ns[0]
-            for k in range(len(xs) - 1):
-                if xs[k] <= x < xs[k + 1]:
-                    return ns[k]
-            return ns[-1]
-        return sum(n_at(a) * (b - a) for a, b in zip(knots, knots[1:]))
-
-    area_lower = _step_area(lower_n)
-    area_upper = _step_area(upper_n)
+    area_lower = 0.0
+    area_upper = 0.0
+    for k in range(len(xs) - 1):
+        a = max(x_L, xs[k])
+        b = min(x_U, xs[k + 1])
+        if b <= a:
+            continue
+        area_lower += lower_n[k + 1] * (b - a)
+        area_upper += upper_n[k] * (b - a)
     width = n_ref * (x_U - x_L)
     return {
         "area_lower": area_lower, "area_upper": area_upper,
@@ -806,24 +805,45 @@ def area_from_xstar(
     x_U: float,
     n_ref: int,
 ) -> dict:
-    """Section 11's dual column-sum check:
-    `A_C = sum_{N=1}^{N_ref} [min(x*(N), x_U) - x_L]^+`, using the ESTIMATE
-    (midpoint of the certified bracket) for each `N`. Integer sum over
-    concurrency -- never trapezoidal interpolation over fractional N."""
+    """Section 11's dual column-sum check (AUC_SPEC eq. 28):
+    `A_C = sum_{N=1}^{N_ref} [min(x*(N), x_U) - x_L]^+`. Integer sum over
+    concurrency -- never trapezoidal interpolation over fractional N.
+    `area_lower` uses each certified feasible x, `area_upper` the first
+    non-feasible x (or x_U when none was found). A concurrency level with no
+    x*(N) result contributes 0 to the lower and (x_U - x_L) to the upper
+    bound and is listed in `missing_n`."""
     by_n = {r.n_active: r for r in results}
     total_lower = 0.0
     total_upper = 0.0
+    missing_n: list[int] = []
     for n in range(1, int(n_ref) + 1):
         r = by_n.get(n)
         if r is None:
+            missing_n.append(n)
+            total_upper += x_U - x_L
             continue
-        x_est = r.estimate_x
         x_hi_bound = r.upper_infeasible_x if r.upper_infeasible_x is not None else x_U
         total_lower += max(0.0, min(r.lower_feasible_x, x_U) - x_L)
         total_upper += max(0.0, min(x_hi_bound, x_U) - x_L)
-        del x_est
     width = n_ref * (x_U - x_L)
     return {
         "area_lower": total_lower, "area_upper": total_upper,
         "ica_lower": total_lower / width, "ica_upper": total_upper / width,
+        "missing_n": missing_n,
+    }
+
+
+def area_consistency(area_n: dict, area_x: dict, *, rel_tol: float = 0.0) -> dict:
+    """AUC_SPEC Section 2.5: N*(x) and x*(N) are two slicings of the same
+    area, so their bound intervals must overlap. Disjoint intervals mean the
+    finite-horizon feasibility measurements are not mutually consistent
+    (or the x-grid / N-range is too coarse to compare)."""
+    lo = max(area_n["area_lower"], area_x["area_lower"])
+    hi = min(area_n["area_upper"], area_x["area_upper"])
+    slack = rel_tol * max(abs(area_n["area_upper"]), abs(area_x["area_upper"]), 1e-12)
+    return {
+        "consistent": lo <= hi + slack,
+        "overlap_lower": lo,
+        "overlap_upper": hi,
+        "gap": max(0.0, lo - hi),
     }

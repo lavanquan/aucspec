@@ -53,6 +53,7 @@ from edge_specsim.capacity import (  # noqa: E402
     XStarResult,
     area_from_nstar,
     area_from_xstar,
+    area_consistency,
     classify_feasibility,
     classify_feasibility_final,
     ica,
@@ -503,6 +504,42 @@ def analyze_final(run_tag: str) -> None:
         )
         print(f"[{policy}] ICA in [{area['ica_lower']}, {area['ica_upper']}] "
               f"cap_limited={area['any_cap_limited']} interval_valued={area['any_interval_valued']}")
+
+    # AUC_SPEC Section 2.5 / eq. (28): the x*(N) slicing must give an area
+    # interval that overlaps the N*(x) one.
+    nstar_area_by_policy = {row["policy"]: row for row in comparison_rows}
+    for xstar_path in sorted(glob.glob(str(ctx.run_dir / "xstar_frontier_*.csv"))):
+        df = pd.read_csv(xstar_path)
+        policy = str(df["policy"].iloc[0])
+        xresults = [
+            XStarResult(
+                n_active=int(row.N),
+                lower_feasible_x=float(row.x_lower_feasible),
+                upper_infeasible_x=(None if pd.isna(row.x_upper_infeasible) else float(row.x_upper_infeasible)),
+                estimate_x=float(row.x_estimate),
+                exact_within_tolerance=bool(row.boundary_certified),
+            )
+            for row in df.itertuples()
+        ]
+        area_x = area_from_xstar(xresults, x_L=x_L, x_U=x_U, n_ref=n_ref)
+        out = {"policy": policy, "run_tag": run_tag, "x_L": x_L, "x_U": x_U, "n_ref": n_ref, **area_x}
+        line = (f"\n## {policy} -- dual x*(N) slicing\n\nICA (lower, upper): "
+                f"{area_x['ica_lower']}, {area_x['ica_upper']}  \nmissing N: {area_x['missing_n'] or 'none'}\n")
+        nrow = nstar_area_by_policy.get(policy)
+        if nrow is not None and nrow.get("ica_lower") is not None:
+            area_n = {"area_lower": nrow["ica_lower"] * n_ref * (x_U - x_L),
+                      "area_upper": nrow["ica_upper"] * n_ref * (x_U - x_L)}
+            check = area_consistency(area_n, area_x)
+            out["consistency_with_nstar"] = check
+            nrow["dual_ica_lower"] = area_x["ica_lower"]
+            nrow["dual_ica_upper"] = area_x["ica_upper"]
+            nrow["dual_consistent"] = check["consistent"]
+            line += f"consistent with N*(x) area: {check['consistent']} (gap {check['gap']:.4g})\n"
+            print(f"[{policy}] dual x*(N) ICA in [{area_x['ica_lower']}, {area_x['ica_upper']}] "
+                  f"consistent={check['consistent']}")
+        with open(ctx.run_dir / f"capacity_area_xstar_{policy}.json", "w", encoding="utf-8") as f:
+            json.dump(out, f, indent=2)
+        report_lines.append(line)
 
     if comparison_rows:
         cmp_df = pd.DataFrame(comparison_rows).sort_values("ica_lower", ascending=False)
