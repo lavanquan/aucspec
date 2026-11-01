@@ -81,6 +81,11 @@ class VerificationBatcher:
         # their (real) draft step are left out even when their virtual
         # arrival is earlier than the cutoff.
         self.arrival_lower_bound = None
+        # early_close (2026-11-01): when all_clients_waiting() is true the
+        # batch window closes at the last member's arrival instead of
+        # first arrival + batch_wait_ms. Off by default.
+        self.early_close = False
+        self.all_clients_waiting = None
         # theta_f handed to the controller when there is no roofline model.
         # "none" (default, all runs before 2026-11-01): 0.0, so the
         # Q_s * theta_f price term is always zero. "measured": EMA of the
@@ -307,6 +312,12 @@ class VerificationBatcher:
         effective_budget: int,
     ) -> None:
         batch_ready_ms = batch[0].arrival_time + self.batch_wait_ms
+        if self.early_close and self.all_clients_waiting is not None and self.all_clients_waiting():
+            # Every active client has already submitted, so no request can
+            # join this window: close it at the last member's arrival.
+            batch_ready_ms = min(
+                batch_ready_ms, max(request.arrival_time for request in batch)
+            )
         batch_token_cost = sum(request.verifier_token_cost for request in batch)
         # CAPACITY_AWARE_FRAMEWORK_CODEX_IMPLEMENTATION.md Section 6.3: this
         # reads the flag set by the pop_batch() call that produced `batch`

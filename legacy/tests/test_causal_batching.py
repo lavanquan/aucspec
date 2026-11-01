@@ -96,3 +96,26 @@ def test_client_exit_wakes_batcher():
         return meta
 
     assert asyncio.run(go()).batch_size == 1
+
+
+def _single(early_close: bool):
+    async def go():
+        batcher = VerificationBatcher(_Target(), max_batch_size=8, batch_wait_ms=150.0,
+                                      verify_token_budget=100, service_time_model="batch_wall")
+        batcher.arrival_lower_bound = lambda: float("inf")
+        batcher.early_close = early_close
+        batcher.all_clients_waiting = lambda: True
+        await batcher.start()
+        m, _ = await batcher.submit(0, [1, 2], _draft(0), 10, server_arrival_ms=20.0)
+        await batcher.close()
+        return m
+
+    return asyncio.run(go())
+
+
+def test_window_waits_full_batch_wait_by_default():
+    assert _single(False).batch_start_ms == pytest.approx(170.0)
+
+
+def test_early_close_when_all_clients_waiting():
+    assert _single(True).batch_start_ms == pytest.approx(20.0)

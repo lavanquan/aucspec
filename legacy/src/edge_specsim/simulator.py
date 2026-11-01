@@ -178,6 +178,8 @@ class EdgeSpecSimulator:
         self.causal_batching = bool(batching.get("causal_batching", False))
         if self.causal_batching:
             self.verifier.arrival_lower_bound = self._next_arrival_lower_bound
+        self.verifier.early_close = bool(batching.get("early_close_when_all_waiting", False))
+        self.verifier.all_clients_waiting = self._all_clients_waiting
         proposal_distribution_payload = (
             "delta_proposal" if self.sampling_temperature <= 0.0 else "full_vocab_logprobs"
         )
@@ -639,6 +641,12 @@ class EdgeSpecSimulator:
             and client.virtual_time_ms >= self.measurement_end_ms
         )
 
+    def _all_clients_waiting(self) -> bool:
+        return all(
+            client.client_id in self._done_clients or client.client_id in self._awaiting_verify
+            for client in self.clients
+        )
+
     def _next_arrival_lower_bound(self) -> float:
         """A client that is not waiting on the verifier will next arrive at
         the server no earlier than its current virtual time."""
@@ -760,6 +768,8 @@ class EdgeSpecSimulator:
             measured_wall_latency_ms=draft_wall_latency_ms,
             fixed_latency_ms=client.draft_fixed_latency_ms,
             speed_multiplier=client.draft_speed_multiplier,
+            draft_tokens=gamma,
+            draft_tokens_per_second=client.draft_tokens_per_second,
         )
         draft_wait_ms = draft_queue_wait_ms(
             measured_gpu_latency_ms=draft.latency_ms,
