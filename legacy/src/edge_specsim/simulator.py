@@ -167,6 +167,12 @@ class EdgeSpecSimulator:
         if self.verifier.theta_f_signal not in {"none", "measured", "fixed"}:
             raise ValueError("verification_batching.theta_f_signal must be none, measured or fixed")
         self.verifier.theta_f_fixed_ms = float(batching.get("theta_f_fixed_ms", 0.0))
+        self.verifier.server_queue.capacity_work_conserving = bool(
+            batching.get("capacity_work_conserving", False)
+        )
+        self.verifier.server_queue.capacity_scheduler_theta_f = bool(
+            batching.get("capacity_scheduler_theta_f", True)
+        )
         self._awaiting_verify: set[int] = set()
         self._done_clients: set[int] = set()
         self.causal_batching = bool(batching.get("causal_batching", False))

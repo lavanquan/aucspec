@@ -98,6 +98,13 @@ class VerificationQueue:
     random_seed: int = 0
     _rng: random.Random = field(init=False, repr=False)
     last_batch_forced_service: bool = False
+    # capacity_knapsack variants (2026-11-01). Section 6.2 as written lets
+    # the DP pick an empty batch when every v_i <= 0; with a real theta_f
+    # this starves the verifier (Q_s spiral). "work_conserving" instead
+    # always serves a full batch ranked by v_i; "scheduler_theta_f=False"
+    # drops the Q_s*theta_f term from v_i (theta_f then only prices gamma).
+    capacity_work_conserving: bool = False
+    capacity_scheduler_theta_f: bool = True
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.random_seed)
@@ -199,12 +206,23 @@ class VerificationQueue:
             # the empty selection (value 0.0) over any negative-value pick,
             # so "allow an empty batch when every value is non-positive"
             # falls out of the existing DP structure with no extra code.
-            selected = self._select_knapsack(
-                eligible,
-                max_batch_size,
-                verify_token_budget,
-                value_fn=lambda request: request.capacity_dpp_value,
-            )
+            if self.capacity_scheduler_theta_f:
+                value_fn = lambda request: request.capacity_dpp_value
+            else:
+                value_fn = lambda request: (
+                    request.service_weight * request.expected_useful_tokens
+                )
+            if self.capacity_work_conserving:
+                selected = self._select_ranked_by_value(
+                    eligible, max_batch_size, verify_token_budget, value_fn
+                )
+            else:
+                selected = self._select_knapsack(
+                    eligible,
+                    max_batch_size,
+                    verify_token_budget,
+                    value_fn=value_fn,
+                )
         else:
             raise ValueError(
                 "verification_batching.scheduler must be one of: "
@@ -317,6 +335,32 @@ class VerificationQueue:
             if total_cost + request_cost <= verify_token_budget:
                 selected.append(request)
                 total_cost += request_cost
+        return selected
+
+    @staticmethod
+    def _select_ranked_by_value(
+        eligible: list[VerificationRequest],
+        max_batch_size: int,
+        verify_token_budget: int,
+        value_fn,
+    ) -> list[VerificationRequest]:
+        """Work-conserving: fill the batch in descending v_i (ties: FCFS)
+        while it fits the token budget; never returns empty."""
+        order = sorted(
+            range(len(eligible)),
+            key=lambda i: (-value_fn(eligible[i]), eligible[i].arrival_time, i),
+        )
+        budget = max(1, verify_token_budget)
+        selected: list[VerificationRequest] = []
+        used = 0
+        for i in order:
+            if len(selected) >= max(1, max_batch_size):
+                break
+            cost = eligible[i].verifier_token_cost
+            if used + cost > budget and selected:
+                continue
+            selected.append(eligible[i])
+            used += cost
         return selected
 
     @classmethod
