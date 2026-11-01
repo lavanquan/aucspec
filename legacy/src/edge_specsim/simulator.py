@@ -163,6 +163,10 @@ class EdgeSpecSimulator:
             target_replication_factor=target_replication_factor,
             service_time_model=str(batching.get("service_time_model", "per_request_average")),
         )
+        self.verifier.theta_f_signal = str(batching.get("theta_f_signal", "none")).lower()
+        if self.verifier.theta_f_signal not in {"none", "measured", "fixed"}:
+            raise ValueError("verification_batching.theta_f_signal must be none, measured or fixed")
+        self.verifier.theta_f_fixed_ms = float(batching.get("theta_f_fixed_ms", 0.0))
         self._awaiting_verify: set[int] = set()
         self._done_clients: set[int] = set()
         self.causal_batching = bool(batching.get("causal_batching", False))

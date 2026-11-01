@@ -81,6 +81,14 @@ class VerificationBatcher:
         # their (real) draft step are left out even when their virtual
         # arrival is earlier than the cutoff.
         self.arrival_lower_bound = None
+        # theta_f handed to the controller when there is no roofline model.
+        # "none" (default, all runs before 2026-11-01): 0.0, so the
+        # Q_s * theta_f price term is always zero. "measured": EMA of the
+        # per-batch service time / verifier tokens. "fixed": theta_f_fixed.
+        self.theta_f_signal = "none"
+        self.theta_f_fixed_ms = 0.0
+        self.theta_f_ema_weight = 0.1
+        self._theta_f_ema: float | None = None
 
     def notify(self) -> None:
         self.queue.put_nowait(_WAKE)
@@ -177,7 +185,13 @@ class VerificationBatcher:
         incoming_requests: int = 1,
     ) -> tuple[int, str, float]:
         if self.roofline_budget_model is None:
-            return self.verify_token_budget, "memory_bound", 0.0
+            if self.theta_f_signal == "fixed":
+                theta = self.theta_f_fixed_ms
+            elif self.theta_f_signal == "measured":
+                theta = self._theta_f_ema or 0.0
+            else:
+                theta = 0.0
+            return self.verify_token_budget, "memory_bound", float(theta)
         eligible = self.server_queue.eligible_requests(self.batch_wait_ms)
         profiled_batch_size = min(
             self.max_batch_size,
@@ -344,6 +358,12 @@ class VerificationBatcher:
                 if batch_token_cost > 0
                 else 0.0
             )
+            if batch_token_cost > 0:
+                w = self.theta_f_ema_weight
+                self._theta_f_ema = (
+                    theta_f_ms_per_token if self._theta_f_ema is None
+                    else (1.0 - w) * self._theta_f_ema + w * theta_f_ms_per_token
+                )
         else:
             profiled_context_length = max(
                 1,
