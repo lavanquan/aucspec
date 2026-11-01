@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import asyncio
 
 from .models import DraftResult, VerificationResult
@@ -104,7 +106,9 @@ class VerificationBatcher:
         if len(self.server_queue.eligible_requests(self.batch_wait_ms)) >= self.max_batch_size:
             return False
         cutoff_ms = self.server_queue.waiting[0].arrival_time + self.batch_wait_ms
-        return self.arrival_lower_bound() <= cutoff_ms
+        bound = self.arrival_lower_bound()
+        # inf means no client can submit again (all waiting or done)
+        return not math.isinf(bound) and bound <= cutoff_ms
 
     async def _await_causal_arrivals(self) -> bool:
         """Block until no unsubmitted request can land inside the current
@@ -312,7 +316,11 @@ class VerificationBatcher:
         effective_budget: int,
     ) -> None:
         batch_ready_ms = batch[0].arrival_time + self.batch_wait_ms
-        if self.early_close and self.all_clients_waiting is not None and self.all_clients_waiting():
+        if math.isinf(self.batch_wait_ms):
+            # barrier_sync (GoodSpeed-style synchronous rounds): the causal
+            # gate held the batch until every active client submitted.
+            batch_ready_ms = max(request.arrival_time for request in batch)
+        elif self.early_close and self.all_clients_waiting is not None and self.all_clients_waiting():
             # Every active client has already submitted, so no request can
             # join this window: close it at the last member's arrival.
             batch_ready_ms = min(

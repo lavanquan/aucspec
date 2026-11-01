@@ -119,3 +119,28 @@ def test_window_waits_full_batch_wait_by_default():
 
 def test_early_close_when_all_clients_waiting():
     assert _single(True).batch_start_ms == pytest.approx(20.0)
+
+
+def test_barrier_waits_for_every_client_without_time_cap():
+    async def go():
+        batcher = VerificationBatcher(_Target(), max_batch_size=8, batch_wait_ms=float("inf"),
+                                      verify_token_budget=100, service_time_model="batch_wall")
+        state = {"drafting": True}
+        batcher.arrival_lower_bound = lambda: 50.0 if state["drafting"] else float("inf")
+        await batcher.start()
+
+        async def early():
+            return await batcher.submit(0, [1, 2], _draft(0), 10, server_arrival_ms=0.0)
+
+        async def late():
+            await asyncio.sleep(0.05)
+            state["drafting"] = False
+            return await batcher.submit(1, [1, 2], _draft(1), 10, server_arrival_ms=900.0)
+
+        (m0, _), (m1, _) = await asyncio.gather(early(), late())
+        await batcher.close()
+        return m0, m1
+
+    m0, m1 = asyncio.run(go())
+    assert m0.batch_id == m1.batch_id and m0.batch_size == 2
+    assert m0.batch_start_ms == pytest.approx(900.0)

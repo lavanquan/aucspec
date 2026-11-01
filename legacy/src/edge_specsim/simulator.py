@@ -179,6 +179,13 @@ class EdgeSpecSimulator:
         if self.causal_batching:
             self.verifier.arrival_lower_bound = self._next_arrival_lower_bound
         self.verifier.early_close = bool(batching.get("early_close_when_all_waiting", False))
+        self.barrier_sync = bool(batching.get("barrier_sync", False))
+        if self.barrier_sync:
+            if not self.causal_batching:
+                raise ValueError("verification_batching.barrier_sync requires causal_batching: true")
+            # no time window: the causal gate waits until every active
+            # client has submitted, then one batch verifies all of them.
+            self.verifier.batch_wait_ms = float("inf")
         self.verifier.all_clients_waiting = self._all_clients_waiting
         proposal_distribution_payload = (
             "delta_proposal" if self.sampling_temperature <= 0.0 else "full_vocab_logprobs"
