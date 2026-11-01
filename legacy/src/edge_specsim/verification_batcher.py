@@ -331,8 +331,8 @@ class VerificationBatcher:
     ) -> None:
         batch_ready_ms = batch[0].arrival_time + self.batch_wait_ms
         if self.dispatch_mode == "continuous":
-            # served as soon as the verifier is free; start = max(ready, free)
-            batch_ready_ms = min(request.arrival_time for request in batch)
+            # every member has arrived; start = max(ready, verifier free)
+            batch_ready_ms = max(request.arrival_time for request in batch)
         elif math.isinf(self.batch_wait_ms):
             # barrier_sync (GoodSpeed-style synchronous rounds): the causal
             # gate held the batch until every active client submitted.

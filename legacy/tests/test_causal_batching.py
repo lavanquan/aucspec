@@ -179,3 +179,6 @@ def test_continuous_busy_server_takes_all_arrived_by_free_time():
     m0, m1, m2 = _continuous(500.0, [0.0, 300.0, 700.0])
     assert m0.batch_id == m1.batch_id != m2.batch_id
     assert m0.batch_start_ms == pytest.approx(500.0)
+    # the simulator asserts batch_ready >= every member's server arrival
+    assert m0.batch_ready_ms >= 300.0 - 1e-6
+    assert m2.batch_ready_ms >= 700.0 - 1e-6
