@@ -41,6 +41,9 @@ def main() -> None:
     p.add_argument("--cells", default=None, help="x:n pairs, e.g. 4.5:22,6:5; overrides --x/--n")
     p.add_argument("--V", default=None, help="comma list of controller V values (default: config)")
     p.add_argument("--gamma-choices", default=None, help="comma list, e.g. 0,1,2,3,4,5,6,7,8")
+    p.add_argument("--set", action="append", default=[],
+                   help="dotted config override, e.g. controller.device_service_accounting=spread")
+    p.add_argument("--tag", default="", help="extra label for output files")
     p.add_argument("--measurement-seconds", type=float, default=60.0)
     p.add_argument("--warmup-seconds", type=float, default=15.0)
     p.add_argument("--out-dir", default="results/v2_smoke")
@@ -51,7 +54,16 @@ def main() -> None:
     if args.gamma_choices:
         base["controller"]["gamma_choices"] = [int(v) for v in args.gamma_choices.split(",")]
         base["simulation"]["gamma_max"] = max(base["controller"]["gamma_choices"])
-    g_tag = f"_g{max(base['controller']['gamma_choices'])}" if args.gamma_choices else ""
+    for item in args.set:
+        key, value = item.split("=", 1)
+        node = base
+        *parents, leaf = key.split(".")
+        for k in parents:
+            node = node.setdefault(k, {})
+        node[leaf] = yaml.safe_load(value)
+    g_tag = (f"_{args.tag}" if args.tag else "") + (
+        f"_g{max(base['controller']['gamma_choices'])}" if args.gamma_choices else ""
+    )
     cells = (
         [(float(c.split(":")[0]), int(c.split(":")[1])) for c in args.cells.split(",")]
         if args.cells else [(args.x, int(v)) for v in args.n.split(",")]

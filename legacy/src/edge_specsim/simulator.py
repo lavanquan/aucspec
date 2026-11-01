@@ -193,6 +193,11 @@ class EdgeSpecSimulator:
             proposal_vocab_size=self.target.vocab_size,
             known_alpha_profile=load_known_alpha_profile(controller_cfg),
         )
+        self.controller.device_service_accounting = str(
+            controller_cfg.get("device_service_accounting", "lumped")
+        ).lower()
+        if self.controller.device_service_accounting not in {"lumped", "spread"}:
+            raise ValueError("controller.device_service_accounting must be lumped or spread")
         self.records: list[dict[str, object]] = []
         self.detailed_log = detailed_log
         self.total_rounds = 0

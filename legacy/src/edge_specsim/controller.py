@@ -126,6 +126,8 @@ class OnlineController:
         self._slot_state: dict[int, tuple[int, float, int]] = {}
         self._server_slot_state: tuple[int, float, float] | None = None
         self._device_slot_state: dict[int, tuple[int, float, float]] = {}
+        # "lumped" | "spread", see observe_device_service
+        self.device_service_accounting = "lumped"
         self._seen_server_batches: set[int] = set()
         self.fixed_slo_ms = float(fixed_slo_ms)
         self.gelato_v = float(V) if gelato_v is None else float(gelato_v)
@@ -848,25 +850,45 @@ class OnlineController:
         slot_index = self.slot_index(edge_finish_ms)
         slot_budget_ms = self.slot_ms
         state = self._device_slot_state.get(client_id)
+        device_round_service_ms = max(0, int(gamma)) * (
+            max(0.0, float(tau_d_ms)) + max(0.0, float(kappa_over_r_ms))
+        )
+        # "lumped" (default; every run before 2026-11-01) charges the whole
+        # round to the slot it finishes in, so one gamma=8 draft of ~240 ms
+        # "overflows" a 100 ms slot and Q_i spikes although the device is
+        # never more than 100% busy; the next round then picks gamma=0.
+        # "spread" charges each slot only the part of
+        # [edge_finish - service, edge_finish] it contains.
+        spread = self.device_service_accounting == "spread" and device_round_service_ms > 0.0
+        start_ms = float(edge_finish_ms) - device_round_service_ms
+        first_slot = min(self.slot_index(start_ms), slot_index) if spread else slot_index
         if state is None:
-            current_slot = slot_index
+            current_slot = first_slot
             slot_base_queue = 0.0
             slot_service_ms = 0.0
         else:
             current_slot, slot_base_queue, slot_service_ms = state
 
-        if slot_index != current_slot:
-            finalized_queue = max(0.0, slot_base_queue + slot_service_ms - slot_budget_ms)
-            for _ in range(current_slot + 1, slot_index):
-                finalized_queue = max(0.0, finalized_queue - slot_budget_ms)
-            current_slot = slot_index
-            slot_base_queue = finalized_queue
-            slot_service_ms = 0.0
+        def advance_to(j: int) -> None:
+            nonlocal current_slot, slot_base_queue, slot_service_ms
+            if j <= current_slot:
+                return
+            queue = max(0.0, slot_base_queue + slot_service_ms - slot_budget_ms)
+            for _ in range(current_slot + 1, j):
+                queue = max(0.0, queue - slot_budget_ms)
+            current_slot, slot_base_queue, slot_service_ms = j, queue, 0.0
 
-        device_round_service_ms = max(0, int(gamma)) * (
-            max(0.0, float(tau_d_ms)) + max(0.0, float(kappa_over_r_ms))
-        )
-        slot_service_ms += device_round_service_ms
+        if spread:
+            for j in range(first_slot, slot_index + 1):
+                lo = max(start_ms, j * self.slot_ms)
+                hi = min(float(edge_finish_ms), (j + 1) * self.slot_ms)
+                advance_to(j)
+                # a part falling in an already-closed slot stays in the
+                # current one (cannot happen for one sequential device)
+                slot_service_ms += max(0.0, hi - lo)
+        else:
+            advance_to(slot_index)
+            slot_service_ms += device_round_service_ms
         device_queue = max(0.0, slot_base_queue + slot_service_ms - slot_budget_ms)
         self._device_slot_state[client_id] = (current_slot, slot_base_queue, slot_service_ms)
         return device_queue
