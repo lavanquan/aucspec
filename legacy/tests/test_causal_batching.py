@@ -144,3 +144,38 @@ def test_barrier_waits_for_every_client_without_time_cap():
     m0, m1 = asyncio.run(go())
     assert m0.batch_id == m1.batch_id and m0.batch_size == 2
     assert m0.batch_start_ms == pytest.approx(900.0)
+
+
+def _continuous(server_free_ms: float, arrivals: list[float]):
+    async def go():
+        batcher = VerificationBatcher(_Target(), max_batch_size=8, batch_wait_ms=150.0,
+                                      verify_token_budget=100, service_time_model="batch_wall")
+        batcher.dispatch_mode = "continuous"
+        batcher.server_available_at_ms = server_free_ms
+        pending = {"n": len(arrivals)}
+        batcher.arrival_lower_bound = lambda: (
+            min(arrivals[len(arrivals) - pending["n"]:]) if pending["n"] else float("inf")
+        )
+        await batcher.start()
+
+        async def one(cid, t):
+            await asyncio.sleep(0.01 * cid)
+            pending["n"] -= 1
+            return await batcher.submit(cid, [1, 2], _draft(cid), 10, server_arrival_ms=t)
+
+        out = await asyncio.gather(*(one(i, t) for i, t in enumerate(arrivals)))
+        await batcher.close()
+        return [m for m, _ in out]
+
+    return asyncio.run(go())
+
+
+def test_continuous_idle_server_starts_immediately():
+    (m,) = _continuous(0.0, [20.0])
+    assert m.batch_start_ms == pytest.approx(20.0)
+
+
+def test_continuous_busy_server_takes_all_arrived_by_free_time():
+    m0, m1, m2 = _continuous(500.0, [0.0, 300.0, 700.0])
+    assert m0.batch_id == m1.batch_id != m2.batch_id
+    assert m0.batch_start_ms == pytest.approx(500.0)

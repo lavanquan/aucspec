@@ -87,6 +87,8 @@ class VerificationBatcher:
         # batch window closes at the last member's arrival instead of
         # first arrival + batch_wait_ms. Off by default.
         self.early_close = False
+        # dispatch_mode (2026-11-01): "window" (default) or "continuous".
+        self.dispatch_mode = "window"
         self.all_clients_waiting = None
         # theta_f handed to the controller when there is no roofline model.
         # "none" (default, all runs before 2026-11-01): 0.0, so the
@@ -100,12 +102,24 @@ class VerificationBatcher:
     def notify(self) -> None:
         self.queue.put_nowait(_WAKE)
 
+    def _window_ms(self, first_arrival_ms: float | None = None) -> float:
+        """Batch window measured from the oldest waiting request. In
+        "continuous" dispatch there is no fixed window: the batch takes
+        every request that arrived by the time the verifier is free."""
+        if self.dispatch_mode != "continuous":
+            return self.batch_wait_ms
+        if first_arrival_ms is None:
+            if not self.server_queue.waiting:
+                return 0.0
+            first_arrival_ms = self.server_queue.waiting[0].arrival_time
+        return max(0.0, self.server_available_at_ms - first_arrival_ms)
+
     def _causally_blocked(self) -> bool:
         if self.arrival_lower_bound is None or not self.server_queue:
             return False
-        if len(self.server_queue.eligible_requests(self.batch_wait_ms)) >= self.max_batch_size:
+        if len(self.server_queue.eligible_requests(self._window_ms())) >= self.max_batch_size:
             return False
-        cutoff_ms = self.server_queue.waiting[0].arrival_time + self.batch_wait_ms
+        cutoff_ms = self.server_queue.waiting[0].arrival_time + self._window_ms()
         bound = self.arrival_lower_bound()
         # inf means no client can submit again (all waiting or done)
         return not math.isinf(bound) and bound <= cutoff_ms
@@ -201,7 +215,7 @@ class VerificationBatcher:
             else:
                 theta = 0.0
             return self.verify_token_budget, "memory_bound", float(theta)
-        eligible = self.server_queue.eligible_requests(self.batch_wait_ms)
+        eligible = self.server_queue.eligible_requests(self._window_ms())
         profiled_batch_size = min(
             self.max_batch_size,
             max(1, len(eligible) + max(0, int(incoming_requests))),
@@ -236,7 +250,7 @@ class VerificationBatcher:
                         self.server_queue.pop_batch(
                             scheduler_name=self.scheduler_name,
                             max_batch_size=self.max_batch_size,
-                            batch_wait_ms=self.batch_wait_ms,
+                            batch_wait_ms=self._window_ms(),
                             verify_token_budget=effective_budget,
                             utility_lambda=self.utility_lambda,
                         ),
@@ -253,11 +267,11 @@ class VerificationBatcher:
                 batch = self.server_queue.pop_batch(
                     scheduler_name=self.scheduler_name,
                     max_batch_size=self.max_batch_size,
-                    batch_wait_ms=self.batch_wait_ms,
+                    batch_wait_ms=self._window_ms(),
                     verify_token_budget=effective_budget,
                     utility_lambda=self.utility_lambda,
                 )
-                cutoff_ms = batch[0].arrival_time + self.batch_wait_ms
+                cutoff_ms = batch[0].arrival_time + self._window_ms(batch[0].arrival_time)
                 if len(batch) < self.max_batch_size and not self.server_queue.has_request_past_cutoff(
                     cutoff_ms
                 ):
@@ -268,7 +282,7 @@ class VerificationBatcher:
                     batch = self.server_queue.pop_batch(
                         scheduler_name=self.scheduler_name,
                         max_batch_size=self.max_batch_size,
-                        batch_wait_ms=self.batch_wait_ms,
+                        batch_wait_ms=self._window_ms(),
                         verify_token_budget=effective_budget,
                         utility_lambda=self.utility_lambda,
                     )
@@ -290,7 +304,7 @@ class VerificationBatcher:
     def _effective_verify_token_budget(self) -> int:
         if self.roofline_budget_model is None:
             return self.verify_token_budget
-        eligible = self.server_queue.eligible_requests(self.batch_wait_ms)
+        eligible = self.server_queue.eligible_requests(self._window_ms())
         if not eligible:
             return self.verify_token_budget
         profiled_batch_size = min(self.max_batch_size, len(eligible))
@@ -316,7 +330,10 @@ class VerificationBatcher:
         effective_budget: int,
     ) -> None:
         batch_ready_ms = batch[0].arrival_time + self.batch_wait_ms
-        if math.isinf(self.batch_wait_ms):
+        if self.dispatch_mode == "continuous":
+            # served as soon as the verifier is free; start = max(ready, free)
+            batch_ready_ms = min(request.arrival_time for request in batch)
+        elif math.isinf(self.batch_wait_ms):
             # barrier_sync (GoodSpeed-style synchronous rounds): the causal
             # gate held the batch until every active client submitted.
             batch_ready_ms = max(request.arrival_time for request in batch)

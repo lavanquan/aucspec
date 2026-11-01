@@ -179,6 +179,9 @@ class EdgeSpecSimulator:
         if self.causal_batching:
             self.verifier.arrival_lower_bound = self._next_arrival_lower_bound
         self.verifier.early_close = bool(batching.get("early_close_when_all_waiting", False))
+        self.verifier.dispatch_mode = str(batching.get("dispatch_mode", "window")).lower()
+        if self.verifier.dispatch_mode not in {"window", "continuous"}:
+            raise ValueError("verification_batching.dispatch_mode must be window or continuous")
         self.barrier_sync = bool(batching.get("barrier_sync", False))
         if self.barrier_sync:
             if not self.causal_batching:
