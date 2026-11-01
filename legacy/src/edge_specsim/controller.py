@@ -126,6 +126,7 @@ class OnlineController:
         self._slot_state: dict[int, tuple[int, float, int]] = {}
         self._server_slot_state: tuple[int, float, float] | None = None
         self._device_slot_state: dict[int, tuple[int, float, float]] = {}
+        self.last_decision_terms: dict[str, float] = {}
         # "lumped" | "spread", see observe_device_service
         self.device_service_accounting = "lumped"
         self._seen_server_batches: set[int] = set()
@@ -472,6 +473,16 @@ class OnlineController:
         benefit = (self.V + z_i) * phi_hat
         verifier_cost = q_s * self.current_verifier_theta_f_ms_per_token * (gamma + 1)
         device_cost = q_i * gamma * self._capacity_dpp_device_cost_per_token_ms(client)
+        if gamma == max(self.gamma_choices):
+            # diagnostic only: the three terms of S_i(gamma_max) at decision time
+            self.last_decision_terms = {
+                "dec_benefit_gmax": float(benefit),
+                "dec_verifier_cost_gmax": float(verifier_cost),
+                "dec_device_cost_gmax": float(device_cost),
+                "dec_q_s": float(q_s), "dec_q_i": float(q_i), "dec_z_i": float(z_i),
+                "dec_theta_f": float(self.current_verifier_theta_f_ms_per_token),
+                "dec_device_cost_per_token_ms": float(self._capacity_dpp_device_cost_per_token_ms(client)),
+            }
         return float(benefit - verifier_cost - device_cost)
 
     @staticmethod
@@ -588,6 +599,11 @@ class OnlineController:
             return 0
         alpha = self._scalar_acceptance(client, use_ucb=False)
         c_value = self._goodspeed_cost_ratio(client)
+        self.last_decision_terms = {
+            "dec_c_value": float(c_value), "dec_alpha": float(alpha),
+            "dec_q_s": float(self.server_queue), "dec_q_i": float(client.device_queue),
+            "dec_theta_f": float(self.current_verifier_theta_f_ms_per_token),
+        }
         gamma = paper_index_gamma(alpha_hat=alpha, c_value=c_value, gamma_max=max(self.gamma_choices))
         feasible = [choice for choice in self.gamma_choices if choice <= gamma]
         return feasible[-1] if feasible else 0

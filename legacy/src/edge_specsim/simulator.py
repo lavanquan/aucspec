@@ -689,7 +689,9 @@ class EdgeSpecSimulator:
         gamma_rate_signal_mbps = self.controller.estimated_uplink_rate_mbps(client)
         gamma_rate_signal_age_rounds = self.controller.uplink_rate_signal_age_rounds(client)
         server_queue_before = self.controller.server_queue
+        self.controller.last_decision_terms = {}
         selected_gamma = self.controller.choose_gamma(client, self.total_rounds)
+        decision_terms = dict(self.controller.last_decision_terms)
         gamma = min(selected_gamma, max(0, remaining - 1))
         client.gamma = gamma
         worker = self.workers[client.client_id % len(self.workers)]
@@ -950,6 +952,7 @@ class EdgeSpecSimulator:
             "alpha_failure_events": client.alpha_failure_events,
             "z_queue": client.z_queue,
             "device_queue": client.device_queue,
+            **decision_terms,
             "server_queue": self.controller.server_queue,
             "lambda_price": lambda_price,
             "rtt_ms": client.rtt_ms,
@@ -1058,7 +1061,9 @@ class EdgeSpecSimulator:
         artifacts_dir = output.parent / f"{output_stem}_artifacts"
         artifacts_dir.mkdir(parents=True, exist_ok=True)
         with output.open("w", newline="", encoding="utf-8") as handle:
-            writer = csv.DictWriter(handle, fieldnames=list(self.records[0].keys()))
+            # union of keys: decision-term diagnostics are absent on some rows
+            fieldnames = list(dict.fromkeys(k for record in self.records for k in record))
+            writer = csv.DictWriter(handle, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(self.records)
         df = pd.DataFrame(self.records)
