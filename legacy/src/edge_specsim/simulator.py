@@ -198,6 +198,11 @@ class EdgeSpecSimulator:
         ).lower()
         if self.controller.device_service_accounting not in {"lumped", "spread"}:
             raise ValueError("controller.device_service_accounting must be lumped or spread")
+        gs_cfg = controller_cfg.get("goodspeed_orig", {}) or {}
+        self.controller.goodspeed_budget_tokens = int(gs_cfg.get("budget_tokens", 24))
+        self.controller.goodspeed_beta = float(gs_cfg.get("beta", 0.5))
+        self.controller.goodspeed_eta = float(gs_cfg.get("eta", 0.1))
+        self.controller.goodspeed_alpha0 = float(gs_cfg.get("alpha0", 0.5))
         self.records: list[dict[str, object]] = []
         self.detailed_log = detailed_log
         self.total_rounds = 0
@@ -690,6 +695,7 @@ class EdgeSpecSimulator:
         gamma_rate_signal_age_rounds = self.controller.uplink_rate_signal_age_rounds(client)
         server_queue_before = self.controller.server_queue
         self.controller.last_decision_terms = {}
+        self.controller.goodspeed_population = [c.client_id for c in self._active_clients()]
         selected_gamma = self.controller.choose_gamma(client, self.total_rounds)
         decision_terms = dict(self.controller.last_decision_terms)
         gamma = min(selected_gamma, max(0, remaining - 1))

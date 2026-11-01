@@ -127,6 +127,14 @@ class OnlineController:
         self._server_slot_state: tuple[int, float, float] | None = None
         self._device_slot_state: dict[int, tuple[int, float, float]] = {}
         self.last_decision_terms: dict[str, float] = {}
+        # goodspeed_orig state and parameters (set by the simulator)
+        self.goodspeed_budget_tokens = 24
+        self.goodspeed_beta = 0.5
+        self.goodspeed_eta = 0.1
+        self.goodspeed_alpha0 = 0.5
+        self.goodspeed_population: list[int] = []
+        self._gs_alpha: dict[int, float] = {}
+        self._gs_goodput: dict[int, float] = {}
         # "lumped" | "spread", see observe_device_service
         self.device_service_accounting = "lumped"
         self._seen_server_batches: set[int] = set()
@@ -159,6 +167,12 @@ class OnlineController:
             "adaptive_ucb",
             "adaptive_index",
             "goodspeed",
+            # GoodSpeed as published (arXiv 2512.09963, Alg. 1): per round,
+            # max sum_i S_i-weighted log-utility gradient
+            #   sum_i x_hat_i(S_i) / X_i^beta  s.t. sum_i S_i <= C,
+            # x_hat_i(S) = (1 - a_i^(S+1)) / (1 - a_i), EMA a_i (eta) and EMA
+            # per-round goodput X_i (beta). No virtual queues.
+            "goodspeed_orig",
             "turbospec",
             "fixed_slo",
             "gelato",
@@ -179,7 +193,7 @@ class OnlineController:
                 "controller.policy must be one of: "
                 "target_only, fixed_gamma, load_only, random_gamma, oracle_gamma, "
                 "adaptive_queue, adaptive_ucb, adaptive_index, "
-                "goodspeed, turbospec, fixed_slo, gelato, capacity_dpp, "
+                "goodspeed, goodspeed_orig, turbospec, fixed_slo, gelato, capacity_dpp, "
                 "capacity_dpp_known_alpha"
             )
         if self.policy == "capacity_dpp_known_alpha" and self.known_alpha_profile is None:
@@ -608,6 +622,53 @@ class OnlineController:
         feasible = [choice for choice in self.gamma_choices if choice <= gamma]
         return feasible[-1] if feasible else 0
 
+    def _goodspeed_orig_allocation(self, client_ids: list[int]) -> dict[int, int]:
+        """GOODSPEED-SCHED: integer S maximizing sum_i x_hat_i(S_i)/X_i under
+        sum_i S_i <= C, S_i <= gamma_max. x_hat_i is concave in S_i with
+        increments a_i^(S+1), so greedy marginal allocation is optimal."""
+        import heapq
+
+        gamma_max = max(self.gamma_choices)
+        alloc = {cid: 0 for cid in client_ids}
+        heap = []
+        for cid in client_ids:
+            a = min(1.0 - 1e-9, max(1e-9, self._gs_alpha.get(cid, self.goodspeed_alpha0)))
+            w = 1.0 / max(1e-9, self._gs_goodput.get(cid, 1.0))
+            if gamma_max > 0:
+                heap.append((-w * a, cid, a, w))
+        heapq.heapify(heap)
+        budget = int(self.goodspeed_budget_tokens)
+        while budget > 0 and heap:
+            _, cid, a, w = heapq.heappop(heap)
+            alloc[cid] += 1
+            budget -= 1
+            if alloc[cid] < gamma_max:
+                heapq.heappush(heap, (-w * a ** (alloc[cid] + 1), cid, a, w))
+        return alloc
+
+    def _goodspeed_orig_gamma(self, client: ClientProfile) -> int:
+        population = list(dict.fromkeys(self.goodspeed_population or [client.client_id]))
+        if client.client_id not in population:
+            population.append(client.client_id)
+        s_i = self._goodspeed_orig_allocation(population)[client.client_id]
+        feasible = [g for g in self.gamma_choices if g <= s_i]
+        self.last_decision_terms = {
+            "dec_gs_alpha": float(self._gs_alpha.get(client.client_id, self.goodspeed_alpha0)),
+            "dec_gs_goodput": float(self._gs_goodput.get(client.client_id, 1.0)),
+            "dec_gs_population": float(len(population)),
+        }
+        return feasible[-1] if feasible else 0
+
+    def observe_goodspeed_orig(self, client: ClientProfile, gamma: int, useful_tokens: int) -> None:
+        cid = client.client_id
+        beta, eta = self.goodspeed_beta, self.goodspeed_eta
+        x = float(useful_tokens)  # accepted + correction/bonus token
+        self._gs_goodput[cid] = (1.0 - beta) * self._gs_goodput.get(cid, x) + beta * x
+        if gamma > 0:
+            accepted = min(int(gamma), max(0, int(useful_tokens) - 1))
+            a_prev = self._gs_alpha.get(cid, self.goodspeed_alpha0)
+            self._gs_alpha[cid] = (1.0 - eta) * a_prev + eta * accepted / float(gamma)
+
     def _round_time_estimate_ms(self, client: ClientProfile, gamma: int) -> float:
         """Round-trip estimate used by turbospec/fixed_slo/gelato: draft +
         uplink + RTT + a compute-bound verify-latency proxy from the
@@ -737,6 +798,10 @@ class OnlineController:
             gamma = self._index_policy_gamma(client, use_ucb=True)
         elif self.policy == "goodspeed":
             gamma = self._goodspeed_gamma(client)
+        elif self.policy == "goodspeed_orig":
+            gamma = self._goodspeed_orig_gamma(client)
+            client.last_selected_gamma = gamma
+            return gamma  # the published algorithm has no forced exploration
         elif self.policy == "turbospec":
             gamma = self._turbospec_gamma(client)
         elif self.policy == "fixed_slo":
@@ -928,4 +993,6 @@ class OnlineController:
         )
         if not self.use_virtual_queues:
             client.device_queue = 0.0
+        if self.policy == "goodspeed_orig":
+            self.observe_goodspeed_orig(client, gamma, useful_tokens)
         return self.observe_completion(client, client_receive_ms, useful_tokens)

@@ -63,6 +63,14 @@ controller:
   draft_latency_weight: 0.0
   uplink_latency_weight: 0.0
   use_virtual_queues: true
+  # goodspeed_orig (GoodSpeed, arXiv 2512.09963): C = verifier tokens per
+  # pass. 43 = roofline knee a_mem / theta_f = 164.5 / 3.83 (profile 51888176),
+  # where a verify pass stops being memory-bound. beta, eta: paper's EMAs.
+  goodspeed_orig:
+    budget_tokens: 43
+    beta: 0.5
+    eta: 0.1
+    alpha0: 0.5
   learning:
     mode: bernstein_censored
     alpha_prior_success: 1.0
