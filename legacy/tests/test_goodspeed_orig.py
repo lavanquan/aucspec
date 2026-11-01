@@ -15,6 +15,7 @@ def _ctl(budget=6, gamma_max=4):
     c = OnlineController(gamma_choices=list(range(gamma_max + 1)), V=50.0, min_tps=4.5,
                          server_price_scale=0.0, policy="goodspeed_orig")
     c.goodspeed_budget_tokens = budget
+    c.goodspeed_goodput_unit = "per_round"
     return c
 
 
@@ -53,3 +54,13 @@ def test_ema_updates():
     c.observe_goodspeed_orig(client, gamma=0, useful_tokens=1)
     assert c._gs_goodput[0] == pytest.approx(2.0)
     assert c._gs_alpha[0] == pytest.approx(0.5)
+
+
+def test_per_second_goodput_penalizes_slow_rounds():
+    c = _ctl()
+    c.goodspeed_goodput_unit = "per_second"
+    c.observe_goodspeed_orig(types.SimpleNamespace(client_id=0), gamma=4, useful_tokens=5,
+                             round_seconds=0.5)
+    c.observe_goodspeed_orig(types.SimpleNamespace(client_id=1), gamma=4, useful_tokens=5,
+                             round_seconds=1.0)
+    assert c._gs_goodput[0] == pytest.approx(10.0) and c._gs_goodput[1] == pytest.approx(5.0)

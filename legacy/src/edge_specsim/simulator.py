@@ -203,6 +203,7 @@ class EdgeSpecSimulator:
         self.controller.goodspeed_beta = float(gs_cfg.get("beta", 0.5))
         self.controller.goodspeed_eta = float(gs_cfg.get("eta", 0.1))
         self.controller.goodspeed_alpha0 = float(gs_cfg.get("alpha0", 0.5))
+        self.controller.goodspeed_goodput_unit = str(gs_cfg.get("goodput_unit", "per_second"))
         self.records: list[dict[str, object]] = []
         self.detailed_log = detailed_log
         self.total_rounds = 0

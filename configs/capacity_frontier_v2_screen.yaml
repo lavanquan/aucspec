@@ -71,6 +71,7 @@ controller:
     beta: 0.5
     eta: 0.1
     alpha0: 0.5
+    goodput_unit: per_second   # tokens per second; per_round = tokens per round
   learning:
     mode: bernstein_censored
     alpha_prior_success: 1.0

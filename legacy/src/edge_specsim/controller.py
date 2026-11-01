@@ -132,6 +132,10 @@ class OnlineController:
         self.goodspeed_beta = 0.5
         self.goodspeed_eta = 0.1
         self.goodspeed_alpha0 = 0.5
+        # "per_second": x_i(t) = useful tokens / round wall time (GoodSpeed's
+        # goodput is tokens per unit time; its rounds are synchronous, ours
+        # are not). "per_round": useful tokens per round.
+        self.goodspeed_goodput_unit = "per_second"
         self.goodspeed_population: list[int] = []
         self._gs_alpha: dict[int, float] = {}
         self._gs_goodput: dict[int, float] = {}
@@ -659,10 +663,14 @@ class OnlineController:
         }
         return feasible[-1] if feasible else 0
 
-    def observe_goodspeed_orig(self, client: ClientProfile, gamma: int, useful_tokens: int) -> None:
+    def observe_goodspeed_orig(
+        self, client: ClientProfile, gamma: int, useful_tokens: int, round_seconds: float | None = None
+    ) -> None:
         cid = client.client_id
         beta, eta = self.goodspeed_beta, self.goodspeed_eta
         x = float(useful_tokens)  # accepted + correction/bonus token
+        if self.goodspeed_goodput_unit == "per_second" and round_seconds:
+            x /= max(1e-6, float(round_seconds))
         self._gs_goodput[cid] = (1.0 - beta) * self._gs_goodput.get(cid, x) + beta * x
         if gamma > 0:
             accepted = min(int(gamma), max(0, int(useful_tokens) - 1))
@@ -994,5 +1002,6 @@ class OnlineController:
         if not self.use_virtual_queues:
             client.device_queue = 0.0
         if self.policy == "goodspeed_orig":
-            self.observe_goodspeed_orig(client, gamma, useful_tokens)
+            round_seconds = max(0.0, client_receive_ms - client.virtual_start_time_ms) / 1000.0
+            self.observe_goodspeed_orig(client, gamma, useful_tokens, round_seconds)
         return self.observe_completion(client, client_receive_ms, useful_tokens)
