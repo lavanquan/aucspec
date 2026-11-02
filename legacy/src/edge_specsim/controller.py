@@ -141,6 +141,17 @@ class OnlineController:
         self._gs_goodput: dict[int, float] = {}
         # "lumped" | "spread", see observe_device_service
         self.device_service_accounting = "lumped"
+        # capacity_dpp pricing variants (defaults = original behaviour).
+        # acceptance_estimate: "ucb" (original) | "point" (alpha_hat).
+        # With the UCB near 1, phi(gamma) is ~linear in gamma, so the
+        # linear verifier price makes the argmax bang-bang (0 or gamma_max).
+        self.capacity_dpp_acceptance_estimate = "ucb"
+        # quadratic_drift_weight w: keep the drift bound's second-order
+        # term, S_i -= 0.5 * w * N * (theta_f (gamma+1))^2. With w=1 this is
+        # the Cauchy-Schwarz split (sum_i A_i)^2 <= N sum_i A_i^2 of the
+        # Q_s arrival term; it makes S_i strictly concave in gamma and
+        # shrinks gamma as N grows. 0 = original (term dropped).
+        self.capacity_dpp_quadratic_drift_weight = 0.0
         self._seen_server_batches: set[int] = set()
         self.fixed_slo_ms = float(fixed_slo_ms)
         self.gelato_v = float(V) if gelato_v is None else float(gelato_v)
@@ -491,6 +502,16 @@ class OnlineController:
         benefit = (self.V + z_i) * phi_hat
         verifier_cost = q_s * self.current_verifier_theta_f_ms_per_token * (gamma + 1)
         device_cost = q_i * gamma * self._capacity_dpp_device_cost_per_token_ms(client)
+        drift_cost = 0.0
+        if self.use_virtual_queues and self.capacity_dpp_quadratic_drift_weight > 0.0:
+            arrival_ms = self.current_verifier_theta_f_ms_per_token * (gamma + 1)
+            drift_cost = (
+                0.5
+                * self.capacity_dpp_quadratic_drift_weight
+                * max(1, self.current_active_clients)
+                * arrival_ms
+                * arrival_ms
+            )
         if gamma == max(self.gamma_choices):
             # diagnostic only: the three terms of S_i(gamma_max) at decision time
             self.last_decision_terms = {
@@ -500,8 +521,10 @@ class OnlineController:
                 "dec_q_s": float(q_s), "dec_q_i": float(q_i), "dec_z_i": float(z_i),
                 "dec_theta_f": float(self.current_verifier_theta_f_ms_per_token),
                 "dec_device_cost_per_token_ms": float(self._capacity_dpp_device_cost_per_token_ms(client)),
+                "dec_drift_cost_gmax": float(drift_cost),
+                "dec_phi_gmax": float(phi_hat),
             }
-        return float(benefit - verifier_cost - device_cost)
+        return float(benefit - verifier_cost - device_cost - drift_cost)
 
     @staticmethod
     def _normalize_known_alpha_profile(
@@ -817,7 +840,9 @@ class OnlineController:
         elif self.policy == "gelato":
             gamma = self._gelato_gamma(client)
         elif self.policy == "capacity_dpp":
-            gamma = self._capacity_dpp_gamma(client, use_ucb=True)
+            gamma = self._capacity_dpp_gamma(
+                client, use_ucb=self.capacity_dpp_acceptance_estimate == "ucb"
+            )
         elif self.policy == "capacity_dpp_known_alpha":
             gamma = self._capacity_dpp_gamma(client, use_ucb=False)
         else:

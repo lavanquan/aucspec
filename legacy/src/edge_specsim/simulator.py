@@ -220,6 +220,15 @@ class EdgeSpecSimulator:
         ).lower()
         if self.controller.device_service_accounting not in {"lumped", "spread"}:
             raise ValueError("controller.device_service_accounting must be lumped or spread")
+        dpp_cfg = controller_cfg.get("capacity_dpp", {}) or {}
+        self.controller.capacity_dpp_acceptance_estimate = str(
+            dpp_cfg.get("acceptance_estimate", "ucb")
+        ).lower()
+        if self.controller.capacity_dpp_acceptance_estimate not in {"ucb", "point"}:
+            raise ValueError("controller.capacity_dpp.acceptance_estimate must be ucb or point")
+        self.controller.capacity_dpp_quadratic_drift_weight = max(
+            0.0, float(dpp_cfg.get("quadratic_drift_weight", 0.0))
+        )
         gs_cfg = controller_cfg.get("goodspeed_orig", {}) or {}
         self.controller.goodspeed_budget_tokens = int(gs_cfg.get("budget_tokens", 24))
         self.controller.goodspeed_beta = float(gs_cfg.get("beta", 0.5))
