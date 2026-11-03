@@ -167,6 +167,17 @@ class EdgeSpecSimulator:
         if self.verifier.theta_f_signal not in {"none", "measured", "fixed"}:
             raise ValueError("verification_batching.theta_f_signal must be none, measured or fixed")
         self.verifier.theta_f_fixed_ms = float(batching.get("theta_f_fixed_ms", 0.0))
+        # Work charged to the server virtual queue Q_s per batch.
+        # "wall" (default, every run before 2026-11-03): batch_token_cost x
+        # the batch's own theta_f, which without a roofline model is the
+        # whole batch wall time / tokens (a_mem included). Under continuous
+        # dispatch the verifier is ~100% busy, so Q_s then random-walks up
+        # regardless of gamma. "theta_f": batch_token_cost x the SAME
+        # theta_f the controller prices with (theta_f_signal), i.e. only
+        # the marginal per-token work that gamma controls.
+        self.server_queue_work = str(batching.get("server_queue_work", "wall")).lower()
+        if self.server_queue_work not in {"wall", "theta_f"}:
+            raise ValueError("verification_batching.server_queue_work must be wall or theta_f")
         self.verifier.server_queue.capacity_work_conserving = bool(
             batching.get("capacity_work_conserving", False)
         )
@@ -911,7 +922,11 @@ class EdgeSpecSimulator:
         lambda_price = self.controller.observe_server_batch(
             batch_id=batch_id,
             verify_finish_ms=batch_metadata.verify_finish_ms,
-            theta_f_ms_per_token=batch_metadata.theta_f_ms_per_token,
+            theta_f_ms_per_token=(
+                self.controller.current_verifier_theta_f_ms_per_token
+                if self.server_queue_work == "theta_f"
+                else batch_metadata.theta_f_ms_per_token
+            ),
             verifier_token_cost=batch_metadata.batch_token_cost,
         )
         round_latency_ms = virtual_timing["virtual_round_latency_ms"]
