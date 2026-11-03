@@ -9,7 +9,7 @@
 #   sbatch scripts/run_selfcheck_prompt_logprobs.sh  (legacy/scripts/selfcheck_prompt_logprobs.py)
 set -x
 cd /software/projects/pawsey1257/quanla/aucspec
-module load pytorch/2.7.1-rocm6.3.3
+module load pawseyenv/2025.08 pytorch/2.7.1-rocm6.3.3  # 2026.11 stack is default since 2026-11
 
 PROJECT=/software/projects/pawsey1257/quanla/aucspec
 export PYTHONUSERBASE="$PROJECT/.pythonuserbase-rocm-vllm"
