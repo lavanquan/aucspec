@@ -83,6 +83,16 @@ class VerificationBatcher:
         # their (real) draft step are left out even when their virtual
         # arrival is earlier than the cutoff.
         self.arrival_lower_bound = None
+        # causal_release_bound (2026-11-04): between a batch resolving a
+        # client's future and that client's coroutine resuming, the
+        # simulator still counts the client as "awaiting verify", so
+        # arrival_lower_bound() ignores it and a virtually LATER request can
+        # be served first; the fast client then queues behind it (lock-step,
+        # e.g. RTT-18 ms client waiting ~80 ms behind an RTT-99 ms one). When
+        # on, a released client's next arrival is bounded below by its
+        # batch's verify_finish_ms until it submits again or exits.
+        self.causal_release_bound = False
+        self._released_bound: dict[int, float] = {}
         # early_close (2026-11-01): when all_clients_waiting() is true the
         # batch window closes at the last member's arrival instead of
         # first arrival + batch_wait_ms. Off by default.
@@ -101,6 +111,11 @@ class VerificationBatcher:
 
     def notify(self) -> None:
         self.queue.put_nowait(_WAKE)
+
+    def client_exited(self, client_id: int) -> None:
+        """The client will never submit again (done / past measurement end)."""
+        self._released_bound.pop(int(client_id), None)
+        self.notify()
 
     def _window_ms(self, first_arrival_ms: float | None = None) -> float:
         """Batch window measured from the oldest waiting request. In
@@ -121,6 +136,8 @@ class VerificationBatcher:
             return False
         cutoff_ms = self.server_queue.waiting[0].arrival_time + self._window_ms()
         bound = self.arrival_lower_bound()
+        if self.causal_release_bound and self._released_bound:
+            bound = min(bound, min(self._released_bound.values()))
         # inf means no client can submit again (all waiting or done)
         return not math.isinf(bound) and bound <= cutoff_ms
 
@@ -161,6 +178,7 @@ class VerificationBatcher:
         server_queue_price: float = 0.0,
         theta_f_ms_per_token: float = 0.0,
     ) -> tuple[VerificationBatchMetadata, VerificationResult]:
+        self._released_bound.pop(int(client_id), None)
         loop = asyncio.get_running_loop()
         future: asyncio.Future[tuple[VerificationBatchMetadata, VerificationResult]] = (
             loop.create_future()
@@ -434,4 +452,6 @@ class VerificationBatcher:
         )
         self.server_available_at_ms = batch_metadata.verify_finish_ms
         for request, result in zip(batch, results):
+            if self.causal_release_bound:
+                self._released_bound[int(request.client_id)] = batch_metadata.verify_finish_ms
             request.future.set_result((batch_metadata, result))

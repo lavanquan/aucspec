@@ -182,3 +182,62 @@ def test_continuous_busy_server_takes_all_arrived_by_free_time():
     # the simulator asserts batch_ready >= every member's server arrival
     assert m0.batch_ready_ms >= 300.0 - 1e-6
     assert m2.batch_ready_ms >= 700.0 - 1e-6
+
+
+def _lockstep(fix: bool, rounds: int = 25):
+    """Two clients, RTT 18 / 99 ms, real wall-clock verify time. Without the
+    release bound the fast client queues behind the slow one (lock-step)."""
+    import time
+
+    class _SlowTarget:
+        def verify_batch_sync(self, payload):
+            time.sleep(0.01)
+            return [
+                VerificationResult(accepted_length=0, committed_token_ids=[1], committed_text="",
+                                   target_latency_ms=44.0)
+                for _ in payload
+            ]
+
+    rtts = [18.0, 99.0]
+
+    async def go():
+        b = VerificationBatcher(_SlowTarget(), max_batch_size=8, batch_wait_ms=150.0,
+                                verify_token_budget=100, service_time_model="batch_wall")
+        b.dispatch_mode = "continuous"
+        b.causal_release_bound = fix
+        vt = {0: 0.0, 1: 0.0}
+        waiting: set[int] = set()
+        done: set[int] = set()
+
+        def lb():
+            xs = [vt[i] for i in vt if i not in waiting and i not in done]
+            return min(xs) if xs else float("inf")
+
+        b.arrival_lower_bound = lb
+        await b.start()
+        waits = {0: [], 1: []}
+
+        async def client(i):
+            for _ in range(rounds):
+                await asyncio.sleep(0.003)
+                arr = vt[i] + rtts[i] / 2
+                waiting.add(i)
+                m, _ = await b.submit(i, [1, 2], _draft(i), 10, server_arrival_ms=arr)
+                waiting.discard(i)
+                waits[i].append(m.batch_start_ms - arr)
+                vt[i] = m.verify_finish_ms + rtts[i] / 2
+            done.add(i)
+            b.client_exited(i)
+
+        await asyncio.gather(client(0), client(1))
+        await b.close()
+        return waits
+
+    return asyncio.run(go())
+
+
+def test_release_bound_removes_lockstep_wait():
+    before = _lockstep(False)[0][5:]
+    after = _lockstep(True)[0][5:]
+    assert sum(before) / len(before) > 60.0
+    assert sum(after) / len(after) < 30.0

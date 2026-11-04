@@ -175,6 +175,7 @@ class EdgeSpecSimulator:
         # regardless of gamma. "theta_f": batch_token_cost x the SAME
         # theta_f the controller prices with (theta_f_signal), i.e. only
         # the marginal per-token work that gamma controls.
+        self.verifier.causal_release_bound = bool(batching.get("causal_release_bound", False))
         self.server_queue_work = str(batching.get("server_queue_work", "wall")).lower()
         if self.server_queue_work not in {"wall", "theta_f"}:
             raise ValueError("verification_batching.server_queue_work must be wall or theta_f")
@@ -692,7 +693,11 @@ class EdgeSpecSimulator:
             await self._run_client_rounds(client)
         finally:
             self._done_clients.add(client.client_id)
-            self.verifier.notify()
+            exited = getattr(self.verifier, "client_exited", None)
+            if exited is not None:
+                exited(client.client_id)
+            else:
+                self.verifier.notify()
 
     async def _run_client_rounds(self, client: ClientProfile) -> None:
         while not self._past_measurement_end(client) and client.start_next_sample():
