@@ -152,6 +152,12 @@ class OnlineController:
         # Q_s arrival term; it makes S_i strictly concave in gamma and
         # shrinks gamma as N grows. 0 = original (term dropped).
         self.capacity_dpp_quadratic_drift_weight = 0.0
+        # z_weight w_z: weight of the interactivity queue Z_i in the
+        # Lyapunov function L = 1/2 (sum_i w_z Z_i^2 + Q_s^2 + sum_i Q_i^2).
+        # Z_i is in tokens (deficit min_tps*slot - useful) and grows by
+        # ~0.03 tokens per 100 ms slot for a client 0.3 tok/s short of x,
+        # so against V=3000 it never moves gamma. 1.0 = original.
+        self.capacity_dpp_z_weight = 1.0
         self._seen_server_batches: set[int] = set()
         self.fixed_slo_ms = float(fixed_slo_ms)
         self.gelato_v = float(V) if gelato_v is None else float(gelato_v)
@@ -478,6 +484,11 @@ class OnlineController:
         )
         return float(tau_d_ms + kappa_over_r_ms)
 
+    def capacity_dpp_weighted_z(self, client: ClientProfile) -> float:
+        if not self.use_virtual_queues:
+            return 0.0
+        return self.capacity_dpp_z_weight * client.z_queue
+
     def capacity_dpp_score(
         self,
         client: ClientProfile,
@@ -495,7 +506,7 @@ class OnlineController:
         use_virtual_queues is False, degenerating to argmax phi (i.e.
         largest gamma), which the tests check.
         """
-        z_i = client.z_queue if self.use_virtual_queues else 0.0
+        z_i = self.capacity_dpp_weighted_z(client)
         q_s = self.server_queue if self.use_virtual_queues else 0.0
         q_i = client.device_queue if self.use_virtual_queues else 0.0
         phi_hat = expected_useful_tokens_from_profile(acceptance_profile) if gamma > 0 else 1.0
@@ -598,7 +609,7 @@ class OnlineController:
             (V + Z_i) * alpha^(gamma+1)  >=  Q_s*theta_f + Q_i*(tau_d + kappa/r).
         Tested to agree with the discrete argmax under the scalar model.
         """
-        z_i = client.z_queue if self.use_virtual_queues else 0.0
+        z_i = self.capacity_dpp_weighted_z(client)
         q_s = self.server_queue if self.use_virtual_queues else 0.0
         q_i = client.device_queue if self.use_virtual_queues else 0.0
         a = min(1.0 - 1e-12, max(1e-12, float(alpha)))

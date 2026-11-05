@@ -241,6 +241,9 @@ class EdgeSpecSimulator:
         self.controller.capacity_dpp_quadratic_drift_weight = max(
             0.0, float(dpp_cfg.get("quadratic_drift_weight", 0.0))
         )
+        self.controller.capacity_dpp_z_weight = max(
+            0.0, float(dpp_cfg.get("z_weight", 1.0))
+        )
         gs_cfg = controller_cfg.get("goodspeed_orig", {}) or {}
         self.controller.goodspeed_budget_tokens = int(gs_cfg.get("budget_tokens", 24))
         self.controller.goodspeed_beta = float(gs_cfg.get("beta", 0.5))
@@ -850,7 +853,7 @@ class EdgeSpecSimulator:
             # defaults to 1.0 (no-op) unless clients.diagnostic_priority_multiplier
             # is set in config, so this does not change any prior experiment.
             weight=client.diagnostic_priority_multiplier
-            * (self.controller.V + (client.z_queue if self.controller.use_virtual_queues else 0.0)),
+            * (self.controller.V + self.controller.capacity_dpp_weighted_z(client)),
             deadline=None,
             expected_acceptance_rate=client.alpha_hat,
             expected_acceptance_profile=self.controller.decision_acceptance_profile(

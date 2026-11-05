@@ -93,3 +93,40 @@ def test_point_estimate_uses_alpha_hat():
     ctrl_ucb.server_queue = 600.0
     assert _gamma(ctrl_ucb, cl) == 4
     assert _gamma(ctrl, cl) < 4
+
+
+def _n48_state(ctrl):
+    # decision state seen at N48 with causal_release_bound (job 52141649)
+    ctrl.capacity_dpp_quadratic_drift_weight = 1.0
+    ctrl.current_verifier_theta_f_ms_per_token = 3.83
+    ctrl.current_active_clients = 48
+    ctrl.server_queue = 630.0
+
+
+def test_z_weight_default_is_original():
+    ctrl = _ctrl(V=3000.0)
+    assert ctrl.capacity_dpp_z_weight == 1.0
+    cl = _client(alpha=0.8)
+    cl.z_queue = 3.0
+    assert ctrl.capacity_dpp_weighted_z(cl) == pytest.approx(3.0)
+
+
+def test_small_deficit_cannot_move_gamma_at_unit_weight():
+    ctrl = _ctrl(V=3000.0)
+    _n48_state(ctrl)
+    cl = _client(alpha=0.8)
+    cl.z_queue = 0.0
+    g0 = _gamma(ctrl, cl)
+    cl.z_queue = 5.0  # ~15 s at 0.33 tok/s short of x
+    assert _gamma(ctrl, cl) == g0 == 0
+
+
+def test_z_weight_lets_lagging_client_speculate():
+    ctrl = _ctrl(V=3000.0)
+    _n48_state(ctrl)
+    ctrl.capacity_dpp_z_weight = 500.0
+    cl = _client(alpha=0.8)
+    cl.z_queue = 0.0
+    assert _gamma(ctrl, cl) == 0
+    cl.z_queue = 5.0
+    assert _gamma(ctrl, cl) >= 1
