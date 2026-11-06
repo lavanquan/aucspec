@@ -368,6 +368,12 @@ class VerificationBatcher:
         # interleaving pop_batch between them -- see _loop()'s call sites).
         forced_service = self.server_queue.last_batch_forced_service
         sum_capacity_value = sum(request.capacity_dpp_value for request in batch)
+        batch_start_ms = max(batch_ready_ms, self.server_available_at_ms)
+        backlog_token_cost = sum(
+            request.verifier_token_cost
+            for request in self.server_queue.waiting
+            if request.arrival_time <= batch_start_ms
+        )
         batch_metadata = VerificationBatchMetadata(
             batch_id=self.batch_counter,
             batch_size=len(batch),
@@ -383,6 +389,7 @@ class VerificationBatcher:
             verify_finish_ms=0.0,
             forced_service=forced_service,
             sum_capacity_value=sum_capacity_value,
+            backlog_token_cost=backlog_token_cost,
         )
         self.batch_counter += 1
         payload = [

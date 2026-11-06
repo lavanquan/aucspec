@@ -919,6 +919,20 @@ class OnlineController:
             slot_useful_tokens=slot_totals[slot_index],
         )
 
+    def observe_server_backlog(self, batch_id: int, backlog_ms: float) -> float:
+        """server_queue_work="backlog": Q_s is the verifier work (ms) still
+        waiting when a batch starts, i.e. the real queue, not a fluid drift
+        against a 1/theta_f capacity that ignores the per-batch overhead."""
+        if not self.use_virtual_queues:
+            self.server_queue = 0.0
+            self.server_price = 0.0
+            return self.server_price
+        if batch_id in self._seen_server_batches:
+            return self.server_price
+        self._seen_server_batches.add(batch_id)
+        self.server_queue = max(0.0, float(backlog_ms))
+        return self._refresh_server_price()
+
     def observe_server_batch(
         self,
         batch_id: int,

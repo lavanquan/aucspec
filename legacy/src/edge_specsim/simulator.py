@@ -177,8 +177,10 @@ class EdgeSpecSimulator:
         # the marginal per-token work that gamma controls.
         self.verifier.causal_release_bound = bool(batching.get("causal_release_bound", False))
         self.server_queue_work = str(batching.get("server_queue_work", "wall")).lower()
-        if self.server_queue_work not in {"wall", "theta_f"}:
-            raise ValueError("verification_batching.server_queue_work must be wall or theta_f")
+        if self.server_queue_work not in {"wall", "theta_f", "backlog"}:
+            raise ValueError(
+                "verification_batching.server_queue_work must be wall, theta_f or backlog"
+            )
         self.verifier.server_queue.capacity_work_conserving = bool(
             batching.get("capacity_work_conserving", False)
         )
@@ -937,16 +939,23 @@ class EdgeSpecSimulator:
             batch_start_ms=batch_metadata.batch_start_ms,
             verify_finish_ms=batch_metadata.verify_finish_ms,
         )
-        lambda_price = self.controller.observe_server_batch(
-            batch_id=batch_id,
-            verify_finish_ms=batch_metadata.verify_finish_ms,
-            theta_f_ms_per_token=(
-                self.controller.current_verifier_theta_f_ms_per_token
-                if self.server_queue_work == "theta_f"
-                else batch_metadata.theta_f_ms_per_token
-            ),
-            verifier_token_cost=batch_metadata.batch_token_cost,
-        )
+        if self.server_queue_work == "backlog":
+            lambda_price = self.controller.observe_server_backlog(
+                batch_id=batch_id,
+                backlog_ms=self.controller.current_verifier_theta_f_ms_per_token
+                * batch_metadata.backlog_token_cost,
+            )
+        else:
+            lambda_price = self.controller.observe_server_batch(
+                batch_id=batch_id,
+                verify_finish_ms=batch_metadata.verify_finish_ms,
+                theta_f_ms_per_token=(
+                    self.controller.current_verifier_theta_f_ms_per_token
+                    if self.server_queue_work == "theta_f"
+                    else batch_metadata.theta_f_ms_per_token
+                ),
+                verifier_token_cost=batch_metadata.batch_token_cost,
+            )
         round_latency_ms = virtual_timing["virtual_round_latency_ms"]
         edge_finish_ms = virtual_timing["uplink_start_ms"] + upload_ms
         tau_d_ms = self.controller._draft_time_ms_per_token(client)

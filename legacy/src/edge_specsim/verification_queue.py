@@ -90,6 +90,9 @@ class VerificationBatchMetadata:
     verify_finish_ms: float
     forced_service: bool = False
     sum_capacity_value: float = 0.0
+    # verifier tokens still waiting (arrived by batch_start_ms) after this
+    # batch was taken; read by server_queue_work="backlog".
+    backlog_token_cost: int = 0
 
 
 @dataclass

@@ -54,3 +54,14 @@ def test_theta_f_work_grows_when_overloaded():
     # 68 tokens x 3.83 = 260 ms of work per 222 ms batch -> load 1.18
     qs = _run(3.83, tokens=68, period_ms=222.0)
     assert qs[-1] > qs[len(qs) // 2] > 1000.0
+
+
+def test_backlog_sets_q_s_to_waiting_work_and_dedups():
+    ctrl = _ctrl()
+    assert ctrl.observe_server_backlog(0, 54.0) == 54.0
+    assert ctrl.server_queue == 54.0
+    # same batch id seen by another member of the batch: no change
+    assert ctrl.observe_server_backlog(0, 999.0) == 54.0
+    # empty queue drains Q_s at once (no fluid memory)
+    ctrl.observe_server_backlog(1, 0.0)
+    assert ctrl.server_queue == 0.0
