@@ -176,6 +176,7 @@ class EdgeSpecSimulator:
         # theta_f the controller prices with (theta_f_signal), i.e. only
         # the marginal per-token work that gamma controls.
         self.verifier.causal_release_bound = bool(batching.get("causal_release_bound", False))
+        self._age_weights = bool(batching.get("age_weights", False))
         self.server_queue_work = str(batching.get("server_queue_work", "wall")).lower()
         if self.server_queue_work not in {"wall", "theta_f", "backlog"}:
             raise ValueError(
@@ -253,6 +254,8 @@ class EdgeSpecSimulator:
         # alpha only and lagging low-alpha clients wait longest.
         sw_v = (self.cfg.get("verification_batching", {}) or {}).get("service_weight_v")
         self.service_weight_v = None if sw_v is None else float(sw_v)
+        if getattr(self, "_age_weights", False):
+            self.verifier.weight_refresh = self._aged_service_weight
         gs_cfg = controller_cfg.get("goodspeed_orig", {}) or {}
         self.controller.goodspeed_budget_tokens = int(gs_cfg.get("budget_tokens", 24))
         self.controller.goodspeed_beta = float(gs_cfg.get("beta", 0.5))
@@ -306,6 +309,7 @@ class EdgeSpecSimulator:
         samples = load_samples(self.cfg["dataset"])
         self.samples = list(samples)
         self.clients = self._make_clients(self.samples, num_clients=num_clients)
+        self._clients_by_id = {int(c.client_id): c for c in self.clients}
 
     @staticmethod
     def _prefix_hash(token_ids: list[int]) -> int:
@@ -328,6 +332,19 @@ class EdgeSpecSimulator:
         normalized = [probability / total_probability for probability in probabilities]
         selected_name = random.choices(names, weights=normalized, k=1)[0]
         return selected_name, class_cfgs[selected_name]
+
+    def _aged_service_weight(self, request, now_ms: float) -> float:
+        """verification_batching.age_weights: w_i = m_i (V_s + w_z Z_i(t)),
+        with Z_i(t) = Z_i + min_tps * wait, the deficit the client accrues
+        while its request sits unserved (Z only updates on completions)."""
+        client = self._clients_by_id[int(request.client_id)]
+        ctrl = self.controller
+        v_s = ctrl.V if self.service_weight_v is None else self.service_weight_v
+        z = ctrl.capacity_dpp_weighted_z(client)
+        if ctrl.use_virtual_queues:
+            wait_s = max(0.0, float(now_ms) - float(request.arrival_time)) / 1000.0
+            z += ctrl.capacity_dpp_z_weight * ctrl.min_tps * wait_s
+        return client.diagnostic_priority_multiplier * (v_s + z)
 
     @staticmethod
     def _transfer_time_ms(payload_bytes: float, rate_mbps: float, packet_loss: float) -> float:

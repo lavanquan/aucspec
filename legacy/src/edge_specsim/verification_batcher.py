@@ -73,6 +73,11 @@ class VerificationBatcher:
         self.server_queue = VerificationQueue(random_seed=scheduler_seed)
         self.task: asyncio.Task[None] | None = None
         self.batch_counter = 0
+        # Optional (request, now_ms) -> weight. When set, every waiting
+        # request's weight is recomputed before each pop, so a request that
+        # waits keeps accruing deficit (its Z grows while it is unserved)
+        # instead of keeping the weight it had at submission.
+        self.weight_refresh = None
         self.server_available_at_ms = 0.0
         # Causal batching: a callable giving a lower bound on the virtual
         # server-arrival time of every request not yet submitted (inf when
@@ -265,7 +270,7 @@ class VerificationBatcher:
                 while self.server_queue:
                     effective_budget = self._effective_verify_token_budget()
                     await self._process(
-                        self.server_queue.pop_batch(
+                        self._pop_batch(
                             scheduler_name=self.scheduler_name,
                             max_batch_size=self.max_batch_size,
                             batch_wait_ms=self._window_ms(),
@@ -282,7 +287,7 @@ class VerificationBatcher:
                 if not await self._await_causal_arrivals():
                     break
                 effective_budget = self._effective_verify_token_budget()
-                batch = self.server_queue.pop_batch(
+                batch = self._pop_batch(
                     scheduler_name=self.scheduler_name,
                     max_batch_size=self.max_batch_size,
                     batch_wait_ms=self._window_ms(),
@@ -297,7 +302,7 @@ class VerificationBatcher:
                     await asyncio.sleep(0)
                     await self._drain_queue()
                     effective_budget = self._effective_verify_token_budget()
-                    batch = self.server_queue.pop_batch(
+                    batch = self._pop_batch(
                         scheduler_name=self.scheduler_name,
                         max_batch_size=self.max_batch_size,
                         batch_wait_ms=self._window_ms(),
@@ -305,6 +310,13 @@ class VerificationBatcher:
                         utility_lambda=self.utility_lambda,
                     )
                 await self._process(batch, effective_budget)
+
+    def _pop_batch(self, **kwargs):
+        if self.weight_refresh is not None:
+            now_ms = float(self.server_available_at_ms)
+            for request in self.server_queue.waiting:
+                request.weight = float(self.weight_refresh(request, now_ms))
+        return self.server_queue.pop_batch(**kwargs)
 
     async def _drain_queue(self) -> None:
         while True:
@@ -456,6 +468,7 @@ class VerificationBatcher:
             verify_finish_ms=batch_metadata.batch_start_ms + modeled_batch_service_ms,
             forced_service=batch_metadata.forced_service,
             sum_capacity_value=batch_metadata.sum_capacity_value,
+            backlog_token_cost=batch_metadata.backlog_token_cost,
         )
         self.server_available_at_ms = batch_metadata.verify_finish_ms
         for request, result in zip(batch, results):
