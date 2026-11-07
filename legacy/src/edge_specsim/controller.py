@@ -158,6 +158,12 @@ class OnlineController:
         # ~0.03 tokens per 100 ms slot for a client 0.3 tok/s short of x,
         # so against V=3000 it never moves gamma. 1.0 = original.
         self.capacity_dpp_z_weight = 1.0
+        # z_relative: in the gamma score only, use w_z*(Z_i - mean_j Z_j)
+        # instead of w_z*Z_i, so Z redistributes gamma between clients
+        # without raising the total verifier load when every client lags.
+        # The batch weight keeps the absolute Z. False = original.
+        self.capacity_dpp_z_relative = False
+        self.capacity_dpp_clients = None  # set by the simulator
         self._seen_server_batches: set[int] = set()
         self.fixed_slo_ms = float(fixed_slo_ms)
         self.gelato_v = float(V) if gelato_v is None else float(gelato_v)
@@ -489,6 +495,15 @@ class OnlineController:
             return 0.0
         return self.capacity_dpp_z_weight * client.z_queue
 
+    def capacity_dpp_gamma_z(self, client: ClientProfile) -> float:
+        """Z term used to price gamma (absolute, or relative to the mean)."""
+        z_i = self.capacity_dpp_weighted_z(client)
+        if not self.capacity_dpp_z_relative or not self.capacity_dpp_clients:
+            return z_i
+        clients = self.capacity_dpp_clients
+        mean_z = sum(self.capacity_dpp_weighted_z(c) for c in clients) / len(clients)
+        return z_i - mean_z
+
     def capacity_dpp_score(
         self,
         client: ClientProfile,
@@ -506,11 +521,11 @@ class OnlineController:
         use_virtual_queues is False, degenerating to argmax phi (i.e.
         largest gamma), which the tests check.
         """
-        z_i = self.capacity_dpp_weighted_z(client)
+        z_i = self.capacity_dpp_gamma_z(client)
         q_s = self.server_queue if self.use_virtual_queues else 0.0
         q_i = client.device_queue if self.use_virtual_queues else 0.0
         phi_hat = expected_useful_tokens_from_profile(acceptance_profile) if gamma > 0 else 1.0
-        benefit = (self.V + z_i) * phi_hat
+        benefit = max(0.0, self.V + z_i) * phi_hat
         verifier_cost = q_s * self.current_verifier_theta_f_ms_per_token * (gamma + 1)
         device_cost = q_i * gamma * self._capacity_dpp_device_cost_per_token_ms(client)
         drift_cost = 0.0
@@ -609,11 +624,11 @@ class OnlineController:
             (V + Z_i) * alpha^(gamma+1)  >=  Q_s*theta_f + Q_i*(tau_d + kappa/r).
         Tested to agree with the discrete argmax under the scalar model.
         """
-        z_i = self.capacity_dpp_weighted_z(client)
+        z_i = self.capacity_dpp_gamma_z(client)
         q_s = self.server_queue if self.use_virtual_queues else 0.0
         q_i = client.device_queue if self.use_virtual_queues else 0.0
         a = min(1.0 - 1e-12, max(1e-12, float(alpha)))
-        marginal_benefit = (self.V + z_i) * (a ** (gamma + 1))
+        marginal_benefit = max(0.0, self.V + z_i) * (a ** (gamma + 1))
         marginal_cost = (
             q_s * self.current_verifier_theta_f_ms_per_token
             + q_i * self._capacity_dpp_device_cost_per_token_ms(client)

@@ -247,6 +247,7 @@ class EdgeSpecSimulator:
         self.controller.capacity_dpp_z_weight = max(
             0.0, float(dpp_cfg.get("z_weight", 1.0))
         )
+        self.controller.capacity_dpp_z_relative = bool(dpp_cfg.get("z_relative", False))
         # verification_batching.service_weight_v: the V used in the batch
         # weight w_i = V_s + w_z Z_i, decoupled from the controller V that
         # prices gamma. None (default) = controller V (old behaviour). When
@@ -310,6 +311,7 @@ class EdgeSpecSimulator:
         self.samples = list(samples)
         self.clients = self._make_clients(self.samples, num_clients=num_clients)
         self._clients_by_id = {int(c.client_id): c for c in self.clients}
+        self.controller.capacity_dpp_clients = list(self.clients)
 
     @staticmethod
     def _prefix_hash(token_ids: list[int]) -> int:
