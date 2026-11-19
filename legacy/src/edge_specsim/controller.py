@@ -164,6 +164,29 @@ class OnlineController:
         # The batch weight keeps the absolute Z. False = original.
         self.capacity_dpp_z_relative = False
         self.capacity_dpp_clients = None  # set by the simulator
+        # benefit_floor kappa: gamma benefit weight max(kappa*V, V + z_i)
+        # instead of max(0, V + z_i). With z_relative and x above capacity,
+        # V + z_i < 0 for every fast client, which then gets gamma=0 and
+        # wastes goodput; kappa>0 keeps some speculation for them.
+        # 0.0 = original hard clip.
+        self.capacity_dpp_benefit_floor = 0.0
+        # load_price: scale the quadratic drift term's N by a measured load
+        # factor s = clip(fill_ema / load_price_ref, load_price_min,
+        # load_price_max), fill = verifier tokens of a batch / budget. An
+        # unsaturated verifier then prices gamma lower. False = original.
+        self.capacity_dpp_load_price = False
+        self.capacity_dpp_load_price_ref = 1.0
+        self.capacity_dpp_load_price_min = 0.25
+        self.capacity_dpp_load_price_max = 1.0
+        self.capacity_dpp_load_ema = 0.05
+        # z_load_damping lambda: scale the relative z term in the gamma
+        # price by max(0, 1 - lambda*fill_ema). When the budget binds,
+        # verifier tokens are zero-sum and the aged batch order already
+        # protects laggards, so redistributing depth costs efficiency.
+        # 0.0 = original.
+        self.capacity_dpp_z_load_damping = 0.0
+        self.capacity_dpp_fill_ema = None
+        self._seen_fill_batches: set[int] = set()
         self._seen_server_batches: set[int] = set()
         self.fixed_slo_ms = float(fixed_slo_ms)
         self.gelato_v = float(V) if gelato_v is None else float(gelato_v)
@@ -495,6 +518,30 @@ class OnlineController:
             return 0.0
         return self.capacity_dpp_z_weight * client.z_queue
 
+    def observe_batch_fill(self, batch_id: int, token_cost: float, budget: float) -> None:
+        """EMA of the verifier-budget fill fraction, the load signal used
+        by load_price and z_load_damping. One update per batch."""
+        if batch_id in self._seen_fill_batches:
+            return
+        self._seen_fill_batches.add(batch_id)
+        fill = min(1.0, max(0.0, float(token_cost) / max(1.0, float(budget))))
+        if self.capacity_dpp_fill_ema is None:
+            self.capacity_dpp_fill_ema = fill
+        else:
+            b = min(1.0, max(0.0, self.capacity_dpp_load_ema))
+            self.capacity_dpp_fill_ema = (1.0 - b) * self.capacity_dpp_fill_ema + b * fill
+
+    def _capacity_dpp_fill(self) -> float:
+        return 1.0 if self.capacity_dpp_fill_ema is None else float(self.capacity_dpp_fill_ema)
+
+    def capacity_dpp_load_scale(self) -> float:
+        """Multiplier on N in the quadratic drift term (1.0 when off)."""
+        if not self.capacity_dpp_load_price:
+            return 1.0
+        ref = max(1e-6, float(self.capacity_dpp_load_price_ref))
+        s = self._capacity_dpp_fill() / ref
+        return min(self.capacity_dpp_load_price_max, max(self.capacity_dpp_load_price_min, s))
+
     def capacity_dpp_gamma_z(self, client: ClientProfile) -> float:
         """Z term used to price gamma (absolute, or relative to the mean)."""
         z_i = self.capacity_dpp_weighted_z(client)
@@ -502,7 +549,14 @@ class OnlineController:
             return z_i
         clients = self.capacity_dpp_clients
         mean_z = sum(self.capacity_dpp_weighted_z(c) for c in clients) / len(clients)
-        return z_i - mean_z
+        rel = z_i - mean_z
+        if self.capacity_dpp_z_load_damping > 0.0:
+            rel *= max(0.0, 1.0 - self.capacity_dpp_z_load_damping * self._capacity_dpp_fill())
+        return rel
+
+    def capacity_dpp_benefit_weight(self, z_i: float) -> float:
+        floor = max(0.0, float(self.capacity_dpp_benefit_floor)) * self.V
+        return max(floor, self.V + z_i)
 
     def capacity_dpp_score(
         self,
@@ -525,7 +579,7 @@ class OnlineController:
         q_s = self.server_queue if self.use_virtual_queues else 0.0
         q_i = client.device_queue if self.use_virtual_queues else 0.0
         phi_hat = expected_useful_tokens_from_profile(acceptance_profile) if gamma > 0 else 1.0
-        benefit = max(0.0, self.V + z_i) * phi_hat
+        benefit = self.capacity_dpp_benefit_weight(z_i) * phi_hat
         verifier_cost = q_s * self.current_verifier_theta_f_ms_per_token * (gamma + 1)
         device_cost = q_i * gamma * self._capacity_dpp_device_cost_per_token_ms(client)
         drift_cost = 0.0
@@ -535,6 +589,7 @@ class OnlineController:
                 0.5
                 * self.capacity_dpp_quadratic_drift_weight
                 * max(1, self.current_active_clients)
+                * self.capacity_dpp_load_scale()
                 * arrival_ms
                 * arrival_ms
             )
@@ -549,6 +604,8 @@ class OnlineController:
                 "dec_device_cost_per_token_ms": float(self._capacity_dpp_device_cost_per_token_ms(client)),
                 "dec_drift_cost_gmax": float(drift_cost),
                 "dec_phi_gmax": float(phi_hat),
+                "dec_fill_ema": float(self._capacity_dpp_fill()),
+                "dec_load_scale": float(self.capacity_dpp_load_scale()),
             }
         return float(benefit - verifier_cost - device_cost - drift_cost)
 
@@ -628,7 +685,7 @@ class OnlineController:
         q_s = self.server_queue if self.use_virtual_queues else 0.0
         q_i = client.device_queue if self.use_virtual_queues else 0.0
         a = min(1.0 - 1e-12, max(1e-12, float(alpha)))
-        marginal_benefit = max(0.0, self.V + z_i) * (a ** (gamma + 1))
+        marginal_benefit = self.capacity_dpp_benefit_weight(z_i) * (a ** (gamma + 1))
         marginal_cost = (
             q_s * self.current_verifier_theta_f_ms_per_token
             + q_i * self._capacity_dpp_device_cost_per_token_ms(client)

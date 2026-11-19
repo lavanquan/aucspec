@@ -248,6 +248,17 @@ class EdgeSpecSimulator:
             0.0, float(dpp_cfg.get("z_weight", 1.0))
         )
         self.controller.capacity_dpp_z_relative = bool(dpp_cfg.get("z_relative", False))
+        self.controller.capacity_dpp_benefit_floor = max(
+            0.0, float(dpp_cfg.get("benefit_floor", 0.0))
+        )
+        self.controller.capacity_dpp_load_price = bool(dpp_cfg.get("load_price", False))
+        self.controller.capacity_dpp_load_price_ref = float(dpp_cfg.get("load_price_ref", 1.0))
+        self.controller.capacity_dpp_load_price_min = float(dpp_cfg.get("load_price_min", 0.25))
+        self.controller.capacity_dpp_load_price_max = float(dpp_cfg.get("load_price_max", 1.0))
+        self.controller.capacity_dpp_load_ema = float(dpp_cfg.get("load_ema", 0.05))
+        self.controller.capacity_dpp_z_load_damping = max(
+            0.0, float(dpp_cfg.get("z_load_damping", 0.0))
+        )
         # verification_batching.service_weight_v: the V used in the batch
         # weight w_i = V_s + w_z Z_i, decoupled from the controller V that
         # prices gamma. None (default) = controller V (old behaviour). When
@@ -957,6 +968,11 @@ class EdgeSpecSimulator:
             batch_ready_ms=batch_metadata.batch_ready_ms,
             batch_start_ms=batch_metadata.batch_start_ms,
             verify_finish_ms=batch_metadata.verify_finish_ms,
+        )
+        self.controller.observe_batch_fill(
+            batch_id=batch_id,
+            token_cost=batch_metadata.batch_token_cost,
+            budget=batch_metadata.batch_token_budget,
         )
         if self.server_queue_work == "backlog":
             lambda_price = self.controller.observe_server_backlog(
