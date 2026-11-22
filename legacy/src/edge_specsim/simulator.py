@@ -561,6 +561,34 @@ class EdgeSpecSimulator:
             qpc = self._nested_qpc
             for i in range(num_clients):
                 shards[i] = _deque(samples[i * qpc : (i + 1) * qpc])
+            # simulation.nested_class_datasets: honour client_classes.<name>.dataset
+            # in nested mode (default False = old behaviour: every client draws
+            # from the global dataset). Client i of class k gets block
+            # rank_k(i) of class k's own pool, where rank_k(i) counts earlier
+            # clients of the same class, so the assignment of client i does not
+            # depend on clients after it.
+            if bool(self.cfg["simulation"].get("nested_class_datasets", False)):
+                class_pools: dict[str, list] = {}
+                class_rank: dict[str, int] = {}
+                for i in range(num_clients):
+                    override = assigned_cfgs[i].get("dataset")
+                    if not override:
+                        continue
+                    name = assigned_names[i]
+                    if name not in class_pools:
+                        class_dataset_cfg = dict(self.cfg["dataset"])
+                        class_dataset_cfg.update(override)
+                        class_dataset_cfg["num_questions"] = self._nested_n_max * qpc
+                        class_pools[name] = list(load_samples(class_dataset_cfg))
+                        self.samples.extend(class_pools[name])
+                    rank = class_rank.get(name, 0)
+                    class_rank[name] = rank + 1
+                    block = class_pools[name][rank * qpc : (rank + 1) * qpc]
+                    if len(block) < qpc:
+                        raise ValueError(
+                            f"class {name}: pool too small for nested block {rank} (qpc={qpc})"
+                        )
+                    shards[i] = _deque(block)
             fp_payload = _json.dumps(
                 {
                     "seed": int(self.cfg["simulation"]["seed"]),
