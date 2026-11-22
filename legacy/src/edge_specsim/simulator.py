@@ -248,6 +248,9 @@ class EdgeSpecSimulator:
             0.0, float(dpp_cfg.get("z_weight", 1.0))
         )
         self.controller.capacity_dpp_z_relative = bool(dpp_cfg.get("z_relative", False))
+        self.controller.turbospec_exploration = bool(
+            controller_cfg.get("turbospec_exploration", False)
+        )
         self.controller.capacity_dpp_benefit_floor = max(
             0.0, float(dpp_cfg.get("benefit_floor", 0.0))
         )

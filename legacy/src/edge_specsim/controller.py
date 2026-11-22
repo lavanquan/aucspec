@@ -109,6 +109,11 @@ class OnlineController:
         self.slot_ms = float(slot_ms)
         self.min_exploration_rounds = max(0, int(min_exploration_rounds))
         self.exploration_epsilon = min(1.0, max(0.0, float(exploration_epsilon)))
+        # turbospec_exploration: apply the same warm-up (min_exploration_rounds)
+        # and epsilon exploration used by the adaptive_* policies to TurboSpec,
+        # whose point-estimate argmax otherwise can freeze at gamma=0 (no
+        # acceptance feedback at gamma=0). False = original TurboSpec.
+        self.turbospec_exploration = False
         self.use_virtual_queues = bool(use_virtual_queues)
         self.proposal_distribution_payload = str(proposal_distribution_payload)
         self.proposal_vocab_size = (
@@ -874,7 +879,10 @@ class OnlineController:
     def _apply_exploration(self, client: ClientProfile, gamma: int) -> int:
         client.last_forced_exploration = False
         client.last_exploration_reason = "policy"
-        if self.policy not in {"adaptive_queue", "adaptive_ucb", "adaptive_index"}:
+        explored = {"adaptive_queue", "adaptive_ucb", "adaptive_index"}
+        if self.turbospec_exploration:
+            explored = explored | {"turbospec"}
+        if self.policy not in explored:
             return gamma
         if not self._positive_gamma_choices:
             return gamma
