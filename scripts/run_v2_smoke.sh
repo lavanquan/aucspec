@@ -10,7 +10,8 @@
 # scripts/run_capacity_frontier.sh.
 #   sbatch scripts/run_v2_smoke.sh [v2_smoke.py args]
 set -x
-cd /software/projects/pawsey1257/quanla/aucspec
+# AUCSPEC_REPO: run from another checkout/worktree (default: main repo).
+cd "${AUCSPEC_REPO:-/software/projects/pawsey1257/quanla/aucspec}"
 module load pawseyenv/2025.08 pytorch/2.7.1-rocm6.3.3  # 2026.11 stack is default since 2026-11
 
 PROJECT=/software/projects/pawsey1257/quanla/aucspec
@@ -20,6 +21,7 @@ export TRITON_CACHE_DIR="$PROJECT/.triton-cache"
 export XDG_CACHE_HOME="$PROJECT/.cache"
 export HF_HOME="$PROJECT/.hf-home"
 export HF_HUB_CACHE="$PROJECT/models"
+export HF_DATASETS_CACHE="${HF_DATASETS_CACHE:-$PROJECT/.hf-datasets-cache}"
 export TRANSFORMERS_CACHE="$PROJECT/models"
 export TORCHINDUCTOR_CACHE_DIR="$PROJECT/.torchinductor-cache"
 export PYTHONUNBUFFERED=1
