@@ -251,6 +251,9 @@ class EdgeSpecSimulator:
         self.controller.turbospec_exploration = bool(
             controller_cfg.get("turbospec_exploration", False)
         )
+        self.controller.fixed_slo_mode = str(controller_cfg.get("fixed_slo_mode", "round_time")).lower()
+        if self.controller.fixed_slo_mode not in {"round_time", "rate_floor"}:
+            raise ValueError("controller.fixed_slo_mode must be round_time or rate_floor")
         self.controller.capacity_dpp_benefit_floor = max(
             0.0, float(dpp_cfg.get("benefit_floor", 0.0))
         )

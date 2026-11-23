@@ -114,6 +114,12 @@ class OnlineController:
         # whose point-estimate argmax otherwise can freeze at gamma=0 (no
         # acceptance feedback at gamma=0). False = original TurboSpec.
         self.turbospec_exploration = False
+        # fixed_slo_mode: "round_time" (original: largest gamma whose round-time
+        # estimate <= fixed_slo_ms) or "rate_floor" (largest gamma whose
+        # predicted rate E[tokens](gamma)/round_time(gamma) >= min_tps = x,
+        # else the max-predicted-rate gamma). Uses TurboSpec's estimator
+        # (point alpha_hat, no verifier queueing in the round time).
+        self.fixed_slo_mode = "round_time"
         self.use_virtual_queues = bool(use_virtual_queues)
         self.proposal_distribution_payload = str(proposal_distribution_payload)
         self.proposal_vocab_size = (
@@ -827,6 +833,13 @@ class OnlineController:
         self.fixed_slo_ms (uniform across clients here -- a simplification
         TASKS.md T3.4 explicitly allows; per-client SLOs would just need a
         dict keyed by client_id instead of one scalar)."""
+        if self.fixed_slo_mode == "rate_floor":
+            rates = {g: 1000.0 * self._turbospec_goodput(client, g) for g in self.gamma_choices}
+            meeting = [g for g, r in rates.items() if r >= self.min_tps]
+            if meeting:
+                return max(meeting)
+            best = max(rates.values())
+            return min(g for g, r in rates.items() if r == best)
         best_gamma = 0
         for candidate in self.gamma_choices:
             if self._round_time_estimate_ms(client, candidate) <= self.fixed_slo_ms:
@@ -881,7 +894,9 @@ class OnlineController:
         client.last_exploration_reason = "policy"
         explored = {"adaptive_queue", "adaptive_ucb", "adaptive_index"}
         if self.turbospec_exploration:
-            explored = explored | {"turbospec"}
+            # also covers the SLO-aware baseline, which shares TurboSpec's
+            # point estimator and can freeze at gamma=0 the same way
+            explored = explored | {"turbospec", "fixed_slo"}
         if self.policy not in explored:
             return gamma
         if not self._positive_gamma_choices:
