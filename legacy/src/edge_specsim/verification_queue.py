@@ -108,18 +108,41 @@ class VerificationQueue:
     # drops the Q_s*theta_f term from v_i (theta_f then only prices gamma).
     capacity_work_conserving: bool = False
     capacity_scheduler_theta_f: bool = True
+    # scheduler="vtc": Virtual Token Counter (Sheng et al., OSDI'24) at
+    # verifier-token granularity. counter[c] grows by gamma+1 per served
+    # request. A client seen for the first time starts at the minimum
+    # counter of the backlogged clients (or, with an empty backlog, at the
+    # counter of the last served client) so late joiners earn no credit.
+    # VTC's lift on every re-entry to the backlog is NOT applied: here each
+    # active client has one outstanding round at a time and leaves the
+    # queue between rounds (draft + network), so that lift would erase the
+    # deficit VTC is meant to repay. Unused for every other scheduler.
+    vtc_counter: dict = field(default_factory=dict)
+    _vtc_last_served: float = field(default=0.0, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.random_seed)
 
+    def _vtc_lift(self, request: VerificationRequest) -> None:
+        cid = request.client_id
+        if cid in self.vtc_counter:
+            return
+        backlogged = {r.client_id for r in self.waiting}
+        floor = (min(self.vtc_counter.get(c, 0.0) for c in backlogged)
+                 if backlogged else self._vtc_last_served)
+        self.vtc_counter[cid] = floor
+
     def push(self, request: VerificationRequest) -> None:
+        self._vtc_lift(request)
         self.waiting.append(request)
         self.waiting.sort(key=lambda item: item.arrival_time)
 
     def extend(self, requests: list[VerificationRequest]) -> None:
         if not requests:
             return
-        self.waiting.extend(requests)
+        for request in requests:
+            self._vtc_lift(request)
+            self.waiting.append(request)
         self.waiting.sort(key=lambda item: item.arrival_time)
 
     def pop_batch(
@@ -138,6 +161,8 @@ class VerificationQueue:
             return []
         if scheduler_name == "fcfs":
             selected = self._select_fcfs(eligible, max_batch_size, verify_token_budget)
+        elif scheduler_name == "vtc":
+            selected = self._select_vtc(eligible, max_batch_size, verify_token_budget)
         elif scheduler_name == "random":
             selected = self._select_random(eligible, max_batch_size, verify_token_budget)
         elif scheduler_name == "equal_tokens":
@@ -231,7 +256,7 @@ class VerificationQueue:
                 "verification_batching.scheduler must be one of: "
                 "fcfs, random, equal_tokens, max_expected_accepted_tokens, "
                 "max_throughput, max_expected_accepted_per_cost, weighted_utility, "
-                "knapsack, capacity_knapsack"
+                "knapsack, capacity_knapsack, vtc"
             )
 
         self.last_batch_forced_service = not selected
@@ -278,6 +303,33 @@ class VerificationQueue:
     ) -> float:
         del utility_lambda
         return cls._weighted_utility_value(request, 0.0) / request.verifier_token_cost
+
+    def _select_vtc(
+        self,
+        eligible: list[VerificationRequest],
+        max_batch_size: int,
+        verify_token_budget: int,
+    ) -> list[VerificationRequest]:
+        """Lowest counter first (ties: earliest arrival), fill up to the
+        token budget and batch size like FCFS; charge gamma+1 per pick."""
+        order = sorted(
+            eligible,
+            key=lambda r: (self.vtc_counter.get(r.client_id, 0.0), r.arrival_time),
+        )
+        selected: list[VerificationRequest] = []
+        total_cost = 0
+        for request in order:
+            if len(selected) >= max_batch_size:
+                break
+            cost = request.verifier_token_cost
+            if total_cost + cost <= verify_token_budget or not selected:
+                selected.append(request)
+                total_cost += cost
+        for request in selected:
+            cid = request.client_id
+            self.vtc_counter[cid] = self.vtc_counter.get(cid, 0.0) + request.verifier_token_cost
+            self._vtc_last_served = self.vtc_counter[cid]
+        return selected
 
     @staticmethod
     def _select_fcfs(
